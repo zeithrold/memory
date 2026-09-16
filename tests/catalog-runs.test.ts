@@ -3,8 +3,9 @@ import type { getRunDetail } from '../lib/server/catalog/query'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../lib/server/api'
+import { selectBatch } from '../lib/server/catalog/model'
 import { listProposals, revertRun } from '../lib/server/catalog/query'
-import { dispatchCatalogWorkflow } from '../lib/server/catalog/run'
+import { dispatchCatalogWorkflow, finishRun } from '../lib/server/catalog/run'
 import { createMemory, moveMemoryProject } from '../lib/server/memories'
 import { database } from './database'
 
@@ -352,6 +353,33 @@ describe('deciding a proposal', () => {
     expect(categories).toEqual([expect.objectContaining({ slug: 'databases', createdBy: 'user' })])
     expect(await listProposals(env, 'alice')).toHaveLength(0)
   })
+  it('clears implicit skips and refreshes counters after approving a category', async () => {
+    const mem = await memory('Database access')
+    await env.DB.prepare(
+      `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at, source)
+       VALUES ('alice', ?, 'Left unclassified by the agent.', 1, 2, '2026-09-16T00:00:00.000Z', 'implicit')`,
+    )
+      .bind(mem.id)
+      .run()
+    const proposalId = await seedProposal('create_category', {
+      parentId: null,
+      slug: 'databases',
+      label: 'Databases',
+      description: 'Database choices.',
+      boundary: 'NOT here: application code.',
+      axisHint: null,
+    })
+
+    await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'approve' })
+
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_skips').first('n')).toBe(0)
+    expect(await selectBatch(env, 'alice', 10, '2000-01-01T00:00:00.000Z')).toContain(mem.id)
+    expect(
+      await env.DB.prepare(
+        'SELECT category_count, orphan_count, skipped_count FROM catalog_state WHERE owner_id = \'alice\'',
+      ).first(),
+    ).toEqual({ category_count: 1, orphan_count: 1, skipped_count: 0 })
+  })
   it('merges an approved category into its target', async () => {
     const from = await category('noise', 'Noise')
     const into = await category('backend', 'Backend')
@@ -427,7 +455,10 @@ describe('scheduled dispatch', () => {
   it('starts one instance per cadence window, keyed to the window', async () => {
     const onBoundary = await dispatchCatalogWorkflow(env, 30 * 60_000)
     expect(onBoundary).toEqual({ dispatched: true, instanceId: 'catalog-30' })
-    expect(createRun).toHaveBeenCalledWith({ id: 'catalog-30', params: {} })
+    expect(createRun).toHaveBeenCalledWith({
+      id: 'catalog-30',
+      params: { scheduledAt: 30 * 60_000 },
+    })
     // A Workflow `schedules` entry is rejected on a Free plan, so the minute
     // cron is the only thing that can start an instance.
     createRun.mockClear()
@@ -447,5 +478,19 @@ describe('scheduled dispatch', () => {
   it('does nothing where the deployment declares no Workflow', async () => {
     const bare: Env = { ...env, CATALOG_WORKFLOW: undefined }
     expect(await dispatchCatalogWorkflow(bare, 0)).toEqual({ dispatched: false, instanceId: null })
+  })
+  it('anchors the next run to the scheduled window and lets manual runs preserve it', async () => {
+    await configure({ intervalMinutes: 60 })
+    const scheduledRun = await openRun('live', 'running')
+    await finishRun(env, 'alice', scheduledRun, 'succeeded', undefined, 30 * 60_000)
+    expect(
+      await env.DB.prepare('SELECT next_run_at FROM catalog_state WHERE owner_id = \'alice\'').first('next_run_at'),
+    ).toBe(new Date(90 * 60_000).toISOString())
+
+    const manualRun = await openRun('live', 'running')
+    await finishRun(env, 'alice', manualRun, 'succeeded')
+    expect(
+      await env.DB.prepare('SELECT next_run_at FROM catalog_state WHERE owner_id = \'alice\'').first('next_run_at'),
+    ).toBe(new Date(90 * 60_000).toISOString())
   })
 })

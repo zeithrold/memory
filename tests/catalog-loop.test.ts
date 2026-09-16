@@ -2,6 +2,8 @@ import type { Principal } from '../lib/contracts'
 import type { TurnInput } from '../lib/server/catalog/turn'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { selectBatch } from '../lib/server/catalog/model'
+import { consolidate, finalizeBatch } from '../lib/server/catalog/run'
 import { updateCatalogSettings } from '../lib/server/catalog/settings'
 import { actTurn, thinkTurn } from '../lib/server/catalog/turn'
 import { createMemory } from '../lib/server/memories'
@@ -338,6 +340,81 @@ describe('the agent loop', () => {
       .all<{ evidence_runs: number }>()
     // One proposal with two runs of evidence, not two duplicate proposals.
     expect(rows.results).toEqual([{ evidence_runs: 2 }])
+  })
+
+  it('keeps distinct category suggestions separate in one turn', async () => {
+    script(calls(['databases', 'release', 'interviews', 'travel'].map(slug => ({
+      name: 'propose_category',
+      arguments: {
+        slug,
+        label: slug,
+        description: `${slug} memories.`,
+        boundary: `NOT here: anything outside ${slug}.`,
+        reason: `${slug} needs its own category.`,
+      },
+    }))))
+    await thinkTurn(input())
+    await actTurn(input(), 0)
+
+    const proposals = await env.DB.prepare(
+      'SELECT id, evidence_runs, json_extract(payload_json, \'$.slug\') AS slug FROM catalog_proposals ORDER BY slug',
+    ).all<{ id: string, evidence_runs: number, slug: string }>()
+    expect(proposals.results.map(row => row.slug)).toEqual(['databases', 'interviews', 'release', 'travel'])
+    expect(new Set(proposals.results.map(row => row.id)).size).toBe(4)
+    expect(proposals.results.every(row => row.evidence_runs === 1)).toBe(true)
+  })
+
+  it('counts at most one piece of evidence for a proposal in one run', async () => {
+    const proposal = {
+      name: 'propose_category',
+      arguments: {
+        slug: 'databases',
+        label: 'Databases',
+        description: 'Database access.',
+        boundary: 'NOT here: release process.',
+        reason: 'The batch needs it.',
+      },
+    }
+    script(calls([proposal, proposal]))
+    await thinkTurn(input())
+    await actTurn(input(), 0)
+
+    expect(await env.DB.prepare('SELECT evidence_runs FROM catalog_proposals').first('evidence_runs')).toBe(1)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_proposal_evidence').first('n')).toBe(1)
+
+    await updateCatalogSettings(env, 'alice', { autoApplyStructural: true })
+    expect(await consolidate(env, 'alice', runId)).toMatchObject({ applied: 0, queued: 1 })
+    expect(await categoryCount()).toBe(0)
+  })
+
+  it('does not create implicit skips when a dry-run batch is finalized', async () => {
+    await finalizeBatch(
+      env,
+      'alice',
+      runId,
+      memoryIds,
+      { turns: 1, toolCalls: 1, rejected: 0, applied: 0 },
+      'dry_run',
+    )
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_skips').first('n')).toBe(0)
+  })
+
+  it('retries an implicit skip three times and keeps an explicit skip suppressed', async () => {
+    const stats = { turns: 1, toolCalls: 0, rejected: 0, applied: 0 }
+    const cutoff = '2000-01-01T00:00:00.000Z'
+    const firstMemory = memoryIds[0]!
+    const secondMemory = memoryIds[1]!
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await finalizeBatch(env, 'alice', runId, [firstMemory], stats, 'live')
+      const selected = await selectBatch(env, 'alice', 10, cutoff)
+      expect(selected.includes(firstMemory)).toBe(attempt < 3)
+    }
+
+    vi.unstubAllGlobals()
+    script(calls([{ name: 'skip', arguments: { memoryId: secondMemory, reason: 'A settled one-off.' } }]))
+    await thinkTurn(input({ turn: 1 }))
+    await actTurn(input({ turn: 1 }), 0)
+    expect((await selectBatch(env, 'alice', 10, cutoff)).includes(secondMemory)).toBe(false)
   })
 
   it('keeps a settled classification unless the memory changed', async () => {

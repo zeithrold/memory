@@ -175,6 +175,15 @@ describe('catalog settings validation', () => {
     expect(status).toBe(400)
     expect(body).toMatchObject({ code: 'INVALID_INPUT' })
   })
+  it('accepts only intervals on the 30-minute dispatch grid', async () => {
+    const invalid = await call('/api/v1/catalog/settings', 'PUT', { intervalMinutes: 45 })
+    expect(invalid.status).toBe(400)
+    expect(invalid.body).toMatchObject({ code: 'INVALID_INPUT' })
+
+    const valid = await call('/api/v1/catalog/settings', 'PUT', { intervalMinutes: 60 })
+    expect(valid.status).toBe(200)
+    expect(valid.body).toMatchObject({ intervalMinutes: 60 })
+  })
 })
 
 describe('catalog settings storage', () => {

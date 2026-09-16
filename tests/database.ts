@@ -5,10 +5,14 @@ import { DatabaseSync } from 'node:sqlite'
 // SQLite executes the real D1 migrations and triggers in filename order. This
 // adapter only mirrors the D1 binding API; remote D1 behavior still has a
 // separate deployment smoke test.
-export function database(): { db: D1Database, sqlite: DatabaseSync } {
+export function database(options: { through?: string } = {}): { db: D1Database, sqlite: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:')
   const directory = new URL('../migrations/', import.meta.url)
-  for (const file of readdirSync(directory).filter(name => name.endsWith('.sql')).sort()) {
+  const files = readdirSync(directory)
+    .filter(name => name.endsWith('.sql'))
+    .filter(name => options.through === undefined || name <= options.through)
+    .sort()
+  for (const file of files) {
     sqlite.exec(readFileSync(new URL(file, directory), 'utf8'))
   }
   function prepare(sql: string, params: SQLInputValue[] = []) {

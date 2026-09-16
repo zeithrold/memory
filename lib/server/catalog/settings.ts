@@ -30,7 +30,7 @@ export const settingsInputSchema = z
     apiKey: z.string().trim().min(8).max(4096).optional(),
     clearApiKey: z.boolean().optional(),
     includeContent: z.boolean().optional(),
-    intervalMinutes: z.number().int().min(15).max(1440).optional(),
+    intervalMinutes: z.number().int().min(30).max(1440).refine(value => value % 30 === 0, 'Run interval must be a multiple of 30 minutes.').optional(),
     maxBatch: z.number().int().min(1).max(25).optional(),
     maxTurns: z.number().int().min(1).max(8).optional(),
     maxToolCalls: z.number().int().min(1).max(24).optional(),

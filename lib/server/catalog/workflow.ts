@@ -16,11 +16,13 @@ import {
 import { actTurn, thinkTurn } from './turn'
 
 /**
- * Parameters for a run. A scheduled firing carries an empty payload; a manual
- * run passes the owner, so the instance and the audit record share one identity.
+ * Parameters for a run. A scheduled firing carries its cadence-window time; a
+ * manual run passes the owner, so the instance and audit record share one identity.
  */
 export interface CatalogWorkflowParams {
   ownerId?: string
+  /** Exact Cron window used to keep recurring runs on the cadence grid. */
+  scheduledAt?: number
   /**
    * Set by the manual trigger, whose API already created the run row. Without
    * it the workflow claims a run itself, which is what a scheduled firing does.
@@ -66,6 +68,7 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
         event.payload.dryRun === true,
         'run',
         event.payload.runId,
+        undefined,
       )
     }
 
@@ -74,7 +77,15 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
     const owners: unknown[] = []
     for (const [index, owner] of due.entries()) {
       owners.push(
-        await this.runOwner(step, owner.ownerId, 'schedule', owner.dryRun, `owner-${index}`),
+        await this.runOwner(
+          step,
+          owner.ownerId,
+          'schedule',
+          owner.dryRun,
+          `owner-${index}`,
+          undefined,
+          event.payload.scheduledAt,
+        ),
       )
     }
     return { scheduled: due.length, owners }
@@ -87,6 +98,7 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
     dryRun: boolean,
     prefix: string,
     existingRunId?: string,
+    scheduledAt?: number,
   ): Promise<unknown> {
     // A manual run arrives with its row already created, so that the API can
     // return an identifier before the instance has even started.
@@ -162,16 +174,28 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
         if (!closed)
           exhausted = true
         await step.do(`${prefix}-${batch}-close`, async () =>
-          finalizeBatch(this.env, ownerId, runId, memoryIds, batchStats))
+          finalizeBatch(this.env, ownerId, runId, memoryIds, batchStats, opened.mode))
         totals.turns += batchStats.turns
         totals.toolCalls += batchStats.toolCalls
         totals.rejected += batchStats.rejected
         totals.applied += batchStats.applied
       }
-      await step.do(`${prefix}-consolidate`, async () =>
-        consolidate(this.env, ownerId, runId))
+      // A dry run may write its audit trail and scheduling metadata, but it
+      // must not apply an older pending proposal or create maintenance
+      // proposals while inspecting the catalog.
+      if (!claim.dryRun) {
+        await step.do(`${prefix}-consolidate`, async () =>
+          consolidate(this.env, ownerId, runId))
+      }
       await step.do(`${prefix}-finish`, async () =>
-        finishRun(this.env, ownerId, runId, exhausted ? 'partial' : 'succeeded'))
+        finishRun(
+          this.env,
+          ownerId,
+          runId,
+          exhausted ? 'partial' : 'succeeded',
+          undefined,
+          scheduledAt,
+        ))
       return { ownerId, runId, outcome: exhausted ? 'partial' : 'complete', totals }
     }
     catch (error) {
@@ -179,7 +203,7 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
       // run blocks the account until it is treated as stale.
       const code = error instanceof AppError ? error.code : 'INTERNAL_ERROR'
       await step.do(`${prefix}-fail`, async () =>
-        finishRun(this.env, ownerId, runId, 'failed', code))
+        finishRun(this.env, ownerId, runId, 'failed', code, scheduledAt))
       throw error
     }
   }

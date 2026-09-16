@@ -41,6 +41,11 @@ instance it already created. `scripts/deploy-check.ts` fails the build if a
 `schedules` entry reappears, because the alternative is rediscovering this at
 deploy time.
 
+Per-account intervals are 30-minute multiples. A scheduled run computes its
+next due time from the dispatch window rather than from model completion, so
+provider latency cannot turn a 30-minute cadence into almost an hour. A manual
+run does not postpone an already scheduled run.
+
 The cost is that the minute cron now also carries the dispatch, so the two share
 one Sentry Crons monitor. Creating 48 instances a day is negligible against the
 Free plan's 100,000 daily requests, and it keeps the minute-level index
@@ -98,7 +103,7 @@ tractable:
 | `catalog_overview`, `catalog_list`, `catalog_members`, `batch_list`, `memory_lookup` | read, not recorded |
 | `memory_search` | read, withheld by default (it would embed, and both the CPU budget and the shared Workers AI allowance are tight) |
 | `assign`, `unassign` | immediate, reversible |
-| `skip` | immediate; suppresses re-proposal until the memory changes |
+| `skip` | immediate; an explicit skip suppresses re-proposal until the memory changes |
 | `propose_category`, `propose_merge`, `propose_retire`, `propose_project_move` | backlogged only |
 | `finish` | ends the batch |
 
@@ -114,6 +119,10 @@ from 25 to 70 while every coherence metric got worse (EvoTaxo,
 `unassign` apply immediately — they are per-memory and reversible — while
 creation, merging and retirement accumulate evidence across runs and are applied
 by the consolidation pass, and only with evidence from more than one run.
+Evidence is unique by proposal and run: repeated calls or a Workflow replay in
+one run do not advance the threshold. New-category identity is its parent plus
+normalized slug, so sibling proposals are not collapsed merely because their
+target identifiers are initially null.
 
 Other rules come from the same place ([A2X, arXiv:2605.29270](https://export.arxiv.org/pdf/2605.29270)):
 siblings must share one classification axis, every category carries an explicit
@@ -236,6 +245,12 @@ swept to `failed`, so an abandoned run cannot block its account forever.
 The daily rollup in `catalog_metrics_daily` is written when a run finishes and is
 never pruned, which is what keeps the trends after the raw rows are gone.
 `GET /api/v1/catalog/metrics` returns both.
+
+An unclassified memory receives an implicit deferral, distinct from an explicit
+`skip`. It is retried up to three times, and creating a category clears implicit
+deferrals so the memories that motivated it can be classified. Dry runs write
+only audit, metrics and scheduling metadata; they never write either kind of
+skip or change catalog content.
 
 ## What the audit log measures
 

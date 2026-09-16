@@ -51,6 +51,42 @@ export interface CatalogSnapshot {
   memberships: Map<string, MembershipRow[]>
 }
 
+export const IMPLICIT_SKIP_REASON = 'Left unclassified by the agent.'
+
+/**
+ * Deletes only system deferrals. NULL is supported during the rolling upgrade
+ * from the first schema, where the fixed reason was the only discriminator.
+ */
+export async function clearImplicitSkips(env: Env, ownerId: string): Promise<void> {
+  await env.DB.prepare(
+    `DELETE FROM catalog_skips
+     WHERE owner_id = ?
+       AND COALESCE(source, CASE WHEN reason = ? THEN 'implicit' ELSE 'explicit' END) = 'implicit'`,
+  )
+    .bind(ownerId, IMPLICIT_SKIP_REASON)
+    .run()
+}
+
+/** Refreshes the materialized counters without changing scheduling metadata. */
+export async function refreshCatalogCounts(env: Env, ownerId: string): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO catalog_state(owner_id, version, category_count, assigned_count, orphan_count, skipped_count)
+     VALUES (?, 1,
+             (SELECT count(*) FROM categories WHERE owner_id = ? AND state != 'retired'),
+             (SELECT count(*) FROM memory_categories WHERE owner_id = ?),
+             (SELECT count(*) FROM memories m WHERE m.owner_id = ? AND m.deleted = 0
+                AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id = m.id)),
+             (SELECT count(*) FROM catalog_skips WHERE owner_id = ?))
+     ON CONFLICT(owner_id) DO UPDATE SET
+       category_count = excluded.category_count,
+       assigned_count = excluded.assigned_count,
+       orphan_count = excluded.orphan_count,
+       skipped_count = excluded.skipped_count`,
+  )
+    .bind(ownerId, ownerId, ownerId, ownerId, ownerId)
+    .run()
+}
+
 export async function loadCategories(env: Env, ownerId: string): Promise<CategoryRow[]> {
   const rows = await env.DB.prepare(
     `SELECT * FROM categories
@@ -190,12 +226,18 @@ export async function selectBatch(
      FROM candidate c
      LEFT JOIN catalog_skips s ON s.memory_id = c.id AND s.owner_id = ?
      WHERE (c.classified_at IS NULL OR c.classified_at < c.updated_at OR c.classified_at < ?)
-       AND (s.memory_id IS NULL OR s.memory_version != c.version)
-       AND (s.memory_id IS NULL OR s.attempts < 3)
+       AND (
+         s.memory_id IS NULL
+         OR s.memory_version != c.version
+         OR (
+           COALESCE(s.source, CASE WHEN s.reason = ? THEN 'implicit' ELSE 'explicit' END) = 'implicit'
+           AND s.attempts < 3
+         )
+       )
      ORDER BY needs_work DESC, c.updated_at, c.id
      LIMIT ?`,
   )
-    .bind(ownerId, ownerId, reviewCutoff, limit)
+    .bind(ownerId, ownerId, reviewCutoff, IMPLICIT_SKIP_REASON, limit)
     .all<{ id: string, needs_work: number }>()
   return rows.results.map(row => row.id)
 }

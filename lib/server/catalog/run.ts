@@ -1,7 +1,13 @@
 import type { Env } from '../env'
 import type { ActionRecord } from './tools'
 import { AppError } from '../errors'
-import { loadCategories, selectBatch } from './model'
+import {
+  clearImplicitSkips,
+  IMPLICIT_SKIP_REASON,
+  loadCategories,
+  refreshCatalogCounts,
+  selectBatch,
+} from './model'
 import { MIN_EVIDENCE_RUNS, MIN_MEMBERS_TO_KEEP, proposalNeedsApproval, REASSIGNMENT_AGE_DAYS } from './policy'
 import { loadSettingsRow } from './settings'
 
@@ -64,8 +70,9 @@ export async function dispatchCatalogWorkflow(
   if (minute % CATALOG_CADENCE_MINUTES !== 0)
     return { dispatched: false, instanceId: null }
   const instanceId = `catalog-${minute}`
+  const windowTime = minute * 60_000
   try {
-    await env.CATALOG_WORKFLOW.create({ id: instanceId, params: {} })
+    await env.CATALOG_WORKFLOW.create({ id: instanceId, params: { scheduledAt: windowTime } })
   }
   catch (error) {
     // Instance ids are unique, so a collision means this window already has an
@@ -227,6 +234,7 @@ export async function finalizeBatch(
   runId: string,
   memoryIds: string[],
   stats: BatchStats,
+  mode: 'live' | 'dry_run' = 'live',
 ): Promise<{ unorganized: number }> {
   const unorganized = memoryIds.length === 0
     ? 0
@@ -244,18 +252,40 @@ export async function finalizeBatch(
       runId,
     ),
   ]
-  for (const memoryId of memoryIds) {
-    statements.push(
-      env.DB.prepare(
-        `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at)
-         SELECT ?, ?, 'Left unclassified by the agent.', m.version, 1, ?
-         FROM memories m
-         WHERE m.id = ? AND m.owner_id = ? AND m.deleted = 0
-           AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id = m.id)
-           AND NOT EXISTS (SELECT 1 FROM catalog_skips s WHERE s.memory_id = m.id)
-         ON CONFLICT(memory_id) DO UPDATE SET attempts = attempts + 1`,
-      ).bind(ownerId, memoryId, isoNow(), memoryId, ownerId),
-    )
+  if (mode === 'live') {
+    for (const memoryId of memoryIds) {
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at, source)
+           SELECT ?, ?, ?, m.version, 1, ?, 'implicit'
+           FROM memories m
+           WHERE m.id = ? AND m.owner_id = ? AND m.deleted = 0
+             AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id = m.id)
+           ON CONFLICT(memory_id) DO UPDATE SET
+             reason = excluded.reason,
+             memory_version = excluded.memory_version,
+             attempts = CASE
+               WHEN catalog_skips.memory_version = excluded.memory_version THEN catalog_skips.attempts + 1
+               ELSE 1
+             END,
+             created_at = excluded.created_at,
+             source = 'implicit'
+           WHERE catalog_skips.memory_version != excluded.memory_version
+              OR COALESCE(
+                   catalog_skips.source,
+                   CASE WHEN catalog_skips.reason = ? THEN 'implicit' ELSE 'explicit' END
+                 ) = 'implicit'`,
+        ).bind(
+          ownerId,
+          memoryId,
+          IMPLICIT_SKIP_REASON,
+          isoNow(),
+          memoryId,
+          ownerId,
+          IMPLICIT_SKIP_REASON,
+        ),
+      )
+    }
   }
   statements.push(
     env.DB.prepare(
@@ -417,12 +447,13 @@ export async function consolidate(
       .first<{ id: string }>()
     if (existing !== null)
       continue
+    const proposalId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO catalog_proposals(id, owner_id, first_run_id, last_run_id, kind, category_id, target_category_id, payload_json, rationale, evidence_runs, status, created_at)
        VALUES (?, ?, ?, ?, 'merge_category', ?, ?, ?, ?, 1, 'pending', ?)`,
     )
       .bind(
-        crypto.randomUUID(),
+        proposalId,
         ownerId,
         runId,
         runId,
@@ -433,12 +464,23 @@ export async function consolidate(
         isoNow(),
       )
       .run()
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO catalog_proposal_evidence(proposal_id, run_id, created_at)
+       VALUES (?, ?, ?)`,
+    )
+      .bind(proposalId, runId, isoNow())
+      .run()
     await recordStructuralAction(env, ownerId, runId, 'merge_category', 'proposed', {
       categoryId: category.id,
       targetCategoryId: category.parent_id,
       rationale: `Only ${category.member_count} memories; propose folding into the parent.`,
     })
     pruned += 1
+  }
+
+  if (applied > 0) {
+    await clearImplicitSkips(env, ownerId)
+    await refreshCatalogCounts(env, ownerId)
   }
 
   return { applied, queued, superseded, pruned }
@@ -487,10 +529,19 @@ export async function finishRun(
   runId: string,
   status: RunStatus,
   errorCode?: string,
+  scheduledAt?: number,
 ): Promise<void> {
   const settings = await loadSettingsRow(env, ownerId)
   const interval = settings?.interval_minutes ?? 30
-  const next = new Date(Date.now() + interval * 60_000).toISOString()
+  const state = await env.DB.prepare('SELECT next_run_at FROM catalog_state WHERE owner_id = ?')
+    .bind(ownerId)
+    .first<{ next_run_at: string | null }>()
+  // Scheduled runs stay anchored to their dispatch window, so model latency
+  // cannot turn a 30-minute interval into almost an hour. A manual run never
+  // postpones an existing schedule; NULL means the next cadence window is due.
+  const next = scheduledAt === undefined
+    ? (state?.next_run_at ?? null)
+    : new Date(scheduledAt + interval * 60_000).toISOString()
   const run = await env.DB.prepare('SELECT unorganized FROM catalog_runs WHERE id = ?')
     .bind(runId)
     .first<{ unorganized: number }>()

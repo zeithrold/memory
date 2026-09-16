@@ -263,9 +263,14 @@ const skipTool: ToolDefinition = {
     if (ctx.mode === 'dry_run')
       return { result: { ok: true, applied: false, simulated: true }, action }
     await ctx.env.DB.prepare(
-      `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at)
-       VALUES (?, ?, ?, ?, 1, ?)
-       ON CONFLICT(memory_id) DO UPDATE SET reason = excluded.reason, memory_version = excluded.memory_version, attempts = excluded.attempts, created_at = excluded.created_at`,
+      `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at, source)
+       VALUES (?, ?, ?, ?, 1, ?, 'explicit')
+       ON CONFLICT(memory_id) DO UPDATE SET
+         reason = excluded.reason,
+         memory_version = excluded.memory_version,
+         attempts = excluded.attempts,
+         created_at = excluded.created_at,
+         source = excluded.source`,
     )
       .bind(ctx.ownerId, input.memoryId, input.reason, memory?.version ?? 0, now())
       .run()
@@ -290,23 +295,7 @@ async function recordProposal(
     rationale: string
   },
 ): Promise<ToolOutcome> {
-  const existing = await ctx.env.DB.prepare(
-    `SELECT id, evidence_runs FROM catalog_proposals
-     WHERE owner_id = ? AND kind = ? AND status = 'pending'
-       AND COALESCE(category_id, '') = COALESCE(?, '')
-       AND COALESCE(target_category_id, '') = COALESCE(?, '')
-       AND COALESCE(memory_id, '') = COALESCE(?, '')
-       AND COALESCE(target_project, '') = COALESCE(?, '')`,
-  )
-    .bind(
-      ctx.ownerId,
-      proposal.kind,
-      proposal.categoryId ?? null,
-      proposal.targetCategoryId ?? null,
-      proposal.memoryId ?? null,
-      proposal.targetProject ?? null,
-    )
-    .first<{ id: string, evidence_runs: number }>()
+  const existing = await findEquivalentProposal(ctx, proposal)
 
   const timestamp = now()
   const action: ActionRecord = {
@@ -333,18 +322,32 @@ async function recordProposal(
     }
   }
   if (existing !== null) {
-    await ctx.env.DB.prepare(
-      'UPDATE catalog_proposals SET evidence_runs = evidence_runs + 1, last_run_id = ?, rationale = ? WHERE id = ?',
+    const inserted = await recordProposalEvidence(ctx, existing.id)
+    if (inserted) {
+      await ctx.env.DB.prepare(
+        `UPDATE catalog_proposals
+         SET evidence_runs = (SELECT count(*) FROM catalog_proposal_evidence WHERE proposal_id = ?),
+             last_run_id = ?, payload_json = ?, rationale = ?
+         WHERE id = ?`,
+      )
+        .bind(existing.id, ctx.runId, JSON.stringify(proposal.payload), proposal.rationale, existing.id)
+        .run()
+    }
+    const evidence = await ctx.env.DB.prepare(
+      'SELECT evidence_runs FROM catalog_proposals WHERE id = ?',
     )
-      .bind(ctx.runId, proposal.rationale, existing.id)
-      .run()
+      .bind(existing.id)
+      .first<{ evidence_runs: number }>()
     return {
       result: {
         ok: true,
         recorded: true,
         proposalId: existing.id,
-        evidenceRuns: existing.evidence_runs + 1,
-        note: 'An equivalent proposal already existed; its evidence count was raised.',
+        evidenceRuns: evidence?.evidence_runs ?? existing.evidence_runs,
+        evidenceAdded: inserted,
+        note: inserted
+          ? 'An equivalent proposal already existed; a new run of evidence was recorded.'
+          : 'This run already supported the equivalent proposal; its evidence count was unchanged.',
       },
       action,
     }
@@ -369,6 +372,7 @@ async function recordProposal(
       timestamp,
     )
     .run()
+  await recordProposalEvidence(ctx, id)
   return {
     result: {
       ok: true,
@@ -378,6 +382,60 @@ async function recordProposal(
     },
     action,
   }
+}
+
+interface ProposalCandidate {
+  kind: 'create_category' | 'merge_category' | 'retire_category' | 'project_move'
+  categoryId?: string
+  targetCategoryId?: string
+  memoryId?: string
+  targetProject?: string
+  payload: Record<string, unknown>
+}
+
+async function findEquivalentProposal(
+  ctx: ToolContext,
+  proposal: ProposalCandidate,
+): Promise<{ id: string, evidence_runs: number } | null> {
+  const base = `SELECT id, evidence_runs FROM catalog_proposals
+    WHERE owner_id = ? AND kind = ? AND status = 'pending'`
+  if (proposal.kind === 'create_category') {
+    return ctx.env.DB.prepare(
+      `${base}
+       AND COALESCE(json_extract(payload_json, '$.parentId'), '') = COALESCE(?, '')
+       AND lower(json_extract(payload_json, '$.slug')) = ?`,
+    )
+      .bind(
+        ctx.ownerId,
+        proposal.kind,
+        proposal.payload.parentId ?? null,
+        String(proposal.payload.slug).trim().toLowerCase(),
+      )
+      .first<{ id: string, evidence_runs: number }>()
+  }
+  if (proposal.kind === 'merge_category') {
+    return ctx.env.DB.prepare(`${base} AND category_id = ? AND target_category_id = ?`)
+      .bind(ctx.ownerId, proposal.kind, proposal.categoryId, proposal.targetCategoryId)
+      .first<{ id: string, evidence_runs: number }>()
+  }
+  if (proposal.kind === 'retire_category') {
+    return ctx.env.DB.prepare(`${base} AND category_id = ?`)
+      .bind(ctx.ownerId, proposal.kind, proposal.categoryId)
+      .first<{ id: string, evidence_runs: number }>()
+  }
+  return ctx.env.DB.prepare(`${base} AND memory_id = ? AND target_project = ?`)
+    .bind(ctx.ownerId, proposal.kind, proposal.memoryId, proposal.targetProject)
+    .first<{ id: string, evidence_runs: number }>()
+}
+
+async function recordProposalEvidence(ctx: ToolContext, proposalId: string): Promise<boolean> {
+  const result = await ctx.env.DB.prepare(
+    `INSERT OR IGNORE INTO catalog_proposal_evidence(proposal_id, run_id, created_at)
+     VALUES (?, ?, ?)`,
+  )
+    .bind(proposalId, ctx.runId, now())
+    .run()
+  return (result.meta.changes ?? 0) > 0
 }
 
 const proposeCategoryTool: ToolDefinition = {

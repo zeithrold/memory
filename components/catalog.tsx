@@ -459,8 +459,9 @@ export function CatalogPanel({
                 <Input
                   id="catalog-interval"
                   type="number"
-                  min={15}
+                  min={30}
                   max={1440}
+                  step={30}
                   value={form.intervalMinutes}
                   onChange={event => patch({ intervalMinutes: Number(event.target.value) })}
                 />

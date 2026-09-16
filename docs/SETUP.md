@@ -113,8 +113,10 @@ Then, per account, in the **Catalog** tab (or over the API):
    models that answer in prose but cannot call tools, and the agent acts only
    through tools.
 3. Save, then enable. The first run after enabling is a **dry run**: it records
-   what would happen and changes nothing. Review it, then let the next run
-   apply changes.
+   what would happen without changing categories, memberships, proposals or
+   skips. Review it, then let the next run apply changes. Run intervals must be
+   between 30 and 1,440 minutes in 30-minute increments; scheduled runs stay
+   anchored to the `:00`/`:30` dispatch grid.
 
 Budgets default to the Free plan's shape: 10 memories per batch, 3 conversation
 turns, 8 tool calls. Workers Free allows 3,000 Workflow steps per day, and every

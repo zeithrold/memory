@@ -3,7 +3,12 @@ import type { Env } from '../env'
 import type { ActionRecord } from './tools'
 import { AppError } from '../errors'
 import { moveMemoryProject } from '../memories'
-import { loadCategories, loadState } from './model'
+import {
+  clearImplicitSkips,
+  loadCategories,
+  loadState,
+  refreshCatalogCounts,
+} from './model'
 
 /**
  * Read models and human-driven mutations: the catalog tree, the run timeline,
@@ -557,6 +562,8 @@ export async function decideProposal(
   if (proposal.status !== 'pending')
     throw new AppError('CONFLICT', 'That proposal has already been decided.')
 
+  let catalogChanged = false
+  let categoryCreated = false
   if (approve) {
     if (proposal.kind === 'project_move') {
       const payload = JSON.parse(proposal.payload_json) as { memoryId: string, to: string }
@@ -571,6 +578,8 @@ export async function decideProposal(
     }
     else if (proposal.kind === 'create_category') {
       await approveCategory(env, ownerId, proposal.id, proposal.payload_json)
+      catalogChanged = true
+      categoryCreated = true
     }
     else if (proposal.kind === 'merge_category') {
       if (proposal.category_id === null || proposal.target_category_id === null)
@@ -590,6 +599,7 @@ export async function decideProposal(
       )
         .bind(isoNow(), proposal.target_category_id)
         .run()
+      catalogChanged = true
     }
     else if (proposal.kind === 'retire_category') {
       await env.DB.prepare(
@@ -597,6 +607,7 @@ export async function decideProposal(
       )
         .bind(isoNow(), proposal.category_id, ownerId)
         .run()
+      catalogChanged = true
     }
   }
 
@@ -605,6 +616,10 @@ export async function decideProposal(
   )
     .bind(approve ? 'approved' : 'rejected', isoNow(), proposalId)
     .run()
+  if (categoryCreated)
+    await clearImplicitSkips(env, ownerId)
+  if (catalogChanged)
+    await refreshCatalogCounts(env, ownerId)
   const action: ActionRecord = {
     kind: proposal.kind,
     effect: 'proposal',

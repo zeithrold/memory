@@ -1,4 +1,5 @@
 import type { Env } from '../lib/server/env'
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AppError } from '../lib/server/errors'
 import {
@@ -56,6 +57,7 @@ describe('catalog schema', () => {
       'agent_settings',
       'catalog_actions',
       'catalog_metrics_daily',
+      'catalog_proposal_evidence',
       'catalog_proposals',
       'catalog_runs',
       'catalog_skips',
@@ -64,6 +66,68 @@ describe('catalog schema', () => {
       'categories',
       'memory_categories',
     ])
+  })
+  it('repairs legacy evidence, implicit skips, intervals and counters', async () => {
+    const legacy = database({ through: '0003_catalog.sql' })
+    try {
+      legacy.sqlite.exec(`
+        INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, started_at)
+        VALUES ('run-1', 'alice', 'manual', 'live', 'succeeded', '2026-09-16T00:00:00.000Z');
+        INSERT INTO catalog_proposals(
+          id, owner_id, first_run_id, last_run_id, kind, payload_json,
+          rationale, evidence_runs, status, created_at
+        ) VALUES (
+          'proposal-1', 'alice', 'run-1', 'run-1', 'create_category',
+          '{"parentId":null,"slug":"databases"}', 'overwritten', 9, 'approved',
+          '2026-09-16T00:00:00.000Z'
+        );
+        INSERT INTO catalog_actions(
+          run_id, owner_id, batch, turn, call_index, tool, kind, effect,
+          arguments_json, result_json, rationale, decision, created_at
+        ) VALUES
+          ('run-1', 'alice', 0, 0, 0, 'propose_category', 'create_category', 'proposal',
+           '{}', '{"proposalId":"proposal-1"}', 'original rationale', 'proposed', '2026-09-16T00:00:01.000Z'),
+          ('run-1', 'alice', 0, 0, 1, 'propose_category', 'create_category', 'proposal',
+           '{}', '{"proposalId":"proposal-1"}', 'different suggestion', 'proposed', '2026-09-16T00:00:02.000Z');
+        INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at)
+        VALUES
+          ('alice', 'implicit-memory', 'Left unclassified by the agent.', 1, 1, '2026-09-16T00:00:00.000Z'),
+          ('alice', 'explicit-memory', 'A settled note.', 1, 1, '2026-09-16T00:00:00.000Z');
+        INSERT INTO categories(
+          id, owner_id, parent_id, slug, label, description, boundary, depth,
+          member_count, state, created_by, created_at, updated_at
+        ) VALUES (
+          'category-1', 'alice', NULL, 'databases', 'Databases', 'Database choices.',
+          'NOT here: application code.', 1, 0, 'active', 'user',
+          '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z'
+        );
+        INSERT INTO catalog_state(owner_id, category_count, assigned_count, orphan_count, skipped_count)
+        VALUES ('alice', 0, 0, 0, 2);
+        INSERT INTO agent_settings(
+          owner_id, enabled, provider, include_content, interval_minutes, max_batch,
+          max_turns, max_tool_calls, auto_apply_structural, dry_run_until_reviewed, updated_at
+        ) VALUES ('alice', 0, 'none', 0, 45, 10, 3, 8, 0, 1, '2026-09-16T00:00:00.000Z');
+      `)
+
+      legacy.sqlite.exec(
+        readFileSync(new URL('../migrations/0004_catalog_agent_repairs.sql', import.meta.url), 'utf8'),
+      )
+
+      expect(
+        legacy.sqlite.prepare('SELECT evidence_runs, rationale FROM catalog_proposals').get(),
+      ).toEqual({ evidence_runs: 1, rationale: 'original rationale' })
+      expect(
+        legacy.sqlite.prepare('SELECT memory_id, source FROM catalog_skips').all(),
+      ).toEqual([{ memory_id: 'explicit-memory', source: 'explicit' }])
+      expect(legacy.sqlite.prepare('SELECT interval_minutes FROM agent_settings').get())
+        .toEqual({ interval_minutes: 60 })
+      expect(
+        legacy.sqlite.prepare('SELECT category_count, skipped_count FROM catalog_state').get(),
+      ).toEqual({ category_count: 1, skipped_count: 1 })
+    }
+    finally {
+      legacy.sqlite.close()
+    }
   })
   it('rejects two depth-1 categories with the same slug for one owner', async () => {
     await insertCategory({ id: 'cat-a', slug: 'backend' })
