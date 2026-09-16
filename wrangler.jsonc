@@ -16,7 +16,7 @@
     "remote": true
   },
   "vars": {
-    "APP_ORIGIN": "https://memory.ztd.one"
+    "APP_ORIGIN": "https://memory.ztd.me"
   },
   "d1_databases": [
     {
