@@ -10,11 +10,21 @@ All endpoints require `Authorization: Bearer <credential>`. Browser calls use a 
 | PATCH | `/api/v1/memories/{id}` | write | Updated Memory |
 | DELETE | `/api/v1/memories/{id}` | delete | HTTP 204 |
 | GET | `/api/v1/memories/{id}/history` | read | Latest 50 revisions |
-| POST | `/api/v1/search` | read | `{memories, mode, degraded}` |
+| POST | `/api/v1/search` | read | `{memories, mode, degraded, catalog}` |
 | GET/POST | `/api/v1/tokens` | session only | Token list / one-time token secret |
 | DELETE | `/api/v1/tokens/{id}` | session only | Revocation, HTTP 204 |
 | GET | `/api/v1/usage` | session only | Daily operation/token/client aggregates, last 30 days, max 500 groups |
 | GET | `/api/v1/status` | session only | Semantic configuration and per-user pending/retrying index jobs |
+| GET | `/api/v1/catalog` | read | Two-level catalog: categories, counts, pending proposals |
+| GET/PUT | `/api/v1/catalog/settings` | session only | Model endpoint, budgets and privacy settings; the credential is write-only |
+| POST | `/api/v1/catalog/settings/test` | session only | Live probe: reachable, model accepted, tool calling supported |
+| GET | `/api/v1/catalog/runs?limit=20` | session only | Run history |
+| POST | `/api/v1/catalog/runs` | session only | Starts a run (202). `{dryRun: true}` records without changing anything |
+| GET | `/api/v1/catalog/runs/{id}` | session only | Run replayed turn by turn, with every tool call and its decision |
+| POST | `/api/v1/catalog/runs/{id}/revert` | session only | Undoes the effects that run applied |
+| GET | `/api/v1/catalog/proposals?status=pending` | session only | Structural suggestions awaiting a decision |
+| POST | `/api/v1/catalog/proposals/{id}` | session only | `{decision: "approve" \| "reject"}` |
+| GET | `/api/v1/catalog/metrics` | session only | Daily rollups plus lifetime totals |
 
 ## Create / update
 
@@ -35,10 +45,33 @@ Updates replace the editable fields, omit `idempotencyKey` and add `expectedVers
 ## Search
 
 ```json
-{ "query": "How should my Go services access SQL?", "project": "global", "limit": 8 }
+{
+  "query": "How should my Go services access SQL?",
+  "project": "global",
+  "limit": 8,
+  "mode": "flat",
+  "balance": "sqrt"
+}
 ```
 
 `mode` is `hybrid` or `keyword`; `degraded: true` means semantic retrieval was unavailable. The service never sends a cross-project result simply because it is semantically similar.
+
+Two optional fields route the query through the catalog. `mode: "catalog"` narrows candidates to the categories the query matches best and balances the budget between them, so a large category cannot crowd out a small one; the flat ranking is always fused in, so a routing miss costs ranking quality and never recall. `balance` picks the allocation rule (`equal`, `sqrt` — the default — or `neyman`) and is only consulted when routing. The response reports what happened:
+
+```json
+{
+  "memories": [],
+  "mode": "hybrid",
+  "degraded": false,
+  "catalog": {
+    "routed": true,
+    "balance": "sqrt",
+    "categories": [{ "id": "…", "label": "Backend", "candidates": 6 }]
+  }
+}
+```
+
+`catalog` is `null` for a flat search. `routed: false` means no category matched the query and the result is exactly what `flat` would have returned. See [Catalog](CATALOG.md) for why routing is opt-in.
 
 ## Token creation
 
@@ -67,16 +100,17 @@ Every failure is an RFC 9457 problem document served as `application/problem+jso
 
 This replaces the earlier `{ "error": { "code", "message" } }` envelope.
 
-- 400 `INVALID_INPUT` / `INVALID_JSON` / `IMMUTABLE_PROJECT`, 415 `JSON_REQUIRED`: fix the request body. Unknown mutation fields are rejected, not ignored.
+- 400 `INVALID_INPUT` / `INVALID_JSON` / `IMMUTABLE_PROJECT` / `PROVIDER_ENDPOINT_INVALID`, 415 `JSON_REQUIRED`: fix the request body. Unknown mutation fields are rejected, not ignored. `IMMUTABLE_PROJECT` still applies to updates: a memory's project changes only when a user approves a catalog proposal.
 - 401 `UNAUTHORIZED`: missing, invalid, expired or revoked credential.
-- 403 `FORBIDDEN` / `INSUFFICIENT_SCOPE` / `SESSION_REQUIRED` / `INVALID_ORIGIN`: wrong scope, project restriction, a session-only endpoint, or an origin that is not `APP_ORIGIN`. `INSUFFICIENT_SCOPE` means the OAuth link granted no memory scope at all.
-- 404 `NOT_FOUND`: absent or inaccessible. Another account's identifiers are not disclosed.
+- 403 `FORBIDDEN` / `INSUFFICIENT_SCOPE` / `SESSION_REQUIRED` / `INVALID_ORIGIN`: wrong scope, project restriction, a session-only endpoint, or an origin that is not `APP_ORIGIN`. `INSUFFICIENT_SCOPE` means the OAuth link granted no memory scope at all. Every `/api/v1/catalog` endpoint is session-only: an agent token cannot reconfigure a model endpoint or re-arrange a catalog.
+- 404 `NOT_FOUND` / `RUN_NOT_FOUND`: absent or inaccessible. Another account's identifiers are not disclosed.
 - 405 `METHOD_NOT_ALLOWED`: read the `Allow` header.
-- 409 `VERSION_CONFLICT`: reread and reconcile. `FORGOTTEN`: do not auto-recreate. `CONFLICT`: idempotency payload drift or duplicate content.
+- 409 `VERSION_CONFLICT`: reread and reconcile. `FORGOTTEN`: do not auto-recreate. `CONFLICT`: idempotency payload drift or duplicate content. `AGENT_NOT_CONFIGURED` / `CATALOG_DISABLED`: the account has no model endpoint, or this deployment declares no catalog Workflow. `RUN_IN_PROGRESS`: runs are serialized per account.
 - 413 `BODY_TOO_LARGE`: request exceeds 64 KiB.
 - 429 `RATE_LIMITED`: retry after the supplied `Retry-After` interval.
 - 500 `INTERNAL_ERROR`: treat a mutation as uncertain and reuse its idempotency key when retrying a create.
-- 503 `AUTH_NOT_CONFIGURED` / `INDEX_UNAVAILABLE`: deployment configuration, not a client error.
+- 502 `PROVIDER_ERROR` / `PROVIDER_TOOL_UNSUPPORTED`, 504 `PROVIDER_TIMEOUT`: the configured model endpoint failed, or cannot call tools at all.
+- 503 `AUTH_NOT_CONFIGURED` / `AGENT_KEY_UNCONFIGURED` / `INDEX_UNAVAILABLE`: deployment configuration, not a client error. `AGENT_KEY_UNCONFIGURED` means the deployment has no `AGENT_SETTINGS_KEY`, so a per-account credential cannot be encrypted and is refused rather than stored in plaintext.
 
 Reuse a creation idempotency key only with its original payload. Do not blindly retry versioned updates/deletes or convert failed writes into success claims.
 

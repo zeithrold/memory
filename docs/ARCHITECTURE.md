@@ -11,6 +11,7 @@ Shared Memory is a multi-user, personal memory service. Each user's agents share
 - REST at `/api/v1`, calling the same service functions as MCP. Failures are RFC 9457 problem documents whose `type` resolves to a page under `/errors`, generated from one catalog in `lib/error-catalog.ts` that also owns each code's HTTP status.
 - D1 is authoritative. SQLite triggers maintain FTS, revisions and the outbox in the same transaction as mutations.
 - Workers AI bge-m3 (1024 dimensions) and Vectorize cosine similarity. Namespace is derived from the authenticated owner; the project metadata index narrows candidates. Hydration checks tenant, project, current version and deletion status in D1.
+- A Cloudflare Workflow maintains a two-level memory catalog on a 30-minute schedule, driven by a tool-calling loop against a model endpoint the account supplies. Its actions land in an append-only audit table that doubles as the loop's transcript and its idempotency journal. See [Catalog](CATALOG.md).
 
 ## Data and lifecycle
 
@@ -48,7 +49,9 @@ English is the default UI and documentation language. Typed English/zh-CN dictio
 
 ## Deliberate MVP limits
 
-No team sharing, attachments, document ingestion, autonomous server-side extraction LLM, semantic conflict resolution, subscriptions, billing, a self-hosted authorization server, RFC 8707 audience enforcement, per-project OAuth scoping, automatic Clerk offboarding, or organization administration. The authenticated user's chosen agent extracts facts. Evidence quality cannot be guaranteed by schema validation alone.
+No team sharing, attachments, document ingestion, semantic conflict resolution, subscriptions, billing, a self-hosted authorization server, RFC 8707 audience enforcement, per-project OAuth scoping, automatic Clerk offboarding, or organization administration. The authenticated user's chosen agent extracts facts. Evidence quality cannot be guaranteed by schema validation alone.
+
+The catalog agent is the one server-side LLM in the system, and it is deliberately the narrowest one that is useful: it classifies existing memories through tools and never writes memory text. It does not extract facts from documents, does not rewrite entries, does not delete anything, and does not move a memory between projects without a human approving a proposal. The platform never pays for its inference — an account that configures no endpoint simply has no catalog.
 
 ## Production bundling compatibility
 

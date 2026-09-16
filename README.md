@@ -18,6 +18,7 @@ Open http://localhost:3000. Without credentials, the interface displays setup in
 
 - [Setup, credentials, and deployment](docs/SETUP.md)
 - [Architecture and MVP limits](docs/ARCHITECTURE.md)
+- [Catalog: the scheduled taxonomy agent](docs/CATALOG.md)
 - [HTTP and MCP contracts](docs/API.md)
 - [Shared Memory skill](skills/shared-memory/SKILL.md)
 
@@ -32,11 +33,14 @@ A running instance documents every machine error at `/errors`, one page per code
 ```sh
 pnpm check
 pnpm build
+pnpm check:bundle
 pnpm test:e2e
 ```
 
 `pnpm test:e2e` runs `pnpm e2e:build` first, which rebuilds the preview with no Clerk or Sentry credentials, so the browser checks never depend on your local `.env.local` or a real identity provider.
 
-The test suite executes the real migrations against SQLite and tests authorization, OAuth scope mapping and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, and plugin packaging. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Clerk authentication or OAuth linking, remote D1/Vectorize, Cron, or client acceptance testing.
+`pnpm check:bundle` asserts against the built artifact that every Workflow class the Wrangler configuration binds is still a named export of the entry module. `pnpm deploy` runs it between the build and the upload, because a Workflow that lost its export would deploy without error and then never run.
+
+The test suite executes the real migrations against SQLite and tests authorization, OAuth scope mapping and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, plugin packaging, credential sealing, the catalog policy gateway, the tool loop's idempotency and dry-run behaviour, run reversion and proposal decisions. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Clerk authentication or OAuth linking, remote D1/Vectorize, a scheduled Workflow firing, a live model endpoint, or client acceptance testing.
 
 `pnpm lint` uses strict, type-aware antfu ESLint and allows no warnings. TypeScript strictness includes unchecked indexed access. Dependency versions are pinned by `pnpm-lock.yaml`.

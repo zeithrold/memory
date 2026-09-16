@@ -76,7 +76,56 @@ Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…` in the build environment or 
 
 The one-minute Cron Trigger processes up to 20 index jobs per invocation and retries provider failures with bounded exponential delay. The Usage page shows pending jobs. An authenticated `GET /api/v1/status` also reports retrying jobs. Publishing an embedding is eventually consistent; keyword search works before the vector becomes visible. Do not deploy with the local all-zero D1 ID, localhost origin, or missing AI/Vectorize bindings if semantic search is expected.
 
-## 5. Connect clients
+## 5. Configure the catalog agent
+
+The catalog is optional and platform neutral: this service never pays for
+inference, so nothing runs until an account supplies its own model endpoint.
+See [Catalog](CATALOG.md) for why it is built this way.
+
+```sh
+# Required to store any per-account model credential. 64 hex characters.
+openssl rand -hex 32 | pnpm exec wrangler secret put AGENT_SETTINGS_KEY
+```
+
+Without `AGENT_SETTINGS_KEY` the catalog stays readable and the settings
+endpoint refuses to store a key (`AGENT_KEY_UNCONFIGURED`) instead of writing it
+in plaintext. Changing the secret makes already stored credentials unreadable,
+and they must be entered again.
+
+The catalog needs its Workflow binding, which `wrangler.jsonc` already declares
+as `memory-catalog` with the schedule `*/30 * * * *`. `pnpm deploy` runs
+`pnpm check:bundle` between the build and the upload, because a Workflow binds
+by *exported class name*: if the production bundle ever stopped exporting
+`CatalogWorkflow`, the deploy would fail loudly instead of shipping a Worker
+whose schedule silently does nothing.
+
+Then, per account, in the **Catalog** tab (or over the API):
+
+1. Enter an OpenAI-compatible base URL, a model, and an API key. DeepSeek's own
+   endpoint is `https://api.deepseek.com` with a tool-capable model. Include the
+   version path a provider documents, such as `https://openrouter.ai/api/v1`.
+2. Press **Test connection**. The probe reports whether the endpoint answered
+   *and* whether it called the probe tool. Most configuration mistakes are
+   models that answer in prose but cannot call tools, and the agent acts only
+   through tools.
+3. Save, then enable. The first run after enabling is a **dry run**: it records
+   what would happen and changes nothing. Review it, then let the next run
+   apply changes.
+
+Budgets default to the Free plan's shape: 10 memories per batch, 3 conversation
+turns, 8 tool calls. Workers Free allows 3,000 Workflow steps per day, and every
+turn costs two of them, so accounts take turns rather than all running at once.
+
+The tab also shows the taxonomy, the run history with a turn-by-turn replay of
+every tool call, the suggestions waiting for a decision, and a button to undo a
+run. It is reachable only with a browser session; an agent token cannot
+reconfigure an endpoint or approve anything.
+
+For local development, model endpoints on a loopback host may use plain HTTP
+while `APP_ORIGIN` is itself a local origin. A hosted endpoint must be HTTPS, and
+a redirect is refused so the credential is never forwarded to another host.
+
+## 6. Connect clients
 
 Create a separate token for each client, normally with `memory:read` and `memory:write`. Add `memory:delete` only if the client should fulfill explicit forgetting requests. Tokens expire after 90 days by default and can be restricted to one project. ChatGPT and other hosted agents link with OAuth instead of a copied token.
 
@@ -159,7 +208,7 @@ Make the environment variable available to Cursor and install the same skill in 
 
 Use an MCP-capable agent host, or the Python tool-loop example in `examples/deepseek.py`. The model API does not execute memory tools itself. The example requires an independently supplied DeepSeek API key and has a bounded tool loop.
 
-## 6. Package the plugin
+## 7. Package the plugin
 
 The skill and the MCP server ship as one installable plugin. The generator reads the MCP URL from `wrangler.jsonc`, so the package cannot drift from the deployed origin:
 
@@ -179,7 +228,7 @@ cp dist/plugin/marketplace.json ~/.agents/plugins/marketplace.json
 
 Merge the plugin entry into an existing `marketplace.json` rather than overwriting it. To bind the plugin to the MCP connection you already registered in ChatGPT, run OpenAI's `@plugin-creator` with that connection's `plugin_asdk_app…` id; it writes the `.app.json` mapping, which this generator deliberately does not invent.
 
-## 7. Error monitoring (optional)
+## 8. Error monitoring (optional)
 
 Sentry is wired into the Worker, the MCP endpoint, the Cron trigger, and the browser. Without a DSN every code path stays inert, which is how local development and the e2e preview run.
 
@@ -196,7 +245,7 @@ pnpm exec wrangler secret put SENTRY_DSN
 - **Project settings**: enable **Prevent Storing of IP Addresses** and leave request-body storage off as defence in depth.
 - **Source maps**: with `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` present at build time, `vite build` uploads source maps and deletes the client copies afterwards. Set `SENTRY_RELEASE` (CI uses the commit SHA) so the Worker and the uploaded artifacts agree; otherwise stack traces stay minified. `wrangler.jsonc` also enables Cloudflare's own `upload_source_maps`, which keeps stack traces readable in the Cloudflare dashboard.
 
-## 8. Deployment acceptance
+## 9. Deployment acceptance
 
 The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Clerk secrets. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production publishable key. These tests do not need a Cloudflare API token.
 

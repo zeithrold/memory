@@ -3,6 +3,11 @@ CLERK_SECRET_KEY=
 CLERK_ISSUER=
 # Exact origin, including port during development.
 APP_ORIGIN=http://localhost:3000
+# Required to store a per-account model credential for the catalog agent.
+# 64 hex characters (32 bytes); generate with `openssl rand -hex 32`. Leaving it
+# empty keeps the catalog usable but read-only: the settings endpoint refuses to
+# store a key instead of writing it in plaintext.
+AGENT_SETTINGS_KEY=
 # Optional. Filling this in reports local failures to Sentry as environment
 # "stage"; leaving it empty keeps the SDK inert.
 SENTRY_DSN=
