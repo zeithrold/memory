@@ -14,7 +14,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: pnpm build
+      - name: Build unsigned E2E preview
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ''
       - name: Resolve Playwright version
         id: playwright-version
         run: |

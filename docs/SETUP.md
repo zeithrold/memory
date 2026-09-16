@@ -117,6 +117,8 @@ Use an MCP-capable agent host, or the Python tool-loop example in `examples/deep
 
 ## 6. Deployment acceptance
 
+The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Clerk secrets. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production publishable key. These tests do not need a Cloudflare API token.
+
 - Sign in/out with real Clerk sessions; verify invalid/expired sessions and unapproved origins are rejected.
 - Two users cannot read, search, edit, delete, or inspect each other's history. A project-restricted token cannot read other projects, including `global`.
 - Codex and Cursor initialize, list tools and perform real tool calls. Validate their actual supported protocol revisions against the pinned MCP SDK.
