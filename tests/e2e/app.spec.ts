@@ -23,6 +23,30 @@ test('English-first preview, navigation and persisted Chinese locale', async ({ 
   expect(errors).toEqual([])
 })
 
+test('the catalog tab explains itself before a provider is configured', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Catalog', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Keep the library organised.' })).toBeVisible()
+  await expect(page.getByText('No categories yet.')).toBeVisible()
+  await expect(page.getByText('No runs yet.')).toBeVisible()
+  // The unsigned preview has no session, so every action stays disabled rather
+  // than firing a request that would fail.
+  await expect(page.getByRole('button', { name: 'Run now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Dry run' })).toBeDisabled()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(errors).toEqual([])
+})
+
+test('the catalog API is session-only and unavailable without a binding', async ({ request }) => {
+  const anonymous = await request.get('/api/v1/catalog')
+  expect(anonymous.status()).toBe(401)
+  expect(await anonymous.json()).toMatchObject({ code: 'UNAUTHORIZED' })
+  const settings = await request.get('/api/v1/catalog/settings')
+  expect(settings.status()).toBe(401)
+})
+
 test('a direct memory link opens the detail page', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))

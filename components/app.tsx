@@ -8,6 +8,7 @@ import {
   Brain,
   Cable,
   ChartNoAxesCombined,
+  FolderTree,
   KeyRound,
   Languages,
   LockKeyhole,
@@ -20,7 +21,7 @@ import { PageSkeleton } from './skeletons'
 import { Button } from './ui/button'
 import { Toaster } from './ui/sonner'
 
-export type Tab = 'memories' | 'tokens' | 'usage' | 'connect'
+export type Tab = 'memories' | 'catalog' | 'tokens' | 'usage' | 'connect'
 export default function App({
   initialLocale,
   publishableKey,
@@ -63,6 +64,7 @@ export default function App({
           {(
             [
               { id: 'memories', icon: BookOpen },
+              { id: 'catalog', icon: FolderTree },
               { id: 'tokens', icon: KeyRound },
               { id: 'usage', icon: ChartNoAxesCombined },
               { id: 'connect', icon: Cable },

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { CatalogPanel } from './catalog'
 import { ConfirmAction } from './confirm-action'
 import { ConnectPanel, TokenPanel, UsagePanel } from './panels'
 import { MemoryDetailSkeleton, MemoryGridSkeleton, RevisionListSkeleton } from './skeletons'
@@ -484,6 +485,7 @@ function Workspace({
   }
   const headings = {
     memories: [t.heading, t.intro],
+    catalog: [t.catalogHeading, t.catalogIntro],
     tokens: [t.tokensHeading, t.tokensIntro],
     usage: [t.usageHeading, t.usageIntro],
     connect: [t.connectHeading, t.connectIntro],
@@ -737,6 +739,9 @@ function Workspace({
             </section>
           )}
         </>
+      )}
+      {tab === 'catalog' && (
+        <CatalogPanel t={t} api={api} ready={authState === 'ready'} />
       )}
       {tab === 'tokens' && (
         <TokenPanel t={t} api={api} ready={authState === 'ready'} />

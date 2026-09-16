@@ -181,3 +181,28 @@ pre { background: #f3f6f0; padding: var(--space-4); border-radius: var(--radius-
 @media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
 @media (max-width: 1000px) { .sidebar { width: 205px; padding-inline: var(--space-4); } .main-shell { margin-left: 205px; } .page { padding: var(--space-8) var(--space-6); } .topbar { padding-inline: var(--space-6); } .page-heading { align-items: flex-start; flex-direction: column; gap: var(--space-2); } }
 @media (max-width: 640px) { .app-shell { display: block; } .sidebar { position: static; width: 100%; padding: var(--space-5) var(--space-4) var(--space-3); border-right: 0; border-bottom: 1px solid var(--border); } .brand { font-size: 16px; } .brand small { display: none; } .sidebar nav { display: flex; justify-content: space-between; margin-top: var(--space-4); gap: 1px; } .nav-item { padding: var(--space-3) var(--space-2); gap: var(--space-2); font-size: 11px; } .nav-caption, .sidebar-bottom { display: none; } .main-shell { margin: 0; } .topbar { height: 57px; padding: 0 var(--space-4); } .page { padding: var(--space-6) var(--space-4); } .searchbar { flex-wrap: wrap; } .search-input { flex-basis: 100%; } .project-input { max-width: none; flex: 1; width: 80px; } .list-meta { flex-direction: column; line-height: 1.8; } .memory-grid { gap: var(--space-3); } .stats { gap: var(--space-2); } .stats > div { padding: var(--space-4) var(--space-3); } .stats span { font-size: 10px; } .stats strong { font-size: 25px; } .empty-state { min-height: 280px; } }
+
+/* Catalog panel: the taxonomy tree and a run's replayable timeline. */
+.catalog-tree { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-4); }
+.catalog-node { background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--pad-panel); }
+.catalog-node-head { display: flex; align-items: center; gap: var(--space-3); }
+.catalog-node p { margin: var(--space-2) 0 0; font-size: 13px; }
+.catalog-children { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: grid; gap: var(--space-2); }
+.catalog-children li { display: flex; align-items: center; gap: var(--space-3); font-size: 13px; padding-left: var(--space-4); border-left: 2px solid var(--border); }
+.timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-4); }
+.timeline-turn { border-left: 2px solid var(--border); padding-left: var(--space-4); }
+.timeline-turn > p { margin: 0 0 var(--space-3); font-size: 13px; color: var(--muted); }
+.timeline-call { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-2); background: white; }
+.timeline-call p { margin: var(--space-2) 0 0; font-size: 12px; display: flex; align-items: center; gap: var(--space-2); }
+.timeline-call code { font-size: 12px; }
+.call-rejected { border-color: #e3b7b7; background: #fdf5f5; }
+.run-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-4); }
+.run-list > li { background: white; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--pad-panel); }
+.run-list p { margin: var(--space-2) 0; font-size: 13px; }
+
+@media (max-width: 640px) {
+  /* A fifth tab no longer fits one narrow row. Wrapping keeps every tab
+     reachable instead of pushing the last one off the edge. */
+  .sidebar nav { flex-wrap: wrap; }
+  .nav-item { flex: 1 1 auto; justify-content: center; }
+}
