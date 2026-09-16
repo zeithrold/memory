@@ -27,6 +27,9 @@ jobs:
       # need to be installed on each fresh runner.
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      # `test:e2e` builds the preview, so the artifact the guard inspects exists.
+      # The deploy step repeats it against the production build.
+      - run: pnpm check:bundle
       - name: Build and deploy
         run: pnpm run deploy
         env:

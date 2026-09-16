@@ -386,6 +386,8 @@ describe('mcp oauth surface', () => {
     expect(body.result.tools.map(tool => tool.name)).toEqual([
       'memory_search',
       'memory_get',
+      // Read-only, so a read-scoped link sees it too.
+      'memory_catalog',
     ])
     expect(body.result.tools[0]?.securitySchemes).toEqual([
       { type: 'oauth2', scopes: ['memory:read'] },
@@ -409,6 +411,7 @@ describe('mcp oauth surface', () => {
       'memory_get',
       'memory_create',
       'memory_update',
+      'memory_catalog',
     ])
     for (const tool of body.result.tools) {
       expect(tool.outputSchema.type).toBe('object')
@@ -419,6 +422,18 @@ describe('mcp oauth surface', () => {
       'memories',
       'mode',
       'degraded',
+      // Routing metadata, so a caller can tell that a catalog route missed.
+      'catalog',
+    ])
+    const catalog = body.result.tools.find(tool => tool.name === 'memory_catalog')
+    expect(Object.keys(catalog?.outputSchema.properties ?? {})).toEqual([
+      'version',
+      'updatedAt',
+      'categories',
+      'assigned',
+      'orphans',
+      'skipped',
+      'pendingProposals',
     ])
     const create = body.result.tools.find(tool => tool.name === 'memory_create')
     expect(Object.keys(create?.outputSchema.properties ?? {})).toEqual(

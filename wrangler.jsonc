@@ -31,6 +31,22 @@
       "* * * * *"
     ]
   },
+  "workflows": [
+    {
+      "name": "memory-catalog",
+      "binding": "CATALOG_WORKFLOW",
+      "class_name": "CatalogWorkflow",
+      "schedules": [
+        "*/30 * * * *"
+      ],
+      "limits": {
+        "steps": 400
+      },
+      "concurrency": {
+        "limit": 4
+      }
+    }
+  ],
   "upload_source_maps": true,
   "observability": {
     "logs": {

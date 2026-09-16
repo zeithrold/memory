@@ -10,6 +10,7 @@ import { ListToolsRequestSchema, SUPPORTED_PROTOCOL_VERSIONS } from '@modelconte
 import * as Sentry from '@sentry/cloudflare'
 import { z } from 'zod'
 import {
+  catalogSchema,
   createSchema,
   deleteResultSchema,
   memorySchema,
@@ -18,6 +19,7 @@ import {
   updateSchema,
 } from '../contracts'
 import { authenticate, rateLimit } from './auth'
+import { getCatalogView } from './catalog/query'
 import { AppError, errorResponse, problemDocument, problemResponse, requirePermission } from './errors'
 import { readJson, secureResponse } from './http'
 import {
@@ -99,6 +101,15 @@ const DELETE_TOOL = {
   outputSchema: deleteResultSchema,
   annotations: DESTRUCTIVE_WRITE,
 } as const satisfies ToolMetadata
+const CATALOG_TOOL = {
+  name: 'memory_catalog',
+  scope: 'memory:read',
+  description:
+    'Read the user\'s memory catalog: the two-level taxonomy, what each category holds, and how many memories are still unclassified. Use it to choose which project or topic to search when the query is broad. The taxonomy itself is maintained server-side and is read-only here.',
+  schema: z.object({}).strict(),
+  outputSchema: catalogSchema,
+  annotations: READ_ANNOTATIONS,
+} as const satisfies ToolMetadata
 
 const TOOLS: readonly ToolMetadata[] = [
   SEARCH_TOOL,
@@ -106,6 +117,7 @@ const TOOLS: readonly ToolMetadata[] = [
   CREATE_TOOL,
   UPDATE_TOOL,
   DELETE_TOOL,
+  CATALOG_TOOL,
 ]
 
 function jsonSchema(
@@ -245,6 +257,18 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
         await deleteMemory(env, principal, input.id, input.expectedVersion)
         return { deleted: true }
       }),
+  )
+  server.registerTool(
+    CATALOG_TOOL.name,
+    {
+      description: CATALOG_TOOL.description,
+      inputSchema: CATALOG_TOOL.schema,
+      outputSchema: CATALOG_TOOL.outputSchema,
+      annotations: CATALOG_TOOL.annotations,
+    },
+    async () =>
+      call(CATALOG_TOOL.name, CATALOG_TOOL.scope, async () =>
+        getCatalogView(env, principal.ownerId)),
   )
   // The pinned MCP SDK predates per-tool `securitySchemes`, so the advertised
   // tool list is emitted here instead of by `McpServer`.

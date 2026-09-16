@@ -71,14 +71,46 @@ export async function processIndexJobs(env: Env): Promise<void> {
     }
   }
 }
+/**
+ * How long the catalog audit trail is kept. The daily rollup in
+ * `catalog_metrics_daily` is written when a run finishes and is never pruned, so
+ * the trends survive the raw rows.
+ */
+export const CATALOG_AUDIT_RETENTION_DAYS = 90
+
 export async function maintenance(env: Env): Promise<void> {
   await processIndexJobs(env)
+  const auditCutoff = new Date(
+    Date.now() - CATALOG_AUDIT_RETENTION_DAYS * 86400000,
+  ).toISOString()
   await env.DB.batch([
     env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(
       Date.now(),
     ),
     env.DB.prepare('DELETE FROM usage_events WHERE created_at < ?').bind(
       new Date(Date.now() - 30 * 86400000).toISOString(),
+    ),
+    // Only finished runs are pruned. The action rows double as the idempotency
+    // journal of a live step, so deleting one mid-run would let a retry apply
+    // the same effect twice.
+    env.DB.prepare(
+      `DELETE FROM catalog_actions
+       WHERE created_at < ?
+         AND run_id IN (SELECT id FROM catalog_runs WHERE status NOT IN ('queued', 'running'))`,
+    ).bind(auditCutoff),
+    env.DB.prepare(
+      `DELETE FROM catalog_turns
+       WHERE created_at < ?
+         AND run_id IN (SELECT id FROM catalog_runs WHERE status NOT IN ('queued', 'running'))`,
+    ).bind(auditCutoff),
+    // A run abandoned mid-flight blocks its account until it is swept, and the
+    // sweep is what lets the next schedule tick claim a fresh one.
+    env.DB.prepare(
+      `UPDATE catalog_runs SET status = 'failed', error_code = 'STALE_RUN', finished_at = ?
+       WHERE status IN ('queued', 'running') AND started_at < ?`,
+    ).bind(
+      new Date().toISOString(),
+      new Date(Date.now() - 60 * 60000).toISOString(),
     ),
   ])
 }

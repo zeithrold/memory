@@ -4,6 +4,11 @@ import handler from 'vinext/server/fetch-handler'
 import { maintenance } from './lib/server/indexer'
 import { sentryOptions } from './lib/server/observability'
 
+// Workflows bind by exported class name, so the class has to survive the
+// bundle as a named export of the entry module rather than as part of the
+// default handler. `pnpm check:bundle` guards that.
+export { CatalogWorkflow } from './lib/server/catalog/workflow'
+
 const base = handler as unknown as ExportedHandler<Env>
 
 const worker = {

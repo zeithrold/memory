@@ -27,11 +27,20 @@ export const createSchema = memoryInputSchema.extend({
 export const updateSchema = memoryInputSchema.extend({
   expectedVersion: z.number().int().positive(),
 })
+/**
+ * Search is flat by default. `mode: 'catalog'` additionally routes through the
+ * catalog so a large category cannot crowd out a small one; the flat ranking is
+ * always fused in, because measured router precision is poor enough that a
+ * routing miss must degrade to today's behaviour rather than to nothing.
+ */
 export const searchSchema = z
   .object({
     query: z.string().trim().min(1).max(300),
     project: projectSchema.default('global'),
     limit: z.number().int().min(1).max(20).default(8),
+    mode: z.enum(['flat', 'catalog']).default('flat'),
+    /** Only consulted when `mode` is `catalog`. */
+    balance: z.enum(['equal', 'sqrt', 'neyman']).default('sqrt'),
   })
   .strict()
 export const tokenInputSchema = z
@@ -56,6 +65,48 @@ export const searchResultSchema = z.object({
   memories: z.array(memorySchema),
   mode: z.enum(['hybrid', 'keyword']),
   degraded: z.boolean(),
+  /** How the query was routed, so a caller can see a catalog miss. */
+  catalog: z
+    .object({
+      routed: z.boolean(),
+      balance: z.enum(['equal', 'sqrt', 'neyman']),
+      categories: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          candidates: z.number().int(),
+        }),
+      ),
+    })
+    .nullable(),
+})
+
+/**
+ * The catalog as a read-only document. Stable enough to advertise as an MCP
+ * tool output schema: a field added here without updating `CatalogView` fails a
+ * test rather than a tool call.
+ */
+export const catalogCategorySchema = z.object({
+  id: z.string().uuid(),
+  parentId: z.string().uuid().nullable(),
+  depth: z.number().int(),
+  slug: z.string(),
+  label: z.string(),
+  description: z.string(),
+  boundary: z.string(),
+  memberCount: z.number().int(),
+  state: z.string(),
+  createdBy: z.string(),
+  updatedAt: z.string(),
+})
+export const catalogSchema = z.object({
+  version: z.number().int(),
+  updatedAt: z.string().nullable(),
+  categories: z.array(catalogCategorySchema),
+  assigned: z.number().int(),
+  orphans: z.number().int(),
+  skipped: z.number().int(),
+  pendingProposals: z.number().int(),
 })
 export const deleteResultSchema = z.object({ deleted: z.boolean() })
 export type Scope = z.infer<typeof scopeSchema>

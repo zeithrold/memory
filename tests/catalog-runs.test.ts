@@ -1,0 +1,423 @@
+import type { Principal } from '../lib/contracts'
+import type { getRunDetail } from '../lib/server/catalog/query'
+import type { Env } from '../lib/server/env'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { api } from '../lib/server/api'
+import { listProposals, revertRun } from '../lib/server/catalog/query'
+import { createMemory, moveMemoryProject } from '../lib/server/memories'
+import { database } from './database'
+
+const { verifyToken } = vi.hoisted(() => ({ verifyToken: vi.fn() }))
+vi.mock('@clerk/backend', () => ({
+  verifyToken,
+  createClerkClient: () => ({ authenticateRequest: vi.fn() }),
+}))
+
+const MASTER_KEY = 'e'.repeat(64)
+const session: Principal = {
+  ownerId: 'alice',
+  tokenId: null,
+  scopes: ['memory:read', 'memory:write', 'memory:delete'],
+  project: null,
+}
+let env: Env
+let store: ReturnType<typeof database>
+let createRun: ReturnType<typeof vi.fn>
+
+beforeEach(() => {
+  store = database()
+  createRun = vi.fn(async () => ({ id: 'instance' }))
+  env = {
+    DB: store.db,
+    APP_ORIGIN: 'https://memory.example',
+    AGENT_SETTINGS_KEY: MASTER_KEY,
+    CLERK_SECRET_KEY: 'sk_test_placeholder',
+    CATALOG_WORKFLOW: { create: createRun } as unknown as Workflow<unknown>,
+  }
+  verifyToken.mockReset()
+  verifyToken.mockResolvedValue({ sub: 'alice' })
+})
+afterEach(() => {
+  store.sqlite.close()
+  vi.restoreAllMocks()
+})
+
+async function call(path: string, method = 'GET', body?: unknown) {
+  const response = await api(
+    new Request(`https://memory.example${path}`, {
+      method,
+      headers: {
+        'Authorization': 'Bearer session-jwt',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    }),
+    env,
+  )
+  const text = await response.text()
+  return { status: response.status, body: text.length === 0 ? null : JSON.parse(text) as Record<string, unknown> }
+}
+async function configure(extra: Record<string, unknown> = {}) {
+  return call('/api/v1/catalog/settings', 'PUT', {
+    provider: 'openai-compatible',
+    baseUrl: 'https://api.example.com',
+    model: 'deepseek-v4-flash',
+    apiKey: 'sk-live-0123456789abcdef',
+    enabled: true,
+    ...extra,
+  })
+}
+async function memory(title: string, content = 'Some durable content.') {
+  return createMemory(env, session, {
+    project: 'global',
+    title,
+    content,
+    kind: 'fact',
+    tags: [],
+    source: 'Recorded for a catalog test.',
+    idempotencyKey: crypto.randomUUID(),
+  })
+}
+async function category(slug: string, label: string) {
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO categories(id, owner_id, parent_id, slug, label, description, boundary, depth, member_count, state, created_by, created_at, updated_at)
+     VALUES (?, 'alice', NULL, ?, ?, 'Related entries.', 'NOT here: anything else.', 1, 0, 'active', 'user', '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z')`,
+  )
+    .bind(id, slug, label)
+    .run()
+  return id
+}
+async function assign(memoryId: string, categoryId: string, isPrimary = 1) {
+  await env.DB.prepare(
+    `INSERT INTO memory_categories(owner_id, memory_id, category_id, is_primary, confidence, assigned_by, catalog_version, created_at, updated_at)
+     VALUES ('alice', ?, ?, ?, 0.9, 'agent', 1, '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z')`,
+  )
+    .bind(memoryId, categoryId, isPrimary)
+    .run()
+}
+async function openRun(mode = 'live', status = 'succeeded') {
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, started_at, finished_at)
+     VALUES (?, 'alice', 'manual', ?, ?, '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:01.000Z')`,
+  )
+    .bind(id, mode, status)
+    .run()
+  return id
+}
+
+describe('starting a run', () => {
+  it('creates the run row, starts the instance and reports the identifier', async () => {
+    await configure()
+    const { status, body } = await call('/api/v1/catalog/runs', 'POST', {})
+    expect(status).toBe(202)
+    expect(body).toMatchObject({ status: 'queued', mode: 'live' })
+    expect(createRun).toHaveBeenCalledOnce()
+    const params = createRun.mock.calls[0]?.[0] as { id: string, params: { ownerId: string, runId: string } }
+    expect(params.params.ownerId).toBe('alice')
+    // The instance and the audit row share one identifier.
+    expect(params.id).toBe(params.params.runId)
+    expect(params.id).toBe(body?.runId)
+    const row = await env.DB.prepare('SELECT status, trigger FROM catalog_runs WHERE id = ?')
+      .bind(params.id)
+      .first<{ status: string, trigger: string }>()
+    expect(row).toEqual({ status: 'running', trigger: 'manual' })
+  })
+  it('honours a dry run and fails closed without a Workflow binding', async () => {
+    await configure()
+    const dry = await call('/api/v1/catalog/runs', 'POST', { dryRun: true })
+    expect(dry.body).toMatchObject({ mode: 'dry_run' })
+
+    const bare: Env = { ...env, CATALOG_WORKFLOW: undefined }
+    const response = await api(
+      new Request('https://memory.example/api/v1/catalog/runs', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer session-jwt', 'Content-Type': 'application/json' },
+        body: '{}',
+      }),
+      bare,
+    )
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: 'CATALOG_DISABLED' })
+  })
+  it('refuses a second run while one is in flight', async () => {
+    await configure()
+    await call('/api/v1/catalog/runs', 'POST', {})
+    const second = await call('/api/v1/catalog/runs', 'POST', {})
+    expect(second.status).toBe(409)
+    expect(second.body).toMatchObject({ code: 'RUN_IN_PROGRESS' })
+  })
+  it('refuses to start when the account has no provider', async () => {
+    const { status, body } = await call('/api/v1/catalog/runs', 'POST', {})
+    expect(status).toBe(409)
+    expect(body).toMatchObject({ code: 'AGENT_NOT_CONFIGURED' })
+  })
+})
+
+describe('the catalog view and run timeline', () => {
+  it('returns both levels of the catalog', async () => {
+    const root = await category('backend', 'Backend')
+    await env.DB.prepare(
+      `INSERT INTO categories(id, owner_id, parent_id, slug, label, description, boundary, depth, member_count, state, created_by, created_at, updated_at)
+       VALUES (?, 'alice', ?, 'databases', 'Databases', 'Database choices.', 'NOT here: application code.', 2, 0, 'active', 'agent', '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(crypto.randomUUID(), root)
+      .run()
+    const { status, body } = await call('/api/v1/catalog')
+    expect(status).toBe(200)
+    const categories = body?.categories as { slug: string, parentId: string | null, depth: number }[]
+    expect(categories.map(entry => [entry.slug, entry.depth])).toEqual([['backend', 1], ['databases', 2]])
+    expect(categories[1]?.parentId).toBe(root)
+    expect(body).toMatchObject({ orphans: 0, pendingProposals: 0 })
+  })
+  it('replays a run turn by turn with the decision for each call', async () => {
+    const runId = await openRun()
+    const mem = await memory('Database access')
+    const cat = await category('backend', 'Backend')
+    await env.DB.prepare(
+      `INSERT INTO catalog_turns(run_id, owner_id, batch, turn, content, tool_calls_json, tool_results_json, prompt_tokens, completion_tokens, latency_ms, created_at)
+       VALUES (?, 'alice', 0, 0, 'Thinking about the batch.', '[{"id":"c1","name":"assign","arguments":{}}]', '[]', 10, 4, 900, '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(runId)
+      .run()
+    await env.DB.prepare(
+      `INSERT INTO catalog_actions(run_id, owner_id, batch, turn, call_index, tool, kind, effect, memory_id, category_id, arguments_json, rationale, decision, policy_reason, created_at)
+       VALUES (?, 'alice', 0, 0, 0, 'assign', 'assign', 'immediate', ?, ?, '{}', 'Go work.', 'applied', NULL, '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(runId, mem.id, cat)
+      .run()
+
+    const { body } = await call(`/api/v1/catalog/runs/${runId}`)
+    const detail = body as unknown as Awaited<ReturnType<typeof getRunDetail>>
+    expect(detail.run.status).toBe('succeeded')
+    expect(detail.timeline).toHaveLength(1)
+    expect(detail.timeline[0]?.content).toBe('Thinking about the batch.')
+    // The audit row stores identifiers, so the title is resolved at read time.
+    expect(detail.timeline[0]?.actions[0]).toMatchObject({
+      tool: 'assign',
+      decision: 'applied',
+      memoryTitle: 'Database access',
+      categoryLabel: 'Backend',
+    })
+  })
+  it('hides another account\'s run', async () => {
+    const runId = await openRun()
+    const { status, body } = await call(`/api/v1/catalog/runs/${runId}`)
+    expect(status).toBe(200)
+    verifyToken.mockResolvedValue({ sub: 'bob' })
+    const other = await call(`/api/v1/catalog/runs/${runId}`)
+    expect(other.status).toBe(404)
+    expect(other.body).toMatchObject({ code: 'RUN_NOT_FOUND' })
+    expect(body).not.toBeNull()
+  })
+})
+
+describe('reverting a run', () => {
+  it('removes an assignment the run applied', async () => {
+    const runId = await openRun()
+    const mem = await memory('Database access')
+    const cat = await category('backend', 'Backend')
+    await assign(mem.id, cat)
+    await env.DB.prepare(
+      `INSERT INTO catalog_actions(run_id, owner_id, batch, turn, call_index, tool, kind, effect, memory_id, category_id, arguments_json, before_json, decision, created_at)
+       VALUES (?, 'alice', 0, 0, 0, 'assign', 'assign', 'immediate', ?, ?, '{}', '[]', 'applied', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(runId, mem.id, cat)
+      .run()
+
+    const { status, body } = await call(`/api/v1/catalog/runs/${runId}/revert`, 'POST', {})
+    expect(status).toBe(200)
+    expect(body).toMatchObject({ reverted: 1, skipped: 0 })
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM memory_categories').first('n')).toBe(0)
+    const run = await env.DB.prepare('SELECT status FROM catalog_runs WHERE id = ?')
+      .bind(runId)
+      .first<{ status: string }>()
+    expect(run?.status).toBe('reverted')
+    // The reversal itself is auditable.
+    const revert = await env.DB.prepare('SELECT decision, revert_of FROM catalog_actions WHERE batch = -2')
+      .first<{ decision: string, revert_of: number }>()
+    expect(revert?.decision).toBe('applied')
+    expect(revert?.revert_of).toBeGreaterThan(0)
+  })
+  it('reports what it could not undo instead of claiming success', async () => {
+    const runId = await openRun()
+    const mem = await memory('Database access')
+    const cat = await category('backend', 'Backend')
+    // A hard delete was recorded, which has no inverse here.
+    await env.DB.prepare(
+      `INSERT INTO catalog_actions(run_id, owner_id, batch, turn, call_index, tool, kind, effect, memory_id, category_id, arguments_json, decision, created_at)
+       VALUES (?, 'alice', 0, 0, 0, 'unassign', 'unassign', 'immediate', ?, ?, '{}', 'applied', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(runId, mem.id, cat)
+      .run()
+    const result = await revertRun(env, 'alice', runId)
+    expect(result).toEqual({ reverted: 0, skipped: 1 })
+  })
+  it('refuses to revert a run that is still going', async () => {
+    const runId = await openRun('live', 'running')
+    const { status, body } = await call(`/api/v1/catalog/runs/${runId}/revert`, 'POST', {})
+    expect(status).toBe(409)
+    expect(body).toMatchObject({ code: 'RUN_IN_PROGRESS' })
+  })
+})
+
+describe('deciding a proposal', () => {
+  async function seedProposal(kind: string, payload: Record<string, unknown>, fields: Record<string, unknown> = {}) {
+    const id = crypto.randomUUID()
+    const runId = await openRun()
+    await env.DB.prepare(
+      `INSERT INTO catalog_proposals(id, owner_id, first_run_id, last_run_id, kind, category_id, target_category_id, memory_id, target_project, payload_json, rationale, evidence_runs, status, created_at)
+       VALUES (?, 'alice', ?, ?, ?, ?, ?, ?, ?, ?, 'Because.', 2, 'pending', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(
+        id,
+        runId,
+        runId,
+        kind,
+        fields.categoryId ?? null,
+        fields.targetCategoryId ?? null,
+        fields.memoryId ?? null,
+        fields.targetProject ?? null,
+        JSON.stringify(payload),
+      )
+      .run()
+    return id
+  }
+
+  it('moves a memory only after the proposal is approved', async () => {
+    const mem = await memory('Database access')
+    const proposalId = await seedProposal(
+      'project_move',
+      { memoryId: mem.id, from: 'global', to: 'billing' },
+      { memoryId: mem.id, targetProject: 'billing' },
+    )
+    // Still where it was while the proposal is merely pending.
+    let row = await env.DB.prepare('SELECT project FROM memories WHERE id = ?')
+      .bind(mem.id)
+      .first<{ project: string, version: number }>()
+    expect(row?.project).toBe('global')
+
+    const { status, body } = await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'approve' })
+    expect(status).toBe(200)
+    expect(body).toMatchObject({ status: 'approved' })
+    row = await env.DB.prepare('SELECT project, version FROM memories WHERE id = ?')
+      .bind(mem.id)
+      .first<{ project: string, version: number }>()
+    expect(row?.project).toBe('billing')
+    expect(row?.version).toBe(2)
+    // The move queued a fresh index job, so the vector follows the memory.
+    const jobs = await env.DB.prepare('SELECT count(*) AS n FROM index_jobs WHERE memory_id = ?')
+      .bind(mem.id)
+      .first<{ n: number }>()
+    expect(jobs?.n).toBeGreaterThan(1)
+    // The human decision is recorded against the proposal.
+    const decision = await env.DB.prepare('SELECT decision FROM catalog_actions WHERE batch = -3')
+      .first<{ decision: string }>()
+    expect(decision?.decision).toBe('applied')
+  })
+  it('records a rejection without touching anything', async () => {
+    const mem = await memory('Database access')
+    const proposalId = await seedProposal(
+      'project_move',
+      { memoryId: mem.id, from: 'global', to: 'billing' },
+      { memoryId: mem.id, targetProject: 'billing' },
+    )
+    const { body } = await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'reject' })
+    expect(body).toMatchObject({ status: 'rejected' })
+    const row = await env.DB.prepare('SELECT project FROM memories WHERE id = ?')
+      .bind(mem.id)
+      .first<{ project: string }>()
+    expect(row?.project).toBe('global')
+    const decision = await env.DB.prepare('SELECT decision FROM catalog_actions WHERE batch = -3')
+      .first<{ decision: string }>()
+    expect(decision?.decision).toBe('rejected_by_user')
+  })
+  it('applies an approved new category and lists pending proposals', async () => {
+    const proposalId = await seedProposal('create_category', {
+      parentId: null,
+      slug: 'databases',
+      label: 'Databases',
+      description: 'Database choices.',
+      boundary: 'NOT here: application code.',
+      axisHint: null,
+    })
+    const pending = await call('/api/v1/catalog/proposals')
+    expect((pending.body?.proposals as unknown[]).length).toBe(1)
+    await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'approve' })
+    const { body } = await call('/api/v1/catalog')
+    const categories = body?.categories as { slug: string, createdBy: string }[]
+    expect(categories).toEqual([expect.objectContaining({ slug: 'databases', createdBy: 'user' })])
+    expect(await listProposals(env, 'alice')).toHaveLength(0)
+  })
+  it('merges an approved category into its target', async () => {
+    const from = await category('noise', 'Noise')
+    const into = await category('backend', 'Backend')
+    const mem = await memory('Database access')
+    await assign(mem.id, from)
+    const proposalId = await seedProposal(
+      'merge_category',
+      { fromId: from, intoId: into },
+      { categoryId: from, targetCategoryId: into },
+    )
+    await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'approve' })
+    const membership = await env.DB.prepare('SELECT category_id FROM memory_categories WHERE memory_id = ?')
+      .bind(mem.id)
+      .first<{ category_id: string }>()
+    expect(membership?.category_id).toBe(into)
+    const retired = await env.DB.prepare('SELECT state FROM categories WHERE id = ?')
+      .bind(from)
+      .first<{ state: string }>()
+    expect(retired?.state).toBe('retired')
+  })
+  it('refuses to decide twice', async () => {
+    const proposalId = await seedProposal('retire_category', { categoryId: 'x' }, { categoryId: null })
+    await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'reject' })
+    const again = await call(`/api/v1/catalog/proposals/${proposalId}`, 'POST', { decision: 'approve' })
+    expect(again.status).toBe(409)
+    expect(again.body).toMatchObject({ code: 'CONFLICT' })
+  })
+})
+
+describe('moving a memory between projects', () => {
+  it('uses optimistic concurrency', async () => {
+    const mem = await memory('Database access')
+    const moved = await moveMemoryProject(env, session, mem.id, 1, 'billing')
+    expect(moved.project).toBe('billing')
+    expect(moved.version).toBe(2)
+    await expect(moveMemoryProject(env, session, mem.id, 1, 'ops')).rejects.toMatchObject({
+      code: 'VERSION_CONFLICT',
+    })
+  })
+  it('refuses a move that would duplicate identical content', async () => {
+    const first = await memory('Database access', 'The same body.')
+    await createMemory(env, session, {
+      project: 'billing',
+      title: 'Database access',
+      content: 'The same body.',
+      kind: 'fact',
+      tags: [],
+      source: 'Recorded for a catalog test.',
+      idempotencyKey: crypto.randomUUID(),
+    })
+    await expect(moveMemoryProject(env, session, first.id, 1, 'billing')).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+  })
+  it('keeps update unable to change a project, so only approval can', async () => {
+    const mem = await memory('Database access')
+    const { updateMemory } = await import('../lib/server/memories')
+    await expect(
+      updateMemory(env, session, mem.id, {
+        project: 'billing',
+        title: mem.title,
+        content: mem.content,
+        kind: mem.kind,
+        tags: mem.tags,
+        source: mem.source,
+        expectedVersion: mem.version,
+      }),
+    ).rejects.toMatchObject({ code: 'IMMUTABLE_PROJECT' })
+  })
+})

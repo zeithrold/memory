@@ -1,7 +1,9 @@
 import type { Memory, MemoryInput, MemoryRevision, Principal } from '../contracts'
+import type { Balance } from './catalog/balance'
 import type { Env } from './env'
 import { z } from 'zod'
-import { createSchema, searchSchema, updateSchema } from '../contracts'
+import { createSchema, projectSchema, searchSchema, updateSchema } from '../contracts'
+import { allocate, deviation, MAX_ROUTED_CATEGORIES, membersOf, scoreCategories, standardize } from './catalog/balance'
 import { digest } from './crypto'
 import { AppError, requirePermission } from './errors'
 import { ftsQuery, fuseRankings, terms } from './search'
@@ -190,6 +192,52 @@ export async function updateMemory(
   }
   return serialize(await getRow(env, principal, id))
 }
+/**
+ * Moves a memory to another project.
+ *
+ * `project` stays immutable for every client: `update` still refuses to change
+ * it. This exists only so a user can approve a proposal the catalog agent made,
+ * because the agent itself must never move a memory — a move immediately
+ * changes which project-restricted tokens can see it.
+ *
+ * The existing `memories_update` trigger queues a fresh index job, so the vector
+ * is rewritten under the new project and the previous version is deleted.
+ */
+export async function moveMemoryProject(
+  env: Env,
+  principal: Principal,
+  id: string,
+  expectedVersion: number,
+  targetProject: string,
+): Promise<Memory> {
+  const project = projectSchema.parse(targetProject)
+  requirePermission(principal, 'memory:write', project)
+  const previous = await getRow(env, principal, id)
+  if (previous.project === project)
+    return serialize(previous)
+  let changes: number
+  try {
+    const result = await env.DB.prepare(
+      `UPDATE memories SET project = ?, version = version + 1, updated_at = ?
+      WHERE id = ? AND owner_id = ? AND version = ? AND deleted = 0`,
+    )
+      .bind(project, new Date().toISOString(), id, principal.ownerId, expectedVersion)
+      .run()
+    changes = result.meta.changes
+  }
+  catch (error) {
+    if (error instanceof Error && error.message.includes('UNIQUE constraint')) {
+      throw new AppError(
+        'CONFLICT',
+        'The target project already holds an identical memory. Read it before reconciling.',
+      )
+    }
+    throw error
+  }
+  if (!changes)
+    throw new AppError('VERSION_CONFLICT', 'The memory changed. Read it again before moving it.')
+  return serialize(await getRow(env, principal, id))
+}
 export async function deleteMemory(
   env: Env,
   principal: Principal,
@@ -243,6 +291,11 @@ export async function searchMemories(
   memories: Memory[]
   mode: 'hybrid' | 'keyword'
   degraded: boolean
+  catalog: {
+    routed: boolean
+    balance: Balance
+    categories: { id: string, label: string, candidates: number }[]
+  } | null
 }> {
   const input = searchSchema.parse(value)
   requirePermission(principal, 'memory:read', input.project)
@@ -286,14 +339,136 @@ export async function searchMemories(
     }
   }
   const byId = new Map([...keywords, ...vectors].map(row => [row.id, row]))
-  const memories = fuseRankings([
-    keywords.map(row => row.id),
-    vectors.map(row => row.id),
-  ])
-    .slice(0, input.limit)
-    .flatMap((id) => {
-      const row = byId.get(id)
-      return row ? [serialize(row)] : []
-    })
-  return { memories, mode, degraded: mode === 'keyword' }
+  const keywordIds = keywords.map(row => row.id)
+  const vectorIds = vectors.map(row => row.id)
+  const flat = fuseRankings([keywordIds, vectorIds])
+
+  if (input.mode !== 'catalog' || flat.length === 0) {
+    return {
+      memories: flat
+        .slice(0, input.limit)
+        .flatMap(id => memoryOf(byId, id)),
+      mode,
+      degraded: mode === 'keyword',
+      catalog: input.mode === 'catalog'
+        ? { routed: false, balance: input.balance, categories: [] }
+        : null,
+    }
+  }
+
+  const routed = await routeThroughCatalog(env, principal, input, { flat, byId, query })
+  return {
+    memories: routed.ranking.slice(0, input.limit).flatMap(id => memoryOf(byId, id)),
+    mode,
+    degraded: mode === 'keyword',
+    catalog: { routed: routed.routed, balance: input.balance, categories: routed.categories },
+  }
+}
+
+function memoryOf(byId: Map<string, MemoryRow>, id: string): Memory[] {
+  const row = byId.get(id)
+  return row ? [serialize(row)] : []
+}
+
+/**
+ * Catalog-routed retrieval.
+ *
+ * The flat ranking is always one of the fused lists, never a fallback appended
+ * at the end. Measured router precision is poor enough that this has to be the
+ * primary safety net: the best supervised vertical selection reached 0.583
+ * precision, 26.3% of queries had no relevant vertical at all (Arguello et al.,
+ * SIGIR 2009), and RAPTOR measured flattened retrieval beating level-by-level
+ * tree traversal. A routing miss therefore costs ranking quality, never recall.
+ *
+ * Each selected category contributes a truncated list, so a large category
+ * cannot supply every candidate, and every selected category keeps at least one
+ * slot.
+ */
+async function routeThroughCatalog(
+  env: Env,
+  principal: Principal,
+  input: z.infer<typeof searchSchema>,
+  pool: { flat: string[], byId: Map<string, MemoryRow>, query: string },
+): Promise<{
+  routed: boolean
+  ranking: string[]
+  categories: { id: string, label: string, candidates: number }[]
+}> {
+  const categories = await env.DB.prepare(
+    'SELECT id, label, description, boundary, member_count FROM categories WHERE owner_id = ? AND state = \'active\'',
+  )
+    .bind(principal.ownerId)
+    .all<{ id: string, label: string, description: string, boundary: string, member_count: number }>()
+  const scores = scoreCategories(categories.results, terms(input.query))
+  const selected = [...scores.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, MAX_ROUTED_CATEGORIES)
+    .map(([id]) => categories.results.find(category => category.id === id))
+    .filter((category): category is NonNullable<typeof category> => category !== undefined)
+  if (selected.length === 0)
+    return { routed: false, ranking: pool.flat, categories: [] }
+
+  const members = await membersOf(env, principal.ownerId, selected.map(category => category.id))
+  const position = new Map(pool.flat.map((id, index) => [id, index]))
+  const lists: string[][] = [pool.flat]
+  const reported: { id: string, label: string, candidates: number }[] = []
+  const sizes = new Map<string, number>()
+  const deviations = new Map<string, number>()
+
+  for (const category of selected) {
+    const ids = members.get(category.id) ?? []
+    const inPool = ids
+      .filter(id => position.has(id))
+      .sort((left, right) => (position.get(left) ?? 0) - (position.get(right) ?? 0))
+    // A category with no candidates in the pool is not empty, it is merely
+    // crowded out; one bounded query asks for it directly. Only the score
+    // ranking is normalized, so the ranks stay comparable across categories.
+    const ranked = inPool.length > 0
+      ? inPool
+      : await crowdedOut(env, principal, input.project, pool.query, category.id)
+    if (ranked.length === 0) {
+      reported.push({ id: category.id, label: category.label, candidates: 0 })
+      continue
+    }
+    const normalized = standardize(ranked.map((_, index) => ranked.length - index))
+    sizes.set(category.id, Math.max(1, ids.length))
+    deviations.set(category.id, deviation(normalized))
+    reported.push({ id: category.id, label: category.label, candidates: ranked.length })
+    lists.push(ranked)
+  }
+
+  const allocation = allocate(input.balance, { sizes, deviations, total: input.limit })
+  const truncated = lists.slice(1).map((list, index) => {
+    const category = selected[index]
+    const budget = category === undefined ? list.length : allocation.get(category.id) ?? 1
+    return list.slice(0, Math.max(1, budget * 2))
+  })
+  // Fusing keeps a partial routing answer adjacent to the flat one instead of
+  // replacing it: RRF sums ranks, so an item both routes and matches flat wins.
+  return {
+    routed: true,
+    ranking: fuseRankings([pool.flat, ...truncated]),
+    categories: reported,
+  }
+}
+
+/** One bounded query for a category the flat pool did not reach. */
+async function crowdedOut(
+  env: Env,
+  principal: Principal,
+  project: string,
+  query: string,
+  categoryId: string,
+): Promise<string[]> {
+  if (query.length === 0)
+    return []
+  const rows = await env.DB.prepare(
+    `SELECT m.id FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid
+     WHERE memories_fts MATCH ? AND m.owner_id = ? AND m.project = ? AND m.deleted = 0
+       AND m.id IN (SELECT memory_id FROM memory_categories WHERE category_id = ? AND owner_id = ?)
+     ORDER BY bm25(memories_fts) LIMIT 20`,
+  )
+    .bind(query, principal.ownerId, project, categoryId, principal.ownerId)
+    .all<{ id: string }>()
+  return rows.results.map(row => row.id)
 }

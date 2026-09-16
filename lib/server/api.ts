@@ -3,6 +3,7 @@ import type { Env } from './env'
 import { z } from 'zod'
 import { projectSchema, tokenInputSchema } from '../contracts'
 import { authenticate, rateLimit, requireSession } from './auth'
+import { catalogApi } from './catalog/api'
 import { digest, randomToken } from './crypto'
 import { AppError, errorResponse } from './errors'
 import { readJson, secureResponse } from './http'
@@ -26,7 +27,7 @@ export async function api(request: Request, env: Env): Promise<Response> {
     .split('/')
     .filter(Boolean)
   const [resource = '', id = '', action = ''] = path
-  const allowed = ['memories', 'search', 'tokens', 'usage', 'status']
+  const allowed = ['memories', 'search', 'tokens', 'usage', 'status', 'catalog']
   const operation = `${request.method} ${resource && allowed.includes(resource) ? resource : 'unknown'}${action === 'history' ? '/history' : ''}`
   let response: Response
   try {
@@ -166,6 +167,8 @@ export async function api(request: Request, env: Env): Promise<Response> {
         index: result,
       })
     }
+    if (resource === 'catalog')
+      return catalogApi(request, env, principal, path)
     throw new AppError('NOT_FOUND', 'Endpoint not found.')
   }
 }
