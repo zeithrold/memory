@@ -120,6 +120,8 @@ If the callback comes back with `error=invalid_scope` and a description like *Th
 2. **Re-register the existing client.** Changing the defaults does not widen a client that already exists. Under **OAuth applications → Applications**, either edit that client's scopes to add the OIDC scopes, or delete it, then reconnect in ChatGPT so a fresh client is registered. `npx clerk@latest api oauth_applications` lists each application with the scopes it may request.
 3. Re-run `pnpm oauth:check`, which prints the advertised OIDC scopes and the same warning.
 
+ChatGPT currently announces MCP revision `2026-07-28` and opens with `server/discover`, a method that revision makes mandatory. The pinned MCP SDK implements revisions up to `2025-11-25`, so `lib/server/mcp.ts` accepts an unknown `MCP-Protocol-Version` by serving the request with the revision this server implements rather than answering `400`, and `server/discover` is answered with `Method not found` so the client falls back to `initialize` (which negotiates down to `2025-11-25`). That compatibility shim keeps 2025-era clients working; adopting `@modelcontextprotocol/server` 2.x is the durable fix if a client ever requires the newer revision outright.
+
 Two Clerk behaviours are worth knowing. Its metadata advertises RFC 9207 issuer identification, which is what lets ChatGPT reuse the stable `https://chatgpt.com/connector_platform_oauth_redirect` callback; if an instance ever stops advertising it, ChatGPT falls back to a connection-specific redirect URI and registers a separate OAuth client per connection, and nothing here needs to change. Clerk also does not bind tokens to an audience, so this server verifies issuer, expiry, and scope, but not the `resource` parameter.
 
 ### Codex

@@ -18,11 +18,15 @@ import { database } from './database'
 
 // The Clerk SDK is the only way to verify a real OAuth token. Everything this
 // application decides from the verified identity is exercised for real below.
-const { authenticateRequest } = vi.hoisted(() => ({
+const { authenticateRequest, createClerkClient } = vi.hoisted(() => ({
   authenticateRequest: vi.fn(),
+  createClerkClient: vi.fn(),
 }))
 vi.mock('@clerk/backend', () => ({
-  createClerkClient: () => ({ authenticateRequest }),
+  createClerkClient: (options: unknown) => {
+    createClerkClient(options)
+    return { authenticateRequest }
+  },
   verifyToken: vi.fn().mockRejectedValue(new Error('not a session token')),
 }))
 
@@ -41,8 +45,11 @@ beforeEach(() => {
     CLERK_SECRET_KEY: 'sk_test_placeholder',
     CLERK_ISSUER: 'https://clerk.example',
   }
-  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  // Deployments always inline the publishable key; tests that need it absent
+  // delete it explicitly.
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = PUBLISHABLE_KEY
   authenticateRequest.mockReset()
+  createClerkClient.mockReset()
   resetOauthCache()
 })
 afterEach(() => {
@@ -131,6 +138,7 @@ describe('clerk issuer resolution', () => {
 
 describe('protected resource metadata', () => {
   it('describes the resource, the Clerk authorization server and the memory scopes', () => {
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     expect(protectedResourceMetadata(env, 'https://memory.example')).toEqual({
       resource: 'https://memory.example',
       authorization_servers: ['https://clerk.example'],
@@ -145,6 +153,7 @@ describe('protected resource metadata', () => {
     ).toBeNull()
   })
   it('serves the document publicly and fails closed without Clerk', async () => {
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     const configured = protectedResourceResponse(
       new Request(resourceMetadataUrl(env)),
       env,
@@ -242,6 +251,49 @@ describe('oauth scope mapping', () => {
 })
 
 describe('oauth credentials', () => {
+  it('builds the Clerk client with the publishable key OAuth verification needs', async () => {
+    oauthToken(['memory:read'])
+    await authenticate(request('/mcp', 'oauth-access-token'), env, [
+      'personal',
+      'oauth',
+    ])
+    // Without it Clerk throws "Publishable key is missing" on every OAuth token.
+    expect(createClerkClient).toHaveBeenCalledWith({
+      secretKey: 'sk_test_placeholder',
+      publishableKey: PUBLISHABLE_KEY,
+    })
+  })
+  it('reports a thrown verification failure as 401, never as a server error', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    authenticateRequest.mockRejectedValue(new Error('Publishable key is missing'))
+    await expect(
+      authenticate(request('/mcp', 'garbage'), env, ['personal', 'oauth']),
+    ).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' })
+    const response = await mcp(
+      request('/mcp', 'garbage', jsonRpc(1, 'initialize')),
+      env,
+    )
+    expect(response.status).toBe(401)
+    expect(response.headers.get('www-authenticate')).toContain('resource_metadata=')
+    logged.mockRestore()
+  })
+  it('treats a token without a scope claim as insufficient scope, not a crash', async () => {
+    authenticateRequest.mockResolvedValue({
+      isAuthenticated: true,
+      toAuth: () => ({ userId: 'alice', clientId: null, scopes: undefined }),
+    })
+    await expect(
+      authenticate(request('/mcp', 'oauth-access-token'), env, ['personal', 'oauth']),
+    ).rejects.toMatchObject({ status: 403, code: 'INSUFFICIENT_SCOPE' })
+  })
+  it('fails closed when the instance publishable key is unavailable', async () => {
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    oauthToken(['memory:read'])
+    await expect(
+      authenticate(request('/mcp', 'oauth-access-token'), env, ['personal', 'oauth']),
+    ).rejects.toMatchObject({ status: 503, code: 'AUTH_NOT_CONFIGURED' })
+    expect(authenticateRequest).not.toHaveBeenCalled()
+  })
   it('maps a verified OAuth token onto the MCP principal', async () => {
     oauthToken(['openid', 'email', 'memory:read', 'memory:write'])
     const principal = await authenticate(
@@ -289,6 +341,37 @@ describe('mcp oauth surface', () => {
     expect(response.headers.get('www-authenticate')).toContain(
       'resource_metadata="https://memory.example/.well-known/oauth-protected-resource"',
     )
+  })
+  it('serves a client that announces a newer protocol revision than the SDK supports', async () => {
+    const key = await token()
+    const newer = (method: string, params: unknown = {}) => {
+      const base = request('/mcp', key, jsonRpc(1, method, params))
+      base.headers.set('mcp-protocol-version', '2026-07-28')
+      return base
+    }
+    // ChatGPT sends this combination; the pinned SDK would answer 400 first.
+    const discover = await mcp(newer('server/discover'), env)
+    expect(discover.status).toBe(200)
+    expect(await discover.json()).toMatchObject({
+      jsonrpc: '2.0',
+      error: { code: -32601 },
+    })
+    // Version negotiation still answers with the revision this server implements.
+    const initialize = await mcp(
+      newer('initialize', {
+        protocolVersion: '2026-07-28',
+        capabilities: {},
+        clientInfo: { name: 'openai-mcp', version: '1.0.0' },
+      }),
+      env,
+    )
+    expect(initialize.status).toBe(200)
+    expect(await initialize.json()).toMatchObject({
+      result: { protocolVersion: '2025-11-25', serverInfo: { name: 'shared-memory' } },
+    })
+    const listed = await mcp(newer('tools/list'), env)
+    expect(listed.status).toBe(200)
+    expect(JSON.stringify(await listed.json())).toContain('memory_search')
   })
   it('advertises security schemes per tool and hides scopes the link lacks', async () => {
     oauthToken(['openid', 'memory:read'])

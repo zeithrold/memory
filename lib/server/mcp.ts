@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-compat.js'
 import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js'
-import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { ListToolsRequestSchema, SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js'
 import * as Sentry from '@sentry/cloudflare'
 import { z } from 'zod'
 import { createSchema, searchSchema, updateSchema } from '../contracts'
@@ -235,22 +235,42 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
   }))
   return server
 }
+/**
+ * The pinned MCP SDK implements protocol revisions up to 2025-11-25 and rejects
+ * any other `MCP-Protocol-Version` with 400 before dispatch. Newer clients must
+ * still be able to reach version negotiation the way `initialize` already does,
+ * so an unrecognised version is dropped and the request is served with the
+ * revision this server implements.
+ */
+export function negotiatedRequest(request: Request): Request {
+  const version = request.headers.get('mcp-protocol-version')
+  if (version === null || SUPPORTED_PROTOCOL_VERSIONS.includes(version))
+    return request
+  const headers = new Headers(request.headers)
+  headers.delete('mcp-protocol-version')
+  // Built from primitives rather than cloned: the route handler receives a
+  // request shim that the workerd Request constructor rejects. The body is read
+  // from the original request and handed to the transport as `parsedBody`, so
+  // this copy only has to carry the method and headers.
+  return new Request(request.url, { method: request.method, headers })
+}
 export async function mcp(request: Request, env: Env): Promise<Response> {
+  const served = negotiatedRequest(request)
   const context = {
     origin: env.APP_ORIGIN,
-    instance: new URL(request.url).pathname,
-    method: request.method,
+    instance: new URL(served.url).pathname,
+    method: served.method,
   }
   // A CORS preflight never carries credentials, so it is answered first.
-  if (request.method === 'OPTIONS') {
+  if (served.method === 'OPTIONS') {
     return secureResponse(
       new Response(null, { status: 204, headers: { Allow: 'POST' } }),
     )
   }
   try {
-    const principal = await authenticate(request, env, ['personal', 'oauth'])
+    const principal = await authenticate(served, env, ['personal', 'oauth'])
     await rateLimit(env, principal)
-    if (request.method !== 'POST') {
+    if (served.method !== 'POST') {
       return secureResponse(
         problemResponse(
           problemDocument(
@@ -270,7 +290,7 @@ export async function mcp(request: Request, env: Env): Promise<Response> {
     await server.connect(transport)
     try {
       return secureResponse(
-        await transport.handleRequest(request, { parsedBody: body }),
+        await transport.handleRequest(served, { parsedBody: body }),
       )
     }
     finally {

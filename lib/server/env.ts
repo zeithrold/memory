@@ -5,6 +5,8 @@ export interface Env {
   CLERK_SECRET_KEY?: string
   /** Optional explicit Clerk issuer. Derived from the publishable key when unset. */
   CLERK_ISSUER?: string
+  /** Optional publishable key override; otherwise the built-in public key is used. */
+  CLERK_PUBLISHABLE_KEY?: string
   /** Absent in local development and the e2e preview, which disables Sentry. */
   SENTRY_DSN?: string
   SENTRY_RELEASE?: string

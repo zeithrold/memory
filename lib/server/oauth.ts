@@ -120,11 +120,33 @@ export function oauthPrincipal(identity: {
 }
 let cached: {
   secretKey: string
+  publishableKey: string
   client: ReturnType<typeof createClerkClient>
 } | null = null
-function clerkClient(secretKey: string): ReturnType<typeof createClerkClient> {
-  if (cached?.secretKey !== secretKey)
-    cached = { secretKey, client: createClerkClient({ secretKey }) }
+/**
+ * Clerk verifies OAuth access tokens through the instance's frontend API, which
+ * it derives from the publishable key. A client built from the secret key alone
+ * throws `Publishable key is missing` on every machine-token verification.
+ */
+export function clerkPublishableKey(env: Pick<Env, 'CLERK_PUBLISHABLE_KEY'>): string {
+  const explicit = env.CLERK_PUBLISHABLE_KEY?.trim()
+  if (explicit !== undefined && explicit.length > 0)
+    return explicit
+  // Vite replaces the global expression; importing node:process prevents it.
+  // eslint-disable-next-line node/prefer-global/process
+  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? ''
+}
+function clerkClient(
+  secretKey: string,
+  publishableKey: string,
+): ReturnType<typeof createClerkClient> {
+  if (cached?.secretKey !== secretKey || cached.publishableKey !== publishableKey) {
+    cached = {
+      secretKey,
+      publishableKey,
+      client: createClerkClient({ secretKey, publishableKey }),
+    }
+  }
   return cached.client
 }
 export function resetOauthCache(): void {
@@ -142,16 +164,40 @@ export async function verifyOAuthRequest(
   if (env.CLERK_SECRET_KEY === undefined || env.CLERK_SECRET_KEY.length === 0) {
     throw new AppError('AUTH_NOT_CONFIGURED', 'Clerk is not configured yet.')
   }
-  const state = await clerkClient(env.CLERK_SECRET_KEY).authenticateRequest(
-    request,
-    { acceptsToken: 'oauth_token' },
-  )
-  if (!state.isAuthenticated)
-    return null
-  const auth = state.toAuth()
-  return oauthPrincipal({
-    userId: auth.userId,
-    clientId: auth.clientId,
-    scopes: auth.scopes,
-  })
+  const publishableKey = clerkPublishableKey(env)
+  if (publishableKey.length === 0) {
+    throw new AppError(
+      'AUTH_NOT_CONFIGURED',
+      'Clerk OAuth verification needs the publishable key of the instance.',
+    )
+  }
+  try {
+    const state = await clerkClient(env.CLERK_SECRET_KEY, publishableKey)
+      .authenticateRequest(request, { acceptsToken: 'oauth_token' })
+    if (!state.isAuthenticated)
+      return null
+    const auth = state.toAuth()
+    return oauthPrincipal({
+      userId: auth.userId,
+      clientId: auth.clientId,
+      // An opaque token whose response omits scopes must fail as insufficient
+      // scope, not as a type error.
+      scopes: Array.isArray(auth.scopes) ? auth.scopes : [],
+    })
+  }
+  catch (error) {
+    // Insufficient scope is a step-up signal, not a verification failure.
+    if (error instanceof AppError)
+      throw error
+    // A token that cannot be verified is an authentication failure, never a
+    // server error: the challenge must send the host back through OAuth.
+    console.error('OAuth token verification failed', {
+      type: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message.slice(0, 200) : '',
+    })
+    throw new AppError(
+      'UNAUTHORIZED',
+      'The OAuth access token could not be verified.',
+    )
+  }
 }
