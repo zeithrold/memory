@@ -163,6 +163,12 @@ export const en = {
   metricsNote:
     'Daily totals for the last 90 days. Raw turns and tool calls are pruned after 90 days; these numbers are not.',
   catalogSettings: 'Catalog settings',
+  showSettings: 'Configure',
+  hideSettings: 'Done',
+  settingsDescription:
+    'The agent calls a model endpoint you supply. This service never pays for inference, and the key is encrypted at rest.',
+  providerHint:
+    'Most configuration mistakes are endpoints that answer but cannot call tools. Run the connection test before enabling.',
   provider: 'Model provider',
   providerNone: 'Not configured',
   providerOpenAi: 'OpenAI-compatible endpoint',
@@ -350,6 +356,12 @@ export const zh: Messages = {
   metricsNote:
     '最近 90 天的每日汇总。原始轮次与工具调用在 90 天后清理，这些汇总数字不会。',
   catalogSettings: '目录设置',
+  showSettings: '去配置',
+  hideSettings: '收起',
+  settingsDescription:
+    'Agent 调用的是你自己提供的模型端点。平台不承担任何推理费用，密钥是加密存储的。',
+  providerHint:
+    '最常见的配置错误是端点能回答、但不支持工具调用。启用之前请先跑一次连接测试。',
   provider: '模型服务',
   providerNone: '未配置',
   providerOpenAi: 'OpenAI 兼容端点',

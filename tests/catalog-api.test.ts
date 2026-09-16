@@ -278,6 +278,26 @@ describe('connection probe', () => {
     const settings = await call('/api/v1/catalog/settings')
     expect(settings.body).toMatchObject({ lastProbeOk: true })
     expect(settings.body?.lastProbeAt).not.toBeNull()
+    // The column is `last_probe_error`; a success message in it would be a lie.
+    expect(settings.body?.lastProbeError).toBeNull()
+  })
+  it('keeps the explanation of a failed stored probe, and clears it on the next success', async () => {
+    await call('/api/v1/catalog/settings', 'PUT', {
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.com',
+      model: 'm',
+      apiKey: 'sk-live-0123456789abcdef',
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('bad key', { status: 401 })))
+    await call('/api/v1/catalog/settings/test', 'POST', {})
+    const failed = await call('/api/v1/catalog/settings')
+    expect(failed.body).toMatchObject({ lastProbeOk: false })
+    expect(String(failed.body?.lastProbeError)).toContain('HTTP 401')
+
+    stubProvider()
+    await call('/api/v1/catalog/settings/test', 'POST', {})
+    const recovered = await call('/api/v1/catalog/settings')
+    expect(recovered.body).toMatchObject({ lastProbeOk: true, lastProbeError: null })
   })
   it('reuses the stored credential when the form only changes the model', async () => {
     stubProvider()

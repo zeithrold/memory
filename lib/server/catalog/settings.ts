@@ -256,6 +256,14 @@ export async function updateCatalogSettings(
   return getCatalogSettings(env, ownerId)
 }
 
+/**
+ * Records the outcome of a probe of the stored configuration.
+ *
+ * Only a failure keeps its explanation: the column is `last_probe_error`, and
+ * storing a success message in it would make the name a lie. Success is already
+ * carried by `last_probe_ok`, and the form shows the detail of the probe it just
+ * ran.
+ */
 export async function recordProbe(
   env: Env,
   ownerId: string,
@@ -264,7 +272,13 @@ export async function recordProbe(
   await env.DB.prepare(
     'UPDATE agent_settings SET last_probe_at = ?, last_probe_ok = ?, last_probe_error = ?, updated_at = ? WHERE owner_id = ?',
   )
-    .bind(now(), result.ok ? 1 : 0, result.detail.slice(0, 500), now(), ownerId)
+    .bind(
+      now(),
+      result.ok ? 1 : 0,
+      result.ok ? null : result.detail.slice(0, 500),
+      now(),
+      ownerId,
+    )
     .run()
 }
 

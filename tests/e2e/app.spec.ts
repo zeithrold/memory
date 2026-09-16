@@ -35,6 +35,10 @@ test('the catalog tab explains itself before a provider is configured', async ({
   // than firing a request that would fail.
   await expect(page.getByRole('button', { name: 'Run now' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Dry run' })).toBeDisabled()
+  // The settings card is present and collapsed, since there is no session to
+  // configure it with.
+  await expect(page.getByText('Catalog settings')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Configure' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
 })
