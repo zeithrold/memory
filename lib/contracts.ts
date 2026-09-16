@@ -42,14 +42,25 @@ export const tokenInputSchema = z
     expiresInDays: z.number().int().min(1).max(365).default(90),
   })
   .strict()
+/**
+ * The stored memory as `serialize()` emits it. Strict so a field added to the
+ * row shape without updating this schema fails a test rather than a tool call.
+ */
+export const memorySchema = memoryInputSchema.extend({
+  id: z.string().uuid(),
+  version: z.number().int().positive(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export const searchResultSchema = z.object({
+  memories: z.array(memorySchema),
+  mode: z.enum(['hybrid', 'keyword']),
+  degraded: z.boolean(),
+})
+export const deleteResultSchema = z.object({ deleted: z.boolean() })
 export type Scope = z.infer<typeof scopeSchema>
 export type MemoryInput = z.infer<typeof memoryInputSchema>
-export interface Memory extends MemoryInput {
-  id: string
-  version: number
-  createdAt: string
-  updatedAt: string
-}
+export type Memory = z.infer<typeof memorySchema>
 export interface MemoryRevision {
   version: number
   title: string

@@ -1,6 +1,7 @@
 import type { Principal } from '../lib/contracts'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { memorySchema } from '../lib/contracts'
 import { en, zh } from '../lib/i18n/messages'
 import { api } from '../lib/server/api'
 import { authenticate } from '../lib/server/auth'
@@ -98,6 +99,15 @@ function vectors(matches: VectorizeMatch[] = []) {
 }
 
 describe('memory persistence and tenant boundaries', () => {
+  it('keeps the serialized memory shape in step with the advertised schema', async () => {
+    // The MCP output schema is strict, so a field added to serialize() without
+    // updating memorySchema would turn every tool call into an error.
+    const memory = await create()
+    expect(() => memorySchema.parse(memory)).not.toThrow()
+    expect(Object.keys(memory).sort()).toEqual(
+      Object.keys(memorySchema.shape).sort(),
+    )
+  })
   it('saves a source, initial history, and durable index job atomically', async () => {
     const memory = await create()
     expect(memory.version).toBe(1)

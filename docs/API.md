@@ -84,6 +84,8 @@ Reuse a creation idempotency key only with its original payload. Do not blindly 
 
 `POST /mcp` uses JSON-RPC over Streamable HTTP. Send `Accept: application/json, text/event-stream`. Credentials are either a personal API token or a Clerk OAuth access token; a browser session is not accepted. The SDK handles initialize, discovery and tool schema validation. Tools are advertised according to the credential's scopes, and every tool call is authorized again by the shared service. Tool failures use MCP `isError` with the API error envelope. GET/DELETE transport methods return 405; this server has no protocol session to resume or delete.
 
+Every tool advertises an `outputSchema` and every successful call returns the matching `structuredContent`, so a host can read fields such as `id` and `version` without parsing text. The serialized JSON is still returned in a `TextContent` block because the MCP specification asks tools that return structured content to keep it for clients that predate `structuredContent`. A declared output schema is strict: a result that does not match it becomes an `isError` tool result rather than silently reaching the model.
+
 ## OAuth discovery
 
 Clerk issues the tokens; this application publishes only the resource-server half of the MCP authorization contract.

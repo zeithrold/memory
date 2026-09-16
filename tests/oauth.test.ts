@@ -394,6 +394,94 @@ describe('mcp oauth surface', () => {
       'query',
     )
   })
+  it('advertises an output schema for every tool', async () => {
+    const key = await token()
+    const response = await mcp(
+      request('/mcp', key, jsonRpc(1, 'tools/list')),
+      env,
+    )
+    const payload: unknown = await response.json()
+    const body = payload as {
+      result: { tools: { name: string, outputSchema: { type?: string, properties?: Record<string, unknown> } }[] }
+    }
+    expect(body.result.tools.map(tool => tool.name)).toEqual([
+      'memory_search',
+      'memory_get',
+      'memory_create',
+      'memory_update',
+    ])
+    for (const tool of body.result.tools) {
+      expect(tool.outputSchema.type).toBe('object')
+      expect(Object.keys(tool.outputSchema.properties ?? {}).length).toBeGreaterThan(0)
+    }
+    const search = body.result.tools.find(tool => tool.name === 'memory_search')
+    expect(Object.keys(search?.outputSchema.properties ?? {})).toEqual([
+      'memories',
+      'mode',
+      'degraded',
+    ])
+    const create = body.result.tools.find(tool => tool.name === 'memory_create')
+    expect(Object.keys(create?.outputSchema.properties ?? {})).toEqual(
+      expect.arrayContaining(['id', 'version', 'createdAt', 'updatedAt']),
+    )
+  })
+  it('returns structured content alongside the serialized JSON', async () => {
+    // Deletion is only registered for a token that holds the scope.
+    const key = await token(['memory:read', 'memory:write', 'memory:delete'])
+    const created = await mcp(
+      request('/mcp', key, jsonRpc(1, 'tools/call', {
+        name: 'memory_create',
+        arguments: {
+          project: 'global',
+          title: 'Structured results',
+          content: 'A tool call returns both a text block and structured data.',
+          kind: 'fact',
+          tags: [],
+          source: 'Test suite.',
+          idempotencyKey: crypto.randomUUID(),
+        },
+      })),
+      env,
+    )
+    const payload: unknown = await created.json()
+    const body = payload as {
+      result: { content: { type: string, text: string }[], structuredContent: Record<string, unknown> }
+    }
+    const text = JSON.parse(body.result.content[0]?.text ?? '{}') as { id: string }
+    expect(body.result.structuredContent).toMatchObject({
+      id: text.id,
+      project: 'global',
+      title: 'Structured results',
+      version: 1,
+      kind: 'fact',
+      tags: [],
+    })
+    // Strict output schema: exactly these fields, in any order.
+    expect(Object.keys(body.result.structuredContent).sort()).toEqual([
+      'content',
+      'createdAt',
+      'id',
+      'kind',
+      'project',
+      'source',
+      'tags',
+      'title',
+      'updatedAt',
+      'version',
+    ])
+    const removed = await mcp(
+      request('/mcp', key, jsonRpc(2, 'tools/call', {
+        name: 'memory_delete',
+        arguments: { id: text.id, expectedVersion: 1 },
+      })),
+      env,
+    )
+    const removedPayload: unknown = await removed.json()
+    expect(
+      (removedPayload as { result: { structuredContent: unknown } }).result
+        .structuredContent,
+    ).toEqual({ deleted: true })
+  })
   it('returns a linking challenge when the link lacks the tool scope', async () => {
     oauthToken(['memory:read'])
     const response = await mcp(
