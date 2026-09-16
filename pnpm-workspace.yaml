@@ -1,5 +1,12 @@
 minimumReleaseAgeExcludePrune: true
+
 trustPolicy: no-downgrade
+# @sentry/vite-plugin -> @babel/core -> semver@6.3.1, a frozen package whose
+# publish predates provenance attestation. Scoped to that single version; the
+# dependency is build-time only.
+trustPolicyExclude:
+  - semver@6.3.1
+
 shellEmulator: true
 
 onlyBuiltDependencies:

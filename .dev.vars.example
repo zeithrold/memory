@@ -1,3 +1,13 @@
 CLERK_SECRET_KEY=
+# Optional. Defaults to the frontend API host encoded in the publishable key.
+CLERK_ISSUER=
 # Exact origin, including port during development.
 APP_ORIGIN=http://localhost:3000
+# Optional. Filling this in reports local failures to Sentry as environment
+# "stage"; leaving it empty keeps the SDK inert.
+SENTRY_DSN=
+# Optional overrides. The environment is derived from APP_ORIGIN (http or
+# localhost means stage) and the sample rate defaults to 1 for stage, 0.5 for
+# production.
+SENTRY_ENVIRONMENT=
+SENTRY_TRACES_SAMPLE_RATE=

@@ -1,13 +1,11 @@
 import type { Env } from '@/lib/server/env'
 import { env } from 'cloudflare:workers'
-import { mcp } from '@/lib/server/mcp'
+import { protectedResourceResponse } from '@/lib/server/discovery'
 
 export const dynamic = 'force-dynamic'
 async function handle(request: Request): Promise<Response> {
-  return mcp(request, env as unknown as Env)
+  return protectedResourceResponse(request, env as unknown as Env, '')
 }
-// Every method is exported so this handler, not a framework fallback, decides the
-// response: only POST is accepted and anything else answers with a problem document.
 export {
   handle as DELETE,
   handle as GET,

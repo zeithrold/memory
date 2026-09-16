@@ -6,8 +6,9 @@ Shared Memory is a multi-user, personal memory service. Each user's agents share
 
 - vinext App Router on Cloudflare Workers, with a custom Worker entry exporting the scheduled index processor.
 - Clerk React for sign-in, Clerk Backend for session JWT verification. Browser API requests carry the current session JWT. APIs do not implicitly trust cookies.
-- Stateless MCP Streamable HTTP at `/mcp`, using the official MCP SDK's Web Standards transport. Each request creates its own server/transport and closes it after the JSON response completes. SDK protocol compatibility is pinned in the lockfile; no legacy SSE endpoint or OAuth discovery is implemented.
-- REST at `/api/v1`, calling the same service functions as MCP.
+- Stateless MCP Streamable HTTP at `/mcp`, using the official MCP SDK's Web Standards transport. Each request creates its own server/transport and closes it after the JSON response completes. SDK protocol compatibility is pinned in the lockfile; no legacy SSE endpoint is implemented.
+- The MCP authorization contract is implemented on the resource-server side only. Clerk remains the authorization server. `/.well-known/oauth-protected-resource` (and its `/mcp` path variant) publishes RFC 9728 metadata, and a 401 or 403 on `/mcp` returns a `WWW-Authenticate` challenge that points at it. The pinned MCP SDK predates per-tool `securitySchemes`, so the advertised tool list is emitted by `lib/server/mcp.ts` instead of by `McpServer`.
+- REST at `/api/v1`, calling the same service functions as MCP. Failures are RFC 9457 problem documents whose `type` resolves to a page under `/errors`, generated from one catalog in `lib/error-catalog.ts` that also owns each code's HTTP status.
 - D1 is authoritative. SQLite triggers maintain FTS, revisions and the outbox in the same transaction as mutations.
 - Workers AI bge-m3 (1024 dimensions) and Vectorize cosine similarity. Namespace is derived from the authenticated owner; the project metadata index narrows candidates. Hydration checks tenant, project, current version and deletion status in D1.
 
@@ -27,9 +28,19 @@ Keyword indexing adds explicit CJK unigrams/bigrams and Latin/code tokens before
 
 API keys are 256-bit random secrets with SHA-256 digests in D1. They are revealed once, independently revocable, scoped to read/write/delete, and optionally one project. Management and usage endpoints require a Clerk session. Owner IDs always come from verified credentials, never request bodies. Revoked/expired keys are checked on every request. Clerk user deletion/deactivation does not automatically revoke independent keys in the MVP; revoke them before offboarding.
 
+Each entry point accepts an explicit set of credential kinds. `/api/v1` accepts a Clerk session or a personal token; `/mcp` accepts a personal token or a Clerk OAuth access token. An OAuth link therefore cannot reach token management, and `requireSession` keeps its meaning without inspecting the token's shape. OAuth scopes are the Clerk custom scopes `memory:read`, `memory:write`, and `memory:delete`, mapped onto the same `Scope` union the tokens use; a link that holds no memory scope is refused with `INSUFFICIENT_SCOPE`. Origin checks guard session credentials only: machine clients may send no Origin, and `/mcp` honors no cookie, so requiring the application origin there would reject legitimate agent hosts.
+
 Origins are checked when supplied; machine clients may omit Origin. Responses are `no-store`, JSON bodies are bounded at 64 KiB, and authenticated traffic is limited to 120 requests per owner per minute across all tokens. This is an MVP limit, not a billing quota or complete unauthenticated edge-abuse protection.
 
-Usage events hold owner, token ID, operation, status, duration and UTC timestamp, never memory content or full queries. Raw events expire after 30 days. Dashboard aggregates cap at 500 groups and are not billing-grade accounting. MCP records actual tool calls, not initialization/discovery traffic. Usage persistence is best effort; memory correctness does not depend on analytics availability.
+Usage events hold owner, token ID, OAuth client ID, operation, status, duration and UTC timestamp, never memory content or full queries. Raw events expire after 30 days. Dashboard aggregates cap at 500 groups and are not billing-grade accounting. MCP records actual tool calls, not initialization/discovery traffic. Usage persistence is best effort; memory correctness does not depend on analytics availability.
+
+## Observability
+
+Sentry (optional; every path stays inert without `SENTRY_DSN`) wraps the Worker with `withSentry`, which instruments `fetch` and `scheduled` in place and proxies `env` so D1 and Workers AI calls produce spans without touching call sites. The MCP server is wrapped with `wrapMcpServerWithSentry` using `recordInputs: false` and `recordOutputs: false`, and the Cron handler adds a Sentry Crons heartbeat around `maintenance()`.
+
+Only 5xx responses are reported: `errorResponse` is the single funnel for API, MCP, and discovery failures, so 4xx traffic never reaches Sentry. Reports carry the problem `code`, the status, and the HTTP method as tags, and identify the account by opaque Clerk id only.
+
+Environments are `stage` (any http or localhost origin, including the e2e preview) and `production` (any deployment), with trace sampling of 1 and 0.5 respectively. `lib/server/observability.ts` deliberately does **not** pass `dataCollection`: supplying it would reset every unspecified field to Sentry's permissive defaults, so the SDK runs with `sendDefaultPii: false` and a `beforeSend`/`beforeSendTransaction` scrub removes request bodies, cookies, query strings, credentials, user contact fields, and genAI content attributes as defence in depth. Documentation and OAuth discovery transactions are dropped outright.
 
 ## Internationalization
 
@@ -37,7 +48,7 @@ English is the default UI and documentation language. Typed English/zh-CN dictio
 
 ## Deliberate MVP limits
 
-No team sharing, attachments, document ingestion, autonomous server-side extraction LLM, semantic conflict resolution, subscriptions, billing, OAuth discovery, automatic Clerk offboarding, or organization administration. The authenticated user's chosen agent extracts facts. Evidence quality cannot be guaranteed by schema validation alone.
+No team sharing, attachments, document ingestion, autonomous server-side extraction LLM, semantic conflict resolution, subscriptions, billing, a self-hosted authorization server, RFC 8707 audience enforcement, per-project OAuth scoping, automatic Clerk offboarding, or organization administration. The authenticated user's chosen agent extracts facts. Evidence quality cannot be guaranteed by schema validation alone.
 
 ## Production bundling compatibility
 

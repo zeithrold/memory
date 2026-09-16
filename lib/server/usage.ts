@@ -10,7 +10,7 @@ export async function recordUsage(
 ): Promise<void> {
   try {
     await env.DB.prepare(
-      'INSERT INTO usage_events VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO usage_events(id, owner_id, token_id, operation, status, duration_ms, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
       .bind(
         crypto.randomUUID(),
@@ -20,6 +20,7 @@ export async function recordUsage(
         status,
         Date.now() - started,
         new Date().toISOString(),
+        principal.clientId ?? null,
       )
       .run()
   }

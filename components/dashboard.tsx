@@ -16,8 +16,12 @@ import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 
 export type Api = <T>(path: string, init?: RequestInit) => Promise<T>
+// RFC 9457 problem document: `detail` is occurrence-specific, `title` is the
+// stable summary, and `code` is the machine identifier.
 const problemSchema = z.object({
-  error: z.object({ code: z.string(), message: z.string() }),
+  code: z.string(),
+  detail: z.string().optional(),
+  title: z.string().optional(),
 })
 export function Dashboard({
   t,
@@ -60,7 +64,7 @@ export function Dashboard({
         const parsed = problemSchema.safeParse(body)
         throw new Error(
           parsed.success
-            ? `${parsed.data.error.message} (${parsed.data.error.code})`
+            ? `${parsed.data.detail ?? parsed.data.title ?? t.loadError} (${parsed.data.code})`
             : t.loadError,
         )
       }

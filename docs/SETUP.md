@@ -78,7 +78,43 @@ The one-minute Cron Trigger processes up to 20 index jobs per invocation and ret
 
 ## 5. Connect clients
 
-Create a separate token for each client, normally with `memory:read` and `memory:write`. Add `memory:delete` only if the client should fulfill explicit forgetting requests. Tokens expire after 90 days by default and can be restricted to one project.
+Create a separate token for each client, normally with `memory:read` and `memory:write`. Add `memory:delete` only if the client should fulfill explicit forgetting requests. Tokens expire after 90 days by default and can be restricted to one project. ChatGPT and other hosted agents link with OAuth instead of a copied token.
+
+### ChatGPT
+
+ChatGPT signs the user in through the authorization server; this application publishes only the resource half of the MCP authorization contract. Clerk is the authorization server. OpenAI accepts any of CIMD, dynamic client registration, or a predefined client, so CIMD is a convenience rather than a requirement.
+
+`pnpm oauth:check` fetches the instance metadata and lists what is still missing. Run it after each change below.
+
+1. Open **OAuth applications → Settings**. Under **Client onboarding**, enable **Publish DCR support**. DCR is the self-serve path and the one this project assumes; **Publish CIMD support** is a tidier alternative only when Clerk has enabled it for your account, since CIMD is in beta and gated behind support. Leave CIMD off if it is unavailable: ChatGPT then registers one client per MCP connection through DCR and reuses it, so expect one extra row per connection on the **Applications** tab.
+2. Set **Default scopes for dynamic clients** to `openid profile email offline_access memory:read memory:write`. ChatGPT may omit the `scope` parameter, so these defaults decide what a new link can do. Leave `memory:delete` out until you want a host to be able to forget memories.
+3. On the **Scopes** tab, create the custom scopes `memory:read`, `memory:write`, and `memory:delete`, and advertise them.
+4. Keep the OAuth consent screen enabled; Clerk enforces it automatically once DCR is published, and PKCE is required by default.
+5. Under **Access token format**, prefer **opaque access tokens**: personal tokens are revocable immediately, and opaque OAuth tokens behave the same way. JWT access tokens stay valid until they expire (up to one day).
+6. Confirm the result:
+
+```sh
+pnpm oauth:check
+```
+
+It must report a client registration method, `PKCE methods: S256`, and the memory scopes. `CLERK_ISSUER` is optional: the publishable key already encodes the frontend API host and `/.well-known/oauth-protected-resource` decodes it. Set the variable only when the issuer must not follow that key.
+
+#### When neither CIMD nor DCR can be enabled
+
+- **Predefined OAuth client.** Create an OAuth application, mark it **Public**, require PKCE, assign the memory scopes, and allowlist the redirect URI. This instance advertises RFC 9207 issuer identification, so ChatGPT uses the stable callback `https://chatgpt.com/connector_platform_oauth_redirect` instead of a per-connection URL. Enter that client ID in the connector dialog if it offers one; Codex accepts it explicitly with `codex mcp add shared_memory --url https://YOUR_ORIGIN/mcp --oauth-client-id YOUR_CLIENT_ID`.
+- **Another authorization server.** `/.well-known/oauth-protected-resource` publishes whatever `CLERK_ISSUER` names, so a provider that supports CIMD (Auth0, Stytch, WorkOS) can be named instead. Its user IDs then have to be mapped onto Clerk accounts before this application serves the right library, which is why this is a fallback rather than the default.
+- **An authorization-server shim in this Worker.** The Worker could publish its own authorization-server metadata and proxy `/oauth/authorize`, `/oauth/token`, and `/oauth/register` to Clerk. That needs a client registry, authorization-code storage, and token signing; it is deliberately not implemented.
+
+Then connect:
+
+1. In ChatGPT, open **Settings → Security and login** and turn on **Developer mode**.
+2. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select the plus button, and enter `https://YOUR_ORIGIN/mcp`.
+3. ChatGPT reads the protected-resource metadata and opens the Clerk consent screen. Approve the scopes. Nothing is copied by hand.
+4. Confirm the tools appear, then ask ChatGPT to search a memory you saved on this site. The Usage tab attributes those calls to a connected app.
+
+If no consent screen appears, check that `curl -s https://YOUR_ORIGIN/.well-known/oauth-protected-resource` returns JSON, that the 401 from `/mcp` carries a `resource_metadata` challenge, and that Clerk lists the connection under **OAuth applications → Applications**.
+
+Two Clerk behaviours are worth knowing. Its metadata advertises RFC 9207 issuer identification, which is what lets ChatGPT reuse the stable `https://chatgpt.com/connector_platform_oauth_redirect` callback; if an instance ever stops advertising it, ChatGPT falls back to a connection-specific redirect URI and registers a separate OAuth client per connection, and nothing here needs to change. Clerk also does not bind tokens to an audience, so this server verifies issuer, expiry, and scope, but not the `resource` parameter.
 
 ### Codex
 
@@ -115,7 +151,44 @@ Make the environment variable available to Cursor and install the same skill in 
 
 Use an MCP-capable agent host, or the Python tool-loop example in `examples/deepseek.py`. The model API does not execute memory tools itself. The example requires an independently supplied DeepSeek API key and has a bounded tool loop.
 
-## 6. Deployment acceptance
+## 6. Package the plugin
+
+The skill and the MCP server ship as one installable plugin. The generator reads the MCP URL from `wrangler.jsonc`, so the package cannot drift from the deployed origin:
+
+```sh
+pnpm plugin:build
+# Against a staging or tunnel origin instead:
+pnpm plugin:build -- --origin=https://staging.example.com
+```
+
+This writes `dist/plugin/shared-memory` — a portable `plugin.json`, an `mcp.json` pointing at `<origin>/mcp`, and the `shared-memory` skill — plus `dist/plugin/marketplace.json`. To install it for a personal marketplace, keep both copies in the marketplace root so the relative `source.path` stays valid:
+
+```sh
+mkdir -p ~/.agents/plugins
+cp -R dist/plugin/shared-memory ~/.agents/plugins/shared-memory
+cp dist/plugin/marketplace.json ~/.agents/plugins/marketplace.json
+```
+
+Merge the plugin entry into an existing `marketplace.json` rather than overwriting it. To bind the plugin to the MCP connection you already registered in ChatGPT, run OpenAI's `@plugin-creator` with that connection's `plugin_asdk_app…` id; it writes the `.app.json` mapping, which this generator deliberately does not invent.
+
+## 7. Error monitoring (optional)
+
+Sentry is wired into the Worker, the MCP endpoint, the Cron trigger, and the browser. Without a DSN every code path stays inert, which is how local development and the e2e preview run.
+
+```sh
+pnpm exec wrangler secret put SENTRY_DSN
+# Local reporting is opt-in: put the same DSN in .dev.vars, and local failures
+# arrive tagged environment=stage.
+```
+
+- **Two environments, one project**: local runs are `stage`, every deployment is `production`. The environment comes from `SENTRY_ENVIRONMENT` when set, otherwise from `APP_ORIGIN` (an `http` or localhost origin means `stage`). Scope alerts to `environment:production` so local noise never pages you.
+- **Sampling**: traces are sampled at 1 on stage and 0.5 in production. `SENTRY_TRACES_SAMPLE_RATE` overrides both if quota becomes a concern. Errors are always sent.
+- **What is captured**: request transactions (fetch), the Cron span plus a Sentry Crons heartbeat, D1 query spans, Workers AI spans, and MCP tool spans. Failures are reported only when the response is 5xx; 4xx is normal traffic.
+- **What never leaves the deployment**: memory titles and content, search queries, request bodies, `Authorization`/`Cookie` headers, IP addresses and email addresses, and genAI inputs or outputs. The SDK runs with `sendDefaultPii: false`, and `lib/server/observability.ts` additionally strips those fields before sending. Error reports identify the account only by its opaque Clerk id.
+- **Project settings**: enable **Prevent Storing of IP Addresses** and leave request-body storage off as defence in depth.
+- **Source maps**: with `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` present at build time, `vite build` uploads source maps and deletes the client copies afterwards. Set `SENTRY_RELEASE` (CI uses the commit SHA) so the Worker and the uploaded artifacts agree; otherwise stack traces stay minified. `wrangler.jsonc` also enables Cloudflare's own `upload_source_maps`, which keeps stack traces readable in the Cloudflare dashboard.
+
+## 8. Deployment acceptance
 
 The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Clerk secrets. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production publishable key. These tests do not need a Cloudflare API token.
 

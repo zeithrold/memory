@@ -291,9 +291,9 @@ export function UsagePanel({
                 </thead>
                 <tbody>
                   {usage.map(row => (
-                    <tr key={`${row.day}:${row.token_id}:${row.operation}`}>
+                    <tr key={`${row.day}:${row.token_id}:${row.client_id}:${row.operation}`}>
                       <td>{row.day}</td>
-                      <td>{row.token_name ?? row.token_id?.slice(0, 8) ?? 'Web'}</td>
+                      <td>{connectionLabel(row, t)}</td>
                       <td>
                         <code>{row.operation}</code>
                       </td>
@@ -312,6 +312,23 @@ export function UsagePanel({
           )}
     </>
   )
+}
+/** Personal tokens carry a name; OAuth connections are identified by their client. */
+function connectionLabel(row: UsageSummary, t: Messages): string {
+  if (row.token_name !== null && row.token_name.length > 0)
+    return row.token_name
+  if (row.client_id !== null && row.client_id.length > 0) {
+    // CIMD clients are URLs; DCR and pre-registered clients use opaque identifiers.
+    try {
+      return `${t.oauthClient} · ${new URL(row.client_id).host}`
+    }
+    catch {
+      return `${t.oauthClient} · ${row.client_id.slice(0, 8)}`
+    }
+  }
+  if (row.token_id !== null && row.token_id.length > 0)
+    return row.token_id.slice(0, 8)
+  return t.webSession
 }
 export function ConnectPanel({ t }: { t: Messages }) {
   const origin = useSyncExternalStore(subscribeOrigin, () => window.location.origin, () => 'https://your-memory.example')
@@ -338,6 +355,17 @@ export function ConnectPanel({ t }: { t: Messages }) {
         </code>
         <p>{t.tokenSafety}</p>
       </section>
+      <section className="connection-card">
+        <div className="section-heading">
+          <h2>{t.chatgpt}</h2>
+          <CopyButton value={`${origin}/mcp`} t={t} />
+        </div>
+        <p>{t.chatgptBody}</p>
+        <code>
+          {origin}
+          /mcp
+        </code>
+      </section>
       {[
         { name: 'Codex', text: codex },
         { name: 'Cursor', text: cursor },
@@ -353,6 +381,11 @@ export function ConnectPanel({ t }: { t: Messages }) {
       <section className="connection-card">
         <h2>{t.skill}</h2>
         <p>{t.skillBody}</p>
+      </section>
+      <section className="connection-card">
+        <h2>{t.plugin}</h2>
+        <p>{t.pluginBody}</p>
+        <code>pnpm plugin:build</code>
       </section>
       <section className="connection-card">
         <h2>{t.deepseek}</h2>

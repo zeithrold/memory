@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shared-memory",
+  "version": "0.1.0",
+  "description": "Carry personal preferences, decisions, and verified facts across ChatGPT, Codex, and other agents.",
+  "author": {
+    "name": "zeithrold",
+    "email": "zeithrold@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": ["memory", "context", "knowledge-base"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Shared Memory",
+        "shortDescription": "One private memory library for every agent.",
+        "longDescription": "Search, save, and correct the preferences, decisions, and lessons that should survive a conversation. Each account owns an isolated library; retrieval combines keyword and semantic search. The bundled MCP server authenticates the user over OAuth, and the packaged skill explains when retrieval is worth the round trip and what counts as evidence.",
+        "developerName": "zeithrold",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "defaultPrompt": [
+          "Search my memory for how I like Go services to access the database.",
+          "Remember that this project deploys with Wrangler, with the source of that decision."
+        ],
+        "brandColor": "#10A37F"
+      }
+    }
+  }
+}

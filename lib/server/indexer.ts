@@ -1,5 +1,6 @@
 import type { Env } from './env'
 import type { MemoryRow } from './memories'
+import * as Sentry from '@sentry/cloudflare'
 import { embed } from './memories'
 
 export async function processIndexJobs(env: Env): Promise<void> {
@@ -51,7 +52,12 @@ export async function processIndexJobs(env: Env): Promise<void> {
         .bind(job.id)
         .run()
     }
-    catch {
+    catch (error) {
+      // The retry loop keeps the queue alive, but a provider that keeps failing
+      // is otherwise invisible outside the database.
+      Sentry.captureException(error, {
+        tags: { job: 'index', attempts: job.attempts },
+      })
       await env.DB.prepare(
         'UPDATE index_jobs SET attempts = attempts + 1, available_at = ?, last_error = ? WHERE id = ?',
       )

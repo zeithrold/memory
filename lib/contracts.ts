@@ -64,6 +64,8 @@ export interface Principal {
   tokenId: string | null
   scopes: Scope[]
   project: string | null
+  /** OAuth client identifier, recorded for usage attribution only. */
+  clientId?: string
 }
 export interface TokenSummary {
   id: string
@@ -84,4 +86,5 @@ export interface UsageSummary {
   day: string
   token_id: string | null
   token_name: string | null
+  client_id: string | null
 }

@@ -15,15 +15,20 @@ import {
 import { useState } from 'react'
 import { messages } from '@/lib/i18n/messages'
 import { Dashboard } from './dashboard'
+import { BrowserObservability } from './observability'
 import { Button } from './ui/button'
 
 export type Tab = 'memories' | 'tokens' | 'usage' | 'connect'
 export default function App({
   initialLocale,
   publishableKey,
+  sentryDsn = '',
+  sentryRelease = '',
 }: {
   initialLocale: Locale
   publishableKey: string
+  sentryDsn?: string
+  sentryRelease?: string
 }) {
   const [locale, setLocale] = useState(initialLocale)
   const [tab, setTab] = useState<Tab>('memories')
@@ -36,6 +41,7 @@ export default function App({
   }
   const content = (account?: React.ReactNode) => (
     <div className="app-shell">
+      <BrowserObservability dsn={sentryDsn} release={sentryRelease} />
       <aside className="sidebar">
         <a className="brand" href="/">
           <span className="brand-mark">

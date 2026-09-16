@@ -21,7 +21,7 @@ export default antfu({
   },
 }, {
   files: ['app/**/*.tsx'],
-  rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['metadata', 'dynamic'] }] },
+  rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['metadata', 'dynamic', 'generateMetadata', 'generateStaticParams'] }] },
 }, {
   files: ['components/ui/*.tsx'],
   rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['buttonVariants', 'badgeVariants'] }] },

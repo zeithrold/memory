@@ -1,17 +1,16 @@
 import type { SQLInputValue } from 'node:sqlite'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
-// SQLite executes the real D1 schema and triggers. This adapter only mirrors the
-// D1 binding API; remote D1 behavior still has a separate deployment smoke test.
+// SQLite executes the real D1 migrations and triggers in filename order. This
+// adapter only mirrors the D1 binding API; remote D1 behavior still has a
+// separate deployment smoke test.
 export function database(): { db: D1Database, sqlite: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:')
-  sqlite.exec(
-    readFileSync(
-      new URL('../migrations/0001_initial.sql', import.meta.url),
-      'utf8',
-    ),
-  )
+  const directory = new URL('../migrations/', import.meta.url)
+  for (const file of readdirSync(directory).filter(name => name.endsWith('.sql')).sort()) {
+    sqlite.exec(readFileSync(new URL(file, directory), 'utf8'))
+  }
   function prepare(sql: string, params: SQLInputValue[] = []) {
     return {
       bind(...values: SQLInputValue[]) {

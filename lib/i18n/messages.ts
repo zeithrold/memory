@@ -82,10 +82,18 @@ export const en = {
   noUsage: 'Your API activity will appear here.',
   usageNote:
     'These metrics describe this service, not your agents’ model token consumption. Up to 500 daily groups are shown.',
+  oauthClient: 'Connected app',
+  webSession: 'Web',
   connectHeading: 'One memory. Every agent.',
   connectIntro:
-    'Create an API token, add the server, and install the Shared Memory skill.',
+    'Sign in with ChatGPT through OAuth, or create an API token for a local client, then install the Shared Memory skill.',
   endpoint: 'MCP endpoint',
+  chatgpt: 'ChatGPT',
+  chatgptBody:
+    'Turn on developer mode under Settings → Security and login, then add this MCP endpoint at chatgpt.com/plugins. ChatGPT opens a Clerk consent screen and links the account over OAuth, so no token is copied. The same account shares one library with this page.',
+  plugin: 'Plugin package',
+  pluginBody:
+    'Run pnpm plugin:build to assemble the skill and MCP server as one installable plugin under dist/plugin, then add it to a local marketplace.',
   skill: 'Companion skill',
   skillBody:
     'Install skills/shared-memory from this repository in your client’s skill directory. It guides retrieval, evidence-based writing, and conflict handling.',
@@ -188,9 +196,18 @@ export const zh: Messages = {
   noUsage: 'API 调用记录将显示在这里。',
   usageNote:
     '统计仅涵盖本服务，不代表 Agent 的模型 Token 消耗。最多展示 500 个按日分组。',
+  oauthClient: '已连接的应用',
+  webSession: '网页',
   connectHeading: '一份记忆，连接不同 Agent。',
-  connectIntro: '创建 API 令牌，配置服务器，安装 Shared Memory Skill。',
+  connectIntro:
+    'ChatGPT 通过 OAuth 登录接入，本地客户端可创建 API 令牌，然后安装 Shared Memory Skill。',
   endpoint: 'MCP 接口地址',
+  chatgpt: 'ChatGPT',
+  chatgptBody:
+    '在「设置 → 安全与登录」中开启开发者模式，然后在 chatgpt.com/plugins 添加此 MCP 地址。ChatGPT 会打开 Clerk 授权页并以 OAuth 关联账号，无需复制令牌。同一账号与本站共享同一份记忆库。',
+  plugin: '插件包',
+  pluginBody:
+    '运行 pnpm plugin:build，即可在 dist/plugin 生成 Skill 与 MCP 服务器打包好的插件，随后加入本地 marketplace 安装。',
   skill: '配套 Skill',
   skillBody:
     '将仓库的 skills/shared-memory 安装到客户端的 Skill 目录，获取检索、有据写入和冲突处理规则。',

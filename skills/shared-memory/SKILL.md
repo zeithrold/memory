@@ -7,6 +7,8 @@ description: Retrieve and maintain the user's personal preferences, verified fac
 
 Use the connected `memory_search`, `memory_get`, `memory_create`, `memory_update`, and `memory_delete` tools. Client prefixes may differ. If unavailable, explain how to connect the server; never pretend retrieval or persistence succeeded. HTTP clients can use [the API reference](references/api.md).
 
+The connection is either an OAuth link (ChatGPT and other hosted agents sign the user in and request scopes) or a personal API token (Codex, Cursor, scripts). A missing tool usually means the link was granted fewer scopes, not that the memory does not exist: say which permission is needed and let the user re-link, and never substitute a write for a delete or vice versa.
+
 ## Retrieve selectively
 
 - Before meaningful project work, search the relevant project and `global` separately. Skip lookup for self-contained transformations or trivial questions.

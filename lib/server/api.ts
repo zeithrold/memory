@@ -35,7 +35,11 @@ export async function api(request: Request, env: Env): Promise<Response> {
     response = await route()
   }
   catch (error) {
-    response = errorResponse(error)
+    response = errorResponse(error, {
+      origin: env.APP_ORIGIN,
+      instance: url.pathname,
+      method: request.method,
+    })
   }
   if (principal)
     await recordUsage(env, principal, operation, response.status, started)
@@ -43,7 +47,7 @@ export async function api(request: Request, env: Env): Promise<Response> {
 
   async function route(): Promise<Response> {
     if (!principal)
-      throw new AppError(401, 'UNAUTHORIZED', 'Sign in to continue.')
+      throw new AppError('UNAUTHORIZED', 'Sign in to continue.')
     if (resource === 'memories') {
       if (id)
         z.string().uuid().parse(id)
@@ -134,14 +138,14 @@ export async function api(request: Request, env: Env): Promise<Response> {
           .bind(new Date().toISOString(), id, principal.ownerId)
           .run()
         if (!result.meta.changes)
-          throw new AppError(404, 'NOT_FOUND', 'Token not found.')
+          throw new AppError('NOT_FOUND', 'Token not found.')
         return new Response(null, { status: 204 })
       }
     }
     if (resource === 'usage' && !id && request.method === 'GET') {
       requireSession(principal)
       const result = await env.DB.prepare(
-        `SELECT substr(u.created_at, 1, 10) AS day, u.token_id, t.name AS token_name, u.operation, count(*) AS calls, sum(CASE WHEN u.status >= 400 THEN 1 ELSE 0 END) AS errors, round(avg(u.duration_ms)) AS average_ms FROM usage_events u LEFT JOIN api_tokens t ON t.id = u.token_id AND t.owner_id = u.owner_id WHERE u.owner_id = ? AND u.created_at >= ? GROUP BY day, u.token_id, t.name, u.operation ORDER BY day DESC, calls DESC LIMIT 500`,
+        `SELECT substr(u.created_at, 1, 10) AS day, u.token_id, t.name AS token_name, u.client_id, u.operation, count(*) AS calls, sum(CASE WHEN u.status >= 400 THEN 1 ELSE 0 END) AS errors, round(avg(u.duration_ms)) AS average_ms FROM usage_events u LEFT JOIN api_tokens t ON t.id = u.token_id AND t.owner_id = u.owner_id WHERE u.owner_id = ? AND u.created_at >= ? GROUP BY day, u.token_id, t.name, u.client_id, u.operation ORDER BY day DESC, calls DESC LIMIT 500`,
       )
         .bind(
           principal.ownerId,
@@ -162,6 +166,6 @@ export async function api(request: Request, env: Env): Promise<Response> {
         index: result,
       })
     }
-    throw new AppError(404, 'NOT_FOUND', 'Endpoint not found.')
+    throw new AppError('NOT_FOUND', 'Endpoint not found.')
   }
 }

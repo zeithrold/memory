@@ -1,27 +1,55 @@
 import type { Principal } from '../contracts'
 import type { Env } from './env'
 import { verifyToken } from '@clerk/backend'
+import * as Sentry from '@sentry/cloudflare'
 import { z } from 'zod'
 import { scopeSchema } from '../contracts'
 import { digest } from './crypto'
 import { AppError } from './errors'
+import { verifyOAuthRequest } from './oauth'
+
+/**
+ * Credential kinds an entry point accepts. `/mcp` accepts personal tokens and
+ * Clerk OAuth access tokens; `/api/v1` accepts sessions and personal tokens, so
+ * an OAuth link can never reach token management.
+ */
+export type CredentialKind = 'session' | 'personal' | 'oauth'
+const DEFAULT_KINDS: CredentialKind[] = ['session', 'personal']
 
 export function checkOrigin(request: Request, env: Env): void {
   const origin = request.headers.get('origin')
   if (origin !== null && origin !== env.APP_ORIGIN)
-    throw new AppError(403, 'INVALID_ORIGIN', 'This origin is not allowed.')
+    throw new AppError('INVALID_ORIGIN', 'This origin is not allowed.')
 }
 export async function authenticate(
   request: Request,
   env: Env,
-  machineOnly = false,
+  kinds: CredentialKind[] = DEFAULT_KINDS,
 ): Promise<Principal> {
-  checkOrigin(request, env)
+  const principal = await resolvePrincipal(request, env, kinds)
+  // Error reports carry the account only as an opaque Clerk id: enough to tell
+  // which user hit a failure, nothing that identifies them.
+  Sentry.setUser({ id: principal.ownerId })
+  Sentry.setTag('credential', principal.tokenId === null ? 'linked' : 'token')
+  return principal
+}
+async function resolvePrincipal(
+  request: Request,
+  env: Env,
+  kinds: CredentialKind[],
+): Promise<Principal> {
+  // Origin checks only guard session credentials. Machine clients may omit
+  // Origin, and no cookie is ever honored on those paths.
+  if (kinds.includes('session'))
+    checkOrigin(request, env)
   const authorization = request.headers.get('authorization')
   if (!authorization?.startsWith('Bearer '))
-    throw new AppError(401, 'UNAUTHORIZED', 'A bearer token is required.')
+    throw new AppError('UNAUTHORIZED', 'A bearer token is required.')
   const token = authorization.slice(7)
   if (token.startsWith('mem_')) {
+    if (!kinds.includes('personal')) {
+      throw new AppError('UNAUTHORIZED', 'This endpoint does not accept personal API tokens.')
+    }
     const row = await env.DB.prepare(
       'SELECT * FROM api_tokens WHERE digest = ? AND revoked_at IS NULL AND expires_at > ?',
     )
@@ -33,11 +61,7 @@ export async function authenticate(
       project: string | null
     }>()
     if (!row) {
-      throw new AppError(
-        401,
-        'UNAUTHORIZED',
-        'The API token is invalid, expired, or revoked.',
-      )
+      throw new AppError('UNAUTHORIZED', 'The API token is invalid, expired, or revoked.')
     }
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?')
       .bind(new Date().toISOString(), row.id)
@@ -49,19 +73,16 @@ export async function authenticate(
       project: row.project,
     }
   }
-  if (machineOnly) {
-    throw new AppError(
-      401,
-      'UNAUTHORIZED',
-      'Use a personal API token for MCP.',
-    )
+  if (kinds.includes('oauth')) {
+    const principal = await verifyOAuthRequest(request, env)
+    if (principal !== null)
+      return principal
+  }
+  if (!kinds.includes('session')) {
+    throw new AppError('UNAUTHORIZED', 'Use a personal API token or an OAuth connection for MCP.')
   }
   if (env.CLERK_SECRET_KEY === undefined || env.CLERK_SECRET_KEY.length === 0) {
-    throw new AppError(
-      503,
-      'AUTH_NOT_CONFIGURED',
-      'Clerk is not configured yet.',
-    )
+    throw new AppError('AUTH_NOT_CONFIGURED', 'Clerk is not configured yet.')
   }
   try {
     const payload = await verifyToken(token, {
@@ -76,11 +97,7 @@ export async function authenticate(
     }
   }
   catch {
-    throw new AppError(
-      401,
-      'UNAUTHORIZED',
-      'Your session has expired. Sign in again.',
-    )
+    throw new AppError('UNAUTHORIZED', 'Your session has expired. Sign in again.')
   }
 }
 export async function rateLimit(env: Env, principal: Principal): Promise<void> {
@@ -91,19 +108,11 @@ export async function rateLimit(env: Env, principal: Principal): Promise<void> {
     .bind(`${principal.ownerId}:${minute}`, (minute + 2) * 60000)
     .first<{ count: number }>()
   if (!row || row.count > 120) {
-    throw new AppError(
-      429,
-      'RATE_LIMITED',
-      'Too many requests. Try again in one minute.',
-    )
+    throw new AppError('RATE_LIMITED', 'Too many requests. Try again in one minute.')
   }
 }
 export function requireSession(principal: Principal): void {
   if (principal.tokenId !== null) {
-    throw new AppError(
-      403,
-      'SESSION_REQUIRED',
-      'Sign in to manage tokens or account usage.',
-    )
+    throw new AppError('SESSION_REQUIRED', 'Sign in to manage tokens or account usage.')
   }
 }

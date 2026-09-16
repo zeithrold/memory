@@ -56,7 +56,7 @@ export async function getRow(
     .bind(id, principal.ownerId)
     .first<MemoryRow>()
   if (!row || (principal.project !== null && row.project !== principal.project))
-    throw new AppError(404, 'NOT_FOUND', 'Memory not found.')
+    throw new AppError('NOT_FOUND', 'Memory not found.')
   return row
 }
 export async function getMemory(
@@ -124,11 +124,7 @@ export async function createMemory(
     )
     .first<MemoryRow>()
   if (!row || row.deleted) {
-    throw new AppError(
-      409,
-      'FORGOTTEN',
-      'An identical memory was forgotten. Do not automatically save it again.',
-    )
+    throw new AppError('FORGOTTEN', 'An identical memory was forgotten. Do not automatically save it again.')
   }
   if (
     row.project !== input.project
@@ -137,11 +133,7 @@ export async function createMemory(
     || row.tags !== JSON.stringify(input.tags)
     || row.source !== input.source
   ) {
-    throw new AppError(
-      409,
-      'CONFLICT',
-      'The idempotency key or content already exists with different fields. Read the current memory before editing.',
-    )
+    throw new AppError('CONFLICT', 'The idempotency key or content already exists with different fields. Read the current memory before editing.')
   }
   return serialize(row)
 }
@@ -155,11 +147,7 @@ export async function updateMemory(
   requirePermission(principal, 'memory:write', input.project)
   const previous = await getRow(env, principal, id)
   if (input.project !== previous.project) {
-    throw new AppError(
-      400,
-      'IMMUTABLE_PROJECT',
-      'A memory cannot be moved to another project.',
-    )
+    throw new AppError('IMMUTABLE_PROJECT', 'A memory cannot be moved to another project.')
   }
   const hash = await fingerprint(input)
   const duplicate = await env.DB.prepare(
@@ -168,11 +156,7 @@ export async function updateMemory(
     .bind(principal.ownerId, input.project, hash, id)
     .first()
   if (duplicate) {
-    throw new AppError(
-      409,
-      'CONFLICT',
-      'This content already exists or was forgotten.',
-    )
+    throw new AppError('CONFLICT', 'This content already exists or was forgotten.')
   }
   let changes: number
   try {
@@ -198,15 +182,11 @@ export async function updateMemory(
   }
   catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint'))
-      throw new AppError(409, 'CONFLICT', 'This content already exists.')
+      throw new AppError('CONFLICT', 'This content already exists.')
     throw error
   }
   if (!changes) {
-    throw new AppError(
-      409,
-      'VERSION_CONFLICT',
-      'The memory changed. Read it again before editing.',
-    )
+    throw new AppError('VERSION_CONFLICT', 'The memory changed. Read it again before editing.')
   }
   return serialize(await getRow(env, principal, id))
 }
@@ -225,11 +205,7 @@ export async function deleteMemory(
     .bind(new Date().toISOString(), id, principal.ownerId, expectedVersion)
     .run()
   if (!result.meta.changes) {
-    throw new AppError(
-      409,
-      'VERSION_CONFLICT',
-      'The memory changed. Read it again before deleting.',
-    )
+    throw new AppError('VERSION_CONFLICT', 'The memory changed. Read it again before deleting.')
   }
 }
 export async function history(
@@ -248,11 +224,7 @@ export async function history(
 }
 export async function embed(env: Env, text: string): Promise<number[]> {
   if (!env.AI) {
-    throw new AppError(
-      503,
-      'INDEX_UNAVAILABLE',
-      'Semantic search is not configured.',
-    )
+    throw new AppError('INDEX_UNAVAILABLE', 'Semantic search is not configured.')
   }
   const result: unknown = await env.AI.run('@cf/baai/bge-m3', { text: [text] })
   const parsed = z
