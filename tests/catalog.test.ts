@@ -165,6 +165,73 @@ describe('catalog schema', () => {
       legacy.sqlite.close()
     }
   })
+  it('migrates BYO settings to Responses API without losing credentials or enablement', () => {
+    const legacy = database({ through: '0005_catalog_cost_controls.sql' })
+    try {
+      legacy.sqlite.prepare(
+        `INSERT INTO agent_settings(
+           owner_id, enabled, provider, base_url, model,
+           api_key_ciphertext, api_key_iv, api_key_hint,
+           include_content, interval_minutes, max_batch, max_turns,
+           max_tool_calls, auto_apply_structural, dry_run_until_reviewed,
+           last_probe_at, last_probe_ok, last_probe_error, updated_at,
+           daily_token_budget
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        'alice',
+        1,
+        'openai-compatible',
+        'https://api.example.com/v1',
+        'catalog-model',
+        'ciphertext',
+        'iv',
+        'hint',
+        1,
+        60,
+        6,
+        2,
+        8,
+        1,
+        0,
+        '2026-09-16T00:00:00.000Z',
+        1,
+        null,
+        '2026-09-16T00:00:00.000Z',
+        120000,
+      )
+
+      legacy.sqlite.exec(
+        readFileSync(new URL('../migrations/0006_catalog_responses_api.sql', import.meta.url), 'utf8'),
+      )
+
+      expect(legacy.sqlite.prepare(
+        `SELECT enabled, provider, base_url, model, api_key_ciphertext,
+                api_key_iv, api_key_hint, include_content, daily_token_budget,
+                last_probe_at, last_probe_ok, last_probe_error
+         FROM agent_settings WHERE owner_id = 'alice'`,
+      ).get()).toEqual({
+        enabled: 1,
+        provider: 'responses-api',
+        base_url: 'https://api.example.com/v1',
+        model: 'catalog-model',
+        api_key_ciphertext: 'ciphertext',
+        api_key_iv: 'iv',
+        api_key_hint: 'hint',
+        include_content: 1,
+        daily_token_budget: 120000,
+        last_probe_at: null,
+        last_probe_ok: null,
+        last_probe_error: null,
+      })
+      expect(() => legacy.sqlite.prepare(
+        `INSERT INTO agent_settings(owner_id, provider, updated_at)
+         VALUES ('old-client', 'openai-compatible', '2026-09-17T00:00:00.000Z')`,
+      ).run()).toThrow()
+    }
+    finally {
+      legacy.sqlite.close()
+    }
+  })
   it('rejects two depth-1 categories with the same slug for one owner', async () => {
     await insertCategory({ id: 'cat-a', slug: 'backend' })
     // SQLite treats NULLs as distinct in a UNIQUE constraint, so this is

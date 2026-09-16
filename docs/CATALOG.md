@@ -23,7 +23,7 @@ evidence behind them, and what is knowingly unfinished.
 | Piece | Choice |
 | --- | --- |
 | Runtime | Cloudflare Workflows, one class |
-| Model | Bring your own OpenAI-compatible endpoint. The platform never pays for inference. |
+| Model | Bring your own Responses API endpoint, or use Workers AI. The platform never pays for inference. |
 | Storage | D1 (catalog, audit, settings) |
 | Trigger | the existing minute Cron Trigger dispatches one instance per 30-minute window, plus `POST /api/v1/catalog/runs` |
 
@@ -110,6 +110,15 @@ tractable:
 2. **Rejections and effects are recorded in the same journal.** A retried step
    finds its own row by `(run_id, batch, turn, call_index)` and returns the
    recorded result instead of applying the effect twice.
+
+The BYO transport is the OpenAI Responses API contract, not Chat Completions.
+The configured URL is a service root and the Worker appends `/responses`. Every
+turn sends direct function-tool definitions, `tool_choice: "required"`,
+`reasoning: { "effort": "none" }`, and `max_output_tokens: 4096`. Conversation
+history is reconstructed from D1 as `function_call` and
+`function_call_output` items; it never depends on `previous_response_id` or
+provider-side storage. A compatible endpoint must implement all of these
+fields and return function calls with stable `call_id` values.
 
 | Tool | Effect |
 | --- | --- |
@@ -273,10 +282,14 @@ skip or change catalog content.
 A scheduled dry-run gate executes one batch of at most six memories and sets
 `awaiting_review` as soon as it starts. Later automatic windows do nothing until
 the user disables or re-enables that gate; manual dry runs remain available.
-Model replies are capped at 4,096 completion tokens. If a reply contains more
-tool calls than allowed, every excess call receives a synthetic rejection and
-is written to the audit journal, keeping the provider transcript protocol
-complete while ending that batch.
+Model replies are capped at 4,096 output tokens. A Responses reply marked
+`incomplete` or `failed`, or a completed reply with no function call, terminates
+the run before batch finalization. The turn and its input/output usage are still
+recorded, so a Workflow replay raises the same error without paying for a
+second provider call; it cannot create an implicit skip or mark the run
+successful/partial. If a reply contains more tool calls than allowed, every
+excess call receives a synthetic rejection and is written to the audit journal,
+keeping the provider transcript protocol complete while ending that batch.
 
 ## What the audit log measures
 

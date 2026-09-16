@@ -76,8 +76,9 @@ function stubProvider() {
   vi.stubGlobal('fetch', vi.fn(async () =>
     new Response(
       JSON.stringify({
-        choices: [{ message: { content: null, tool_calls: [{ id: 'c', function: { name: 'ping', arguments: '{"ok":true}' } }] }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 1, completion_tokens: 1 },
+        status: 'completed',
+        output: [{ type: 'function_call', call_id: 'c', name: 'ping', arguments: '{"ok":true}' }],
+        usage: { input_tokens: 1, output_tokens: 1 },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     )))
@@ -113,13 +114,20 @@ describe('catalog settings authorisation', () => {
 })
 
 describe('catalog settings validation', () => {
+  it('rejects the retired Chat Completions provider enum', async () => {
+    const response = await call('/api/v1/catalog/settings', 'PUT', {
+      provider: 'openai-compatible',
+    })
+    expect(response.status).toBe(400)
+    expect(response.body).toMatchObject({ code: 'INVALID_INPUT' })
+  })
   it('refuses to enable without a provider, a model, or a credential', async () => {
     const none = await call('/api/v1/catalog/settings', 'PUT', { enabled: true })
     expect(none.status).toBe(400)
     expect(none.body).toMatchObject({ code: 'INVALID_INPUT' })
 
     const noModel = await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       apiKey: 'sk-live-0123456789',
       enabled: true,
@@ -127,7 +135,7 @@ describe('catalog settings validation', () => {
     expect(noModel.status).toBe(400)
 
     const noKey = await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'deepseek-v4-flash',
       enabled: true,
@@ -137,7 +145,7 @@ describe('catalog settings validation', () => {
   })
   it('rejects an endpoint that is not HTTPS or carries a query string', async () => {
     const insecure = await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'http://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789',
@@ -146,7 +154,7 @@ describe('catalog settings validation', () => {
     expect(insecure.body).toMatchObject({ code: 'PROVIDER_ENDPOINT_INVALID' })
 
     const query = await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com?key=1',
       model: 'm',
       apiKey: 'sk-live-0123456789',
@@ -159,7 +167,7 @@ describe('catalog settings validation', () => {
     const bare: Env = { ...env, AGENT_SETTINGS_KEY: undefined }
     const response = await api(
       request('/api/v1/catalog/settings', 'PUT', {
-        provider: 'openai-compatible',
+        provider: 'responses-api',
         baseUrl: 'https://api.example.com',
         model: 'm',
         apiKey: 'sk-live-0123456789',
@@ -211,7 +219,7 @@ describe('catalog settings validation', () => {
 describe('catalog settings storage', () => {
   it('stores ciphertext and returns only a hint', async () => {
     const saved = await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com/v1/',
       model: 'deepseek-v4-flash',
       apiKey: 'sk-live-0123456789abcdef',
@@ -220,7 +228,7 @@ describe('catalog settings storage', () => {
     expect(saved.status).toBe(200)
     expect(saved.body).toMatchObject({
       enabled: true,
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       // The trailing slash is normalised away, the path is preserved.
       baseUrl: 'https://api.example.com/v1',
       model: 'deepseek-v4-flash',
@@ -237,7 +245,7 @@ describe('catalog settings storage', () => {
   })
   it('keeps the stored credential when a later update omits it', async () => {
     await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789abcdef',
@@ -248,7 +256,7 @@ describe('catalog settings storage', () => {
   })
   it('clears the credential on request, which disables an enabled provider', async () => {
     await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789abcdef',
@@ -271,7 +279,7 @@ describe('connection probe', () => {
   it('tests the values in the form without recording them', async () => {
     stubProvider()
     const { status, body } = await call('/api/v1/catalog/settings/test', 'POST', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'deepseek-v4-flash',
       apiKey: 'sk-live-0123456789abcdef',
@@ -285,11 +293,19 @@ describe('connection probe', () => {
   it('reports a reachable endpoint that cannot call tools', async () => {
     vi.stubGlobal('fetch', vi.fn(async () =>
       new Response(
-        JSON.stringify({ choices: [{ message: { content: 'no tools here' }, finish_reason: 'stop' }] }),
+        JSON.stringify({
+          status: 'completed',
+          output: [{
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: 'no tools here' }],
+          }],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       )))
     const { body } = await call('/api/v1/catalog/settings/test', 'POST', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'not-tool-capable',
       apiKey: 'sk-live-0123456789abcdef',
@@ -299,7 +315,7 @@ describe('connection probe', () => {
   it('records the stored configuration probe so the UI can show it', async () => {
     stubProvider()
     await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789abcdef',
@@ -314,7 +330,7 @@ describe('connection probe', () => {
   })
   it('keeps the explanation of a failed stored probe, and clears it on the next success', async () => {
     await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789abcdef',
@@ -330,16 +346,34 @@ describe('connection probe', () => {
     const recovered = await call('/api/v1/catalog/settings')
     expect(recovered.body).toMatchObject({ lastProbeOk: true, lastProbeError: null })
   })
+  it('clears a stale probe when the provider configuration changes', async () => {
+    stubProvider()
+    await call('/api/v1/catalog/settings', 'PUT', {
+      provider: 'responses-api',
+      baseUrl: 'https://api.example.com',
+      model: 'first-model',
+      apiKey: 'sk-live-0123456789abcdef',
+    })
+    await call('/api/v1/catalog/settings/test', 'POST', {})
+    expect((await call('/api/v1/catalog/settings')).body).toMatchObject({ lastProbeOk: true })
+
+    const changed = await call('/api/v1/catalog/settings', 'PUT', { model: 'second-model' })
+    expect(changed.body).toMatchObject({
+      lastProbeAt: null,
+      lastProbeOk: null,
+      lastProbeError: null,
+    })
+  })
   it('reuses the stored credential when the form only changes the model', async () => {
     stubProvider()
     await call('/api/v1/catalog/settings', 'PUT', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'm',
       apiKey: 'sk-live-0123456789abcdef',
     })
     const { status, body } = await call('/api/v1/catalog/settings/test', 'POST', {
-      provider: 'openai-compatible',
+      provider: 'responses-api',
       baseUrl: 'https://api.example.com',
       model: 'another-model',
     })

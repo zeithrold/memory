@@ -109,7 +109,7 @@ This replaces the earlier `{ "error": { "code", "message" } }` envelope.
 - 413 `BODY_TOO_LARGE`: request exceeds 64 KiB.
 - 429 `RATE_LIMITED`: retry after the supplied `Retry-After` interval.
 - 500 `INTERNAL_ERROR`: treat a mutation as uncertain and reuse its idempotency key when retrying a create.
-- 502 `PROVIDER_ERROR` / `PROVIDER_TOOL_UNSUPPORTED`, 504 `PROVIDER_TIMEOUT`: the configured model endpoint failed, or cannot call tools at all.
+- 502 `PROVIDER_ERROR` / `PROVIDER_TOOL_UNSUPPORTED` / `PROVIDER_OUTPUT_INCOMPLETE`, 504 `PROVIDER_TIMEOUT`: the configured Responses API endpoint failed, cannot call tools, or stopped before producing a complete function call.
 - 503 `AUTH_NOT_CONFIGURED` / `AGENT_KEY_UNCONFIGURED` / `INDEX_UNAVAILABLE`: deployment configuration, not a client error. `AGENT_KEY_UNCONFIGURED` means the deployment has no `AGENT_SETTINGS_KEY`, so a per-account credential cannot be encrypted and is refused rather than stored in plaintext.
 
 Reuse a creation idempotency key only with its original payload. Do not blindly retry versioned updates/deletes or convert failed writes into success claims.

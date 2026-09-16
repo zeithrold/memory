@@ -63,7 +63,7 @@ async function providerFromInput(
   if (input.provider === 'workers-ai')
     return { kind: 'workers-ai', model: input.model }
   const stored = await providerForOwner(env, ownerId)
-  const apiKey = input.apiKey ?? (stored.kind === 'openai-compatible' ? stored.apiKey : undefined)
+  const apiKey = input.apiKey ?? (stored.kind === 'responses-api' ? stored.apiKey : undefined)
   if (apiKey === undefined) {
     throw new AppError(
       'INVALID_INPUT',
@@ -72,7 +72,7 @@ async function providerFromInput(
   }
   if (input.baseUrl === undefined || input.baseUrl.length === 0)
     throw new AppError('INVALID_INPUT', 'An endpoint URL is required to test a connection.')
-  return { kind: 'openai-compatible', model: input.model, baseUrl: input.baseUrl, apiKey }
+  return { kind: 'responses-api', model: input.model, baseUrl: input.baseUrl, apiKey }
 }
 
 export async function catalogApi(

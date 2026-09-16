@@ -168,10 +168,10 @@ export const en = {
   settingsDescription:
     'The agent calls a model endpoint you supply. This service never pays for inference, and the key is encrypted at rest.',
   providerHint:
-    'Most configuration mistakes are endpoints that answer but cannot call tools. Run the connection test before enabling.',
+    'The endpoint must implement the Responses API and function calling. Run the connection test before enabling.',
   provider: 'Model provider',
   providerNone: 'Not configured',
-  providerOpenAi: 'OpenAI-compatible endpoint',
+  providerResponses: 'Responses API endpoint',
   providerWorkersAi: 'Workers AI',
   baseUrl: 'Endpoint URL',
   model: 'Model',
@@ -372,10 +372,10 @@ export const zh: Messages = {
   settingsDescription:
     'Agent 调用的是你自己提供的模型端点。平台不承担任何推理费用，密钥是加密存储的。',
   providerHint:
-    '最常见的配置错误是端点能回答、但不支持工具调用。启用之前请先跑一次连接测试。',
+    '端点必须实现 Responses API 和函数调用。启用之前请先跑一次连接测试。',
   provider: '模型服务',
   providerNone: '未配置',
-  providerOpenAi: 'OpenAI 兼容端点',
+  providerResponses: 'Responses API 端点',
   providerWorkersAi: 'Workers AI',
   baseUrl: '端点地址',
   model: '模型',

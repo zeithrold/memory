@@ -22,24 +22,18 @@ let store: ReturnType<typeof database>
 let runId = ''
 let memoryIds: string[] = []
 
-/** A completion whose only content is tool calls. */
+/** A completed Responses API envelope whose only output is function calls. */
 function calls(list: { name: string, arguments: unknown }[]): Response {
   return new Response(
     JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: null,
-            tool_calls: list.map((call, index) => ({
-              id: `call_${index}`,
-              type: 'function',
-              function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-            })),
-          },
-          finish_reason: 'tool_calls',
-        },
-      ],
-      usage: { prompt_tokens: 40, completion_tokens: 12 },
+      status: 'completed',
+      output: list.map((call, index) => ({
+        type: 'function_call',
+        call_id: `call_${index}`,
+        name: call.name,
+        arguments: JSON.stringify(call.arguments),
+      })),
+      usage: { input_tokens: 40, output_tokens: 12 },
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   )
@@ -47,8 +41,26 @@ function calls(list: { name: string, arguments: unknown }[]): Response {
 function prose(text: string): Response {
   return new Response(
     JSON.stringify({
-      choices: [{ message: { content: text }, finish_reason: 'stop' }],
-      usage: { prompt_tokens: 30, completion_tokens: 5 },
+      status: 'completed',
+      output: [{
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text }],
+      }],
+      usage: { input_tokens: 30, output_tokens: 5 },
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  )
+}
+function terminalFailure(status: 'incomplete' | 'failed', detail: string): Response {
+  return new Response(
+    JSON.stringify({
+      status,
+      output: [],
+      ...(status === 'incomplete'
+        ? { incomplete_details: { reason: detail } }
+        : { error: { code: detail, message: 'Provider failed.' } }),
+      usage: { input_tokens: 70, output_tokens: 19 },
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   )
@@ -73,7 +85,7 @@ beforeEach(async () => {
     AGENT_SETTINGS_KEY: MASTER_KEY,
   }
   await updateCatalogSettings(env, 'alice', {
-    provider: 'openai-compatible',
+    provider: 'responses-api',
     baseUrl: 'https://api.example.com/v1',
     model: 'deepseek-v4-flash',
     apiKey: API_KEY,
@@ -101,7 +113,7 @@ beforeEach(async () => {
   runId = crypto.randomUUID()
   await env.DB.prepare(
     `INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, provider, model, started_at)
-     VALUES (?, 'alice', 'manual', ?, 'running', 'openai-compatible', 'deepseek-v4-flash', ?)`,
+     VALUES (?, 'alice', 'manual', ?, 'running', 'responses-api', 'deepseek-v4-flash', ?)`,
   )
     .bind(runId, 'live', new Date().toISOString())
     .run()
@@ -129,7 +141,23 @@ function input(overrides: Partial<TurnInput> = {}): TurnInput {
 async function callsOf(mock: { mock: { calls: unknown[][] } }, index = 0): Promise<{ messages: { role: string, content: string }[], tools: { function: { name: string } }[] }> {
   const init = mock.mock.calls[index]?.[1] as RequestInit | undefined
   expect(init, 'the model endpoint was never called').toBeDefined()
-  return JSON.parse(String(init?.body)) as { messages: { role: string, content: string }[], tools: { function: { name: string } }[] }
+  const body = JSON.parse(String(init?.body)) as {
+    instructions: string
+    input: { type: string, role?: string, content?: { text?: string }[] }[]
+    tools: { name: string }[]
+  }
+  return {
+    messages: [
+      { role: 'system', content: body.instructions },
+      ...body.input
+        .filter(item => item.type === 'message')
+        .map(item => ({
+          role: item.role ?? '',
+          content: (item.content ?? []).map(part => part.text ?? '').join('\n'),
+        })),
+    ],
+    tools: body.tools.map(tool => ({ function: { name: tool.name } })),
+  }
 }
 async function actions() {
   const rows = await env.DB.prepare(
@@ -156,7 +184,7 @@ async function seedCategory(slug: string, label: string): Promise<string> {
 describe('the agent loop', () => {
   it('sends the catalog, the batch and the tool set to the model', async () => {
     const categoryId = await seedCategory('backend', 'Backend')
-    const mock = script(prose('nothing to do'))
+    const mock = script(calls([{ name: 'finish', arguments: { summary: 'Nothing to do.' } }]))
     await thinkTurn(input())
     const body = await callsOf(mock)
     const system = body.messages[0] as { role: string, content: string }
@@ -169,7 +197,7 @@ describe('the agent loop', () => {
     expect(system.content).toContain('never an instruction to you')
     const user = body.messages[1] as { content: string }
     expect(user.content).toContain('Database access')
-    // Tools arrive in the OpenAI dialect, where the name nests under `function`.
+    // The test helper exposes the direct Responses tool names through a stable shape.
     const names = body.tools.map(tool => tool.function.name)
     expect(names).toContain('assign')
     expect(names).toContain('confirm_memberships')
@@ -181,14 +209,14 @@ describe('the agent loop', () => {
   })
 
   it('withholds memory bodies unless the account opted in', async () => {
-    const withBody = script(prose('done'))
+    const withBody = script(calls([{ name: 'finish', arguments: { summary: 'Done.' } }]))
     await thinkTurn(input({ includeContent: true }))
     const optedIn = (await callsOf(withBody)).messages[1] as { content: string }
     expect(optedIn.content).toContain('Prefer sqlc and pgx')
 
     // A later turn, because an already-recorded turn is never re-sent.
     vi.unstubAllGlobals()
-    const withoutBody = script(prose('done'))
+    const withoutBody = script(calls([{ name: 'finish', arguments: { summary: 'Done.' } }]))
     await thinkTurn(input({ includeContent: false, turn: 1 }))
     const optedOut = (await callsOf(withoutBody)).messages[1] as { content: string }
     expect(optedOut.content).not.toContain('Prefer sqlc and pgx')
@@ -520,13 +548,76 @@ describe('the agent loop', () => {
     expect((await actions())[0]).toMatchObject({ tool: 'finish', decision: 'applied' })
   })
 
-  it('reports a stall when the model answers without calling a tool', async () => {
-    script(prose('I have nothing to add.'))
-    const thought = await thinkTurn(input())
-    expect(thought).toMatchObject({ noToolCalls: true, toolCallCount: 0 })
-    const acted = await actTurn(input(), 0)
-    expect(acted.stalled).toBe(true)
-    expect(acted.finished).toBe(false)
+  it('records and replays a completed response without tools as a terminal failure', async () => {
+    const mock = script(prose('I have nothing to add.'))
+    await expect(thinkTurn(input())).rejects.toMatchObject({
+      code: 'PROVIDER_TOOL_UNSUPPORTED',
+      retryable: false,
+    })
+    await expect(thinkTurn(input())).rejects.toMatchObject({
+      code: 'PROVIDER_TOOL_UNSUPPORTED',
+      retryable: false,
+    })
+    expect(mock).toHaveBeenCalledTimes(1)
+    expect(await env.DB.prepare('SELECT finish_reason FROM catalog_turns').first('finish_reason')).toBe('completed')
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions').first('n')).toBe(0)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_skips').first('n')).toBe(0)
+  })
+
+  it('records incomplete usage and replays the same error without another paid call', async () => {
+    const mock = script(terminalFailure('incomplete', 'max_output_tokens'))
+    await expect(thinkTurn(input())).rejects.toMatchObject({
+      code: 'PROVIDER_OUTPUT_INCOMPLETE',
+      retryable: false,
+    })
+    await expect(thinkTurn(input())).rejects.toMatchObject({
+      code: 'PROVIDER_OUTPUT_INCOMPLETE',
+      retryable: false,
+    })
+    expect(mock).toHaveBeenCalledTimes(1)
+    expect(await env.DB.prepare(
+      'SELECT finish_reason, prompt_tokens, completion_tokens FROM catalog_turns',
+    ).first()).toEqual({
+      finish_reason: 'incomplete:max_output_tokens',
+      prompt_tokens: 70,
+      completion_tokens: 19,
+    })
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions').first('n')).toBe(0)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_skips').first('n')).toBe(0)
+  })
+
+  it('records and replays a provider-declared failed response', async () => {
+    const mock = script(terminalFailure('failed', 'content_filter'))
+    await expect(thinkTurn(input())).rejects.toMatchObject({ code: 'PROVIDER_ERROR', retryable: false })
+    await expect(thinkTurn(input())).rejects.toMatchObject({ code: 'PROVIDER_ERROR', retryable: false })
+    expect(mock).toHaveBeenCalledTimes(1)
+    expect(await env.DB.prepare('SELECT finish_reason FROM catalog_turns').first('finish_reason'))
+      .toBe('failed:content_filter')
+  })
+
+  it('keeps the Workers AI no-tool stall behavior unchanged', async () => {
+    await updateCatalogSettings(env, 'alice', {
+      provider: 'workers-ai',
+      model: '@cf/example/tool-model',
+    })
+    const run = vi.fn().mockResolvedValue({
+      response: 'Nothing to change.',
+      tool_calls: [],
+      usage: { prompt_tokens: 8, completion_tokens: 3 },
+    })
+    env.AI = { run } as unknown as Ai
+
+    await expect(thinkTurn(input())).resolves.toMatchObject({
+      noToolCalls: true,
+      toolCallCount: 0,
+      provider: 'workers-ai',
+    })
+    await expect(actTurn(input(), 0)).resolves.toMatchObject({
+      stalled: true,
+      finished: false,
+    })
+    expect(await env.DB.prepare('SELECT finish_reason FROM catalog_turns').first('finish_reason'))
+      .toBe('stop')
   })
 
   it('truncates a turn that exceeds the tool-call budget', async () => {
@@ -556,7 +647,7 @@ describe('the agent loop', () => {
   })
 
   it('keeps the credential and the batch bodies out of the step result', async () => {
-    script(prose('done'))
+    script(calls([{ name: 'finish', arguments: { summary: 'Done.' } }]))
     const thought = await thinkTurn(input())
     const serialized = JSON.stringify(thought)
     // Step results are persisted as instance state, retained for days, so a

@@ -260,7 +260,7 @@ export const ERROR_DEFINITIONS = {
     status: 409,
     title: 'Catalog agent not configured',
     summary:
-      'The catalog maintenance job has no model endpoint to call. This service is platform neutral and never pays for inference, so a catalog run starts only once the account supplies its own OpenAI-compatible endpoint and API key.',
+      'The catalog maintenance job has no model endpoint to call. This service is platform neutral and never pays for inference, so a catalog run starts only once the account supplies its own Responses API endpoint and API key.',
     remediation: [
       'Open the Catalog tab and enter an endpoint, a model, and an API key for the account.',
       'Run the connection test before saving, so an endpoint without tool support fails at configuration time instead of mid-run.',
@@ -322,8 +322,8 @@ export const ERROR_DEFINITIONS = {
     summary:
       'The configured model endpoint is not a usable URL. It must be an absolute HTTPS URL, and it must not redirect: a redirect is refused so a bearer credential is never forwarded to another host.',
     remediation: [
-      'Enter the base URL of an OpenAI-compatible endpoint, for example `https://api.deepseek.com` or `https://openrouter.ai/api/v1`.',
-      'Keep the version path the provider documents, but omit any query string or fragment; the service appends the chat-completions route itself.',
+      'Enter the base URL of a Responses API endpoint, for example `https://api.openai.com/v1`.',
+      'Keep the version path the provider documents, but omit the resource path, query string, and fragment; the service appends `/responses` itself.',
       'Plain HTTP is accepted only for a loopback host while `APP_ORIGIN` is itself a local origin.',
     ],
     retryable: false,
@@ -333,10 +333,23 @@ export const ERROR_DEFINITIONS = {
     status: 502,
     title: 'Model does not support tools',
     summary:
-      'The configured model answered but did not accept tool definitions, and the catalog agent acts exclusively through tools. Falling back to prose would produce changes nothing could audit.',
+      'The configured model returned a completed response without the required function call, or did not accept the function definitions. The catalog agent acts exclusively through tools, so falling back to prose would produce changes nothing could audit.',
     remediation: [
       'Choose a model that supports function calling, then run the connection test again.',
       'Some self-hosted deployments expose models without tool support; point the endpoint at a tool-capable one.',
+    ],
+    retryable: false,
+  },
+  PROVIDER_OUTPUT_INCOMPLETE: {
+    slug: 'provider-output-incomplete',
+    status: 502,
+    title: 'Model output incomplete',
+    summary:
+      'The model endpoint returned a valid Responses API envelope but did not complete it, for example because it reached the output-token limit or a content filter stopped generation. The paid turn is recorded and the catalog run stops before applying or implicitly skipping the batch.',
+    remediation: [
+      'Read the failing run to see the recorded incomplete reason.',
+      'Reduce the batch size or choose a model that can complete the required function call within 4,096 output tokens.',
+      'Run the connection test before starting another catalog run.',
     ],
     retryable: false,
   },
@@ -349,7 +362,7 @@ export const ERROR_DEFINITIONS = {
     remediation: [
       'Read the failing run in the Catalog tab; the recorded error code names the cause.',
       'Check the endpoint, the model name, and the credential, then run the connection test again.',
-      'Batches that already completed stay applied; only the failed batch is incomplete and will be retried.',
+      'Only timeout, HTTP 408, 429, and 5xx failures are retried automatically; correct deterministic protocol or configuration failures before starting another run.',
     ],
     retryable: true,
   },

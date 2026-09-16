@@ -33,7 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
  */
 interface CatalogSettings {
   enabled: boolean
-  provider: 'none' | 'openai-compatible' | 'workers-ai'
+  provider: 'none' | 'responses-api' | 'workers-ai'
   baseUrl: string | null
   model: string | null
   hasApiKey: boolean
@@ -436,7 +436,7 @@ export function CatalogPanel({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t.providerNone}</SelectItem>
-                    <SelectItem value="openai-compatible">{t.providerOpenAi}</SelectItem>
+                    <SelectItem value="responses-api">{t.providerResponses}</SelectItem>
                     <SelectItem value="workers-ai">{t.providerWorkersAi}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -446,7 +446,7 @@ export function CatalogPanel({
                 <Input
                   id="catalog-model"
                   value={form.model}
-                  placeholder={form.provider === 'workers-ai' ? '@cf/zai-org/glm-4.7-flash' : 'deepseek-chat'}
+                  placeholder={form.provider === 'workers-ai' ? '@cf/zai-org/glm-4.7-flash' : 'your-model-id'}
                   onChange={event => patch({ model: event.target.value })}
                 />
               </div>
@@ -455,8 +455,8 @@ export function CatalogPanel({
                 <Input
                   id="catalog-base"
                   value={form.baseUrl}
-                  disabled={form.provider !== 'openai-compatible'}
-                  placeholder="https://api.deepseek.com"
+                  disabled={form.provider !== 'responses-api'}
+                  placeholder="https://api.openai.com/v1"
                   onChange={event => patch({ baseUrl: event.target.value })}
                 />
               </div>
@@ -467,7 +467,7 @@ export function CatalogPanel({
                   type="password"
                   autoComplete="off"
                   value={form.apiKey}
-                  disabled={form.provider !== 'openai-compatible'}
+                  disabled={form.provider !== 'responses-api'}
                   placeholder={settings?.hasApiKey === true ? `${t.storedKey} ${settings.apiKeyHint ?? ''}` : 'sk-...'}
                   onChange={event => patch({ apiKey: event.target.value })}
                 />

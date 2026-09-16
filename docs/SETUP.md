@@ -106,13 +106,20 @@ because that failure only surfaces at deploy time otherwise.
 
 Then, per account, in the **Catalog** tab (or over the API):
 
-1. Enter an OpenAI-compatible base URL, a model, and an API key. DeepSeek's own
-   endpoint is `https://api.deepseek.com` with a tool-capable model. Include the
-   version path a provider documents, such as `https://openrouter.ai/api/v1`.
+1. Enter the service-root URL of an endpoint that implements the OpenAI
+   Responses API, a model, and an API key. Include the version path a provider
+   documents, such as `https://api.openai.com/v1`, but do not include
+   `/responses`; the service appends that resource path. The endpoint must
+   support direct function tools, `tool_choice: "required"`, and
+   `reasoning.effort: "none"`. Chat Completions-only endpoints are not accepted
+   and there is no protocol fallback.
 2. Press **Test connection**. The probe reports whether the endpoint answered
-   *and* whether it called the probe tool. Most configuration mistakes are
-   models that answer in prose but cannot call tools, and the agent acts only
-   through tools.
+   *and* whether it called the probe tool through Responses API. Models that
+   answer in prose but cannot call tools are rejected because the agent acts
+   only through tools. Run this test again before enabling after any migration
+   or endpoint/model change; the Responses migration clears the old Chat
+   Completions probe result while preserving the saved credential and enabled
+   state.
 3. Save, then enable. The first scheduled run after enabling is a **dry run**: it records
    what would happen without changing categories, memberships, proposals or
    skips. It processes one batch and then pauses automatic runs in an

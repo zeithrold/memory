@@ -7,9 +7,10 @@ import { AppError } from './errors'
  *
  * The catalog agent acts exclusively through tool calls, so tool calling is a
  * hard requirement rather than an optimisation: without it there is nothing to
- * audit. `openai-compatible` is the primary path because it is what makes the
- * deployment platform neutral; `workers-ai` is kept as an alternative for
- * deployments that already hold Workers AI quota.
+ * audit. `responses-api` is the primary path because the Responses protocol
+ * carries tool calls, completion status and usage without provider-specific
+ * chat-completions fields; `workers-ai` remains an alternative for deployments
+ * that already hold Workers AI quota.
  *
  * Two deliberate refusals:
  * - a redirect is never followed, so a bearer credential is never forwarded to
@@ -48,7 +49,7 @@ export interface LlmToolCall {
   /** Parsed JSON when the backend returned a JSON string, otherwise the raw value. */
   arguments: JsonValue
 }
-export interface ChatMessage {
+export interface ModelMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   toolCallId?: string
@@ -57,15 +58,19 @@ export interface ChatMessage {
 export interface LlmReply {
   content: string | null
   toolCalls: LlmToolCall[]
+  status: 'completed' | 'incomplete' | 'failed'
+  /** Persisted verbatim enough to distinguish completion from truncation/failure. */
+  finishReason: string
+  statusDetail: string | null
   usage: { promptTokens?: number, completionTokens?: number }
 }
 export type Provider
   = | { kind: 'none' }
-    | { kind: 'openai-compatible', model: string, baseUrl: string, apiKey: string }
+    | { kind: 'responses-api', model: string, baseUrl: string, apiKey: string }
     | { kind: 'workers-ai', model: string }
 
-export interface ChatOptions {
-  maxTokens?: number
+export interface ModelOptions {
+  maxOutputTokens?: number
   timeoutMs?: number
 }
 
@@ -76,8 +81,8 @@ export function describeProvider(provider: Provider): { provider: string, model:
       return { provider: 'none', model: null }
     case 'workers-ai':
       return { provider: 'workers-ai', model: provider.model }
-    case 'openai-compatible':
-      return { provider: 'openai-compatible', model: provider.model }
+    case 'responses-api':
+      return { provider: 'responses-api', model: provider.model }
   }
 }
 
@@ -113,40 +118,37 @@ export function normalizeBaseUrl(raw: string, allowLoopbackHttp: boolean): strin
   return `${url.origin}${url.pathname}`.replace(/\/+$/, '')
 }
 
-function chatUrl(baseUrl: string): string {
-  return `${baseUrl}/chat/completions`
+function responsesUrl(baseUrl: string): string {
+  return `${baseUrl}/responses`
 }
 
 function truncate(value: string): string {
   return value.length > DETAIL_LIMIT ? `${value.slice(0, DETAIL_LIMIT)}…` : value
 }
 
-const toolCallSchema = z.object({
+const responseOutputItemSchema = z.object({
+  type: z.string(),
   id: z.string().optional(),
-  type: z.string().optional(),
-  function: z.object({
-    name: z.string().min(1),
-    // Providers disagree: a JSON string, a JSON string that is empty, or an
-    // object. All three are accepted and normalised by the caller.
-    arguments: z.unknown().optional(),
-  }),
-})
-const replySchema = z.object({
-  choices: z
-    .array(
-      z.object({
-        message: z.object({
-          content: z.string().nullable().optional(),
-          tool_calls: z.array(toolCallSchema).nullish(),
-        }),
-        finish_reason: z.string().nullable().optional(),
-      }),
-    )
-    .min(1),
+  call_id: z.string().optional(),
+  name: z.string().optional(),
+  arguments: z.unknown().optional(),
+  content: z.array(z.object({
+    type: z.string(),
+    text: z.string().optional(),
+  }).passthrough()).nullish(),
+}).passthrough()
+const responseSchema = z.object({
+  status: z.enum(['completed', 'incomplete', 'failed']),
+  output: z.array(responseOutputItemSchema),
+  incomplete_details: z.object({ reason: z.string().optional() }).nullish(),
+  error: z.object({
+    code: z.string().optional(),
+    message: z.string().optional(),
+  }).nullish(),
   usage: z
     .object({
-      prompt_tokens: z.number().optional(),
-      completion_tokens: z.number().optional(),
+      input_tokens: z.number().optional(),
+      output_tokens: z.number().optional(),
     })
     .nullish(),
 })
@@ -187,40 +189,55 @@ function parseArguments(value: unknown): JsonValue {
   }
 }
 
-function normalizeToolCalls(
-  calls: z.infer<typeof toolCallSchema>[] | null | undefined,
-): LlmToolCall[] {
-  return (calls ?? []).map((call, index) => ({
-    id: call.id ?? `call_${index}`,
-    name: call.function.name,
-    arguments: parseArguments(call.function.arguments),
-  }))
-}
-
 /**
  * Renders the neutral conversation into the shape a backend accepts. The two
  * backends differ in how a tool result is correlated with its call, so the
  * translation lives here rather than in the loop.
  */
-function openAiMessages(messages: ChatMessage[]): unknown[] {
-  return messages.map((message) => {
-    if (message.role === 'assistant' && message.toolCalls !== undefined) {
-      return {
-        role: 'assistant',
-        content: message.content.length > 0 ? message.content : null,
-        tool_calls: message.toolCalls.map(call => ({
-          id: call.id,
-          type: 'function',
-          function: { name: call.name, arguments: JSON.stringify(call.arguments ?? {}) },
-        })),
-      }
+function responsesInput(messages: ModelMessage[]): { instructions?: string, input: unknown[] } {
+  let instructions: string | undefined
+  const input: unknown[] = []
+  for (const message of messages) {
+    if (message.role === 'system' && instructions === undefined) {
+      instructions = message.content
+      continue
     }
-    if (message.role === 'tool')
-      return { role: 'tool', tool_call_id: message.toolCallId, content: message.content }
-    return { role: message.role, content: message.content }
-  })
+    if (message.role === 'assistant' && message.toolCalls !== undefined) {
+      if (message.content.length > 0) {
+        input.push({
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: message.content }],
+        })
+      }
+      input.push(...message.toolCalls.map(call => ({
+        type: 'function_call',
+        call_id: call.id,
+        name: call.name,
+        arguments: JSON.stringify(call.arguments ?? {}),
+      })))
+      continue
+    }
+    if (message.role === 'tool') {
+      input.push({
+        type: 'function_call_output',
+        call_id: message.toolCallId,
+        output: message.content,
+      })
+      continue
+    }
+    input.push({
+      type: 'message',
+      role: message.role,
+      content: [{
+        type: message.role === 'assistant' ? 'output_text' : 'input_text',
+        text: message.content,
+      }],
+    })
+  }
+  return { ...(instructions === undefined ? {} : { instructions }), input }
 }
-function workerAiMessages(messages: ChatMessage[]): unknown[] {
+function workerAiMessages(messages: ModelMessage[]): unknown[] {
   return messages.map((message) => {
     if (message.role === 'assistant' && message.toolCalls !== undefined) {
       return {
@@ -235,14 +252,12 @@ function workerAiMessages(messages: ChatMessage[]): unknown[] {
     return { role: message.role, content: message.content }
   })
 }
-function openAiTools(tools: ToolSpec[]): unknown[] {
+function responsesTools(tools: ToolSpec[]): unknown[] {
   return tools.map(tool => ({
     type: 'function',
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    },
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
   }))
 }
 function workerAiTools(tools: ToolSpec[]): unknown[] {
@@ -292,29 +307,28 @@ function isRedirect(response: Response): boolean {
   return response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)
 }
 
-async function callOpenAiCompatible(
-  provider: Extract<Provider, { kind: 'openai-compatible' }>,
-  messages: ChatMessage[],
+async function callResponsesApi(
+  provider: Extract<Provider, { kind: 'responses-api' }>,
+  messages: ModelMessage[],
   tools: ToolSpec[],
-  options: ChatOptions,
+  options: ModelOptions,
 ): Promise<LlmReply> {
+  const rendered = responsesInput(messages)
   const body: Record<string, unknown> = {
     model: provider.model,
-    messages: openAiMessages(messages),
-    // Reproducibility matters for a system whose whole point is an auditable
-    // trail of what the model decided.
-    temperature: 0,
+    ...rendered,
+    reasoning: { effort: 'none' },
   }
   if (tools.length > 0) {
-    body.tools = openAiTools(tools)
-    body.tool_choice = 'auto'
+    body.tools = responsesTools(tools)
+    body.tool_choice = 'required'
   }
-  if (options.maxTokens !== undefined)
-    body.max_tokens = options.maxTokens
+  if (options.maxOutputTokens !== undefined)
+    body.max_output_tokens = options.maxOutputTokens
 
   let response: Response
   try {
-    response = await fetch(chatUrl(provider.baseUrl), {
+    response = await fetch(responsesUrl(provider.baseUrl), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${provider.apiKey}`,
@@ -351,23 +365,40 @@ async function callOpenAiCompatible(
   catch {
     throw new AppError('PROVIDER_ERROR', 'The model endpoint returned a body that is not JSON.', false)
   }
-  const parsed = replySchema.safeParse(payload)
+  const parsed = responseSchema.safeParse(payload)
   if (!parsed.success) {
     throw new AppError(
       'PROVIDER_ERROR',
-      'The model endpoint returned a body that does not match the chat-completions schema.',
+      'The model endpoint returned a body that does not match the Responses API schema.',
       false,
     )
   }
-  const choice = parsed.data.choices[0]
-  if (choice === undefined)
-    throw new AppError('PROVIDER_ERROR', 'The model endpoint returned no completion choices.', false)
+  const text = parsed.data.output
+    .flatMap(item => item.content ?? [])
+    .map(part => part.text?.trim() ?? '')
+    .filter(part => part.length > 0)
+    .join('\n')
+  const toolCalls = parsed.data.output
+    .filter(item => item.type === 'function_call' && item.name !== undefined)
+    .map((item, index) => ({
+      id: item.call_id ?? item.id ?? `call_${index}`,
+      name: item.name as string,
+      arguments: parseArguments(item.arguments),
+    }))
+  const statusDetail = parsed.data.status === 'incomplete'
+    ? parsed.data.incomplete_details?.reason ?? 'unknown'
+    : parsed.data.status === 'failed'
+      ? parsed.data.error?.code ?? parsed.data.error?.message ?? 'provider_error'
+      : null
   return {
-    content: choice.message.content ?? null,
-    toolCalls: normalizeToolCalls(choice.message.tool_calls),
+    content: text.length > 0 ? text : null,
+    toolCalls,
+    status: parsed.data.status,
+    finishReason: statusDetail === null ? parsed.data.status : `${parsed.data.status}:${statusDetail}`,
+    statusDetail,
     usage: {
-      promptTokens: parsed.data.usage?.prompt_tokens,
-      completionTokens: parsed.data.usage?.completion_tokens,
+      promptTokens: parsed.data.usage?.input_tokens,
+      completionTokens: parsed.data.usage?.output_tokens,
     },
   }
 }
@@ -387,9 +418,9 @@ const workerAiReplySchema = z.object({
 async function callWorkersAi(
   env: Env,
   provider: Extract<Provider, { kind: 'workers-ai' }>,
-  messages: ChatMessage[],
+  messages: ModelMessage[],
   tools: ToolSpec[],
-  options: ChatOptions,
+  options: ModelOptions,
 ): Promise<LlmReply> {
   if (!env.AI) {
     throw new AppError(
@@ -403,8 +434,8 @@ async function callWorkersAi(
   }
   if (tools.length > 0)
     input.tools = workerAiTools(tools)
-  if (options.maxTokens !== undefined)
-    input.max_tokens = options.maxTokens
+  if (options.maxOutputTokens !== undefined)
+    input.max_tokens = options.maxOutputTokens
 
   let payload: unknown
   try {
@@ -431,6 +462,9 @@ async function callWorkersAi(
       name: call.name,
       arguments: parseArguments(call.arguments),
     })),
+    status: 'completed',
+    finishReason: 'completed',
+    statusDetail: null,
     usage: {
       promptTokens: parsed.data.usage?.prompt_tokens,
       completionTokens: parsed.data.usage?.completion_tokens,
@@ -438,12 +472,12 @@ async function callWorkersAi(
   }
 }
 
-export async function chatWithTools(
+export async function respondWithTools(
   env: Env,
   provider: Provider,
-  messages: ChatMessage[],
+  messages: ModelMessage[],
   tools: ToolSpec[],
-  options: ChatOptions = {},
+  options: ModelOptions = {},
 ): Promise<LlmReply> {
   if (provider.kind === 'none') {
     throw new AppError(
@@ -451,9 +485,38 @@ export async function chatWithTools(
       'No model endpoint is configured for this account.',
     )
   }
-  if (provider.kind === 'openai-compatible')
-    return callOpenAiCompatible(provider, messages, tools, options)
+  if (provider.kind === 'responses-api')
+    return callResponsesApi(provider, messages, tools, options)
   return callWorkersAi(env, provider, messages, tools, options)
+}
+
+/**
+ * Converts a well-formed but unusable model response into a stable failure.
+ * Callers persist paid usage before invoking this guard so a Workflow replay
+ * can fail deterministically without paying for the same response again.
+ */
+export function assertActionableReply(reply: LlmReply): void {
+  if (reply.status === 'incomplete') {
+    throw new AppError(
+      'PROVIDER_OUTPUT_INCOMPLETE',
+      `The model response was incomplete (${reply.statusDetail ?? 'unknown reason'}).`,
+      false,
+    )
+  }
+  if (reply.status === 'failed') {
+    throw new AppError(
+      'PROVIDER_ERROR',
+      `The model reported a failed response (${reply.statusDetail ?? 'unknown reason'}).`,
+      false,
+    )
+  }
+  if (reply.toolCalls.length === 0) {
+    throw new AppError(
+      'PROVIDER_TOOL_UNSUPPORTED',
+      'The model completed the request without calling a required tool.',
+      false,
+    )
+  }
 }
 
 const PROBE_TOOL: ToolSpec = {
@@ -491,7 +554,7 @@ export async function probeProvider(env: Env, provider: Provider): Promise<Probe
     }
   }
   try {
-    const reply = await chatWithTools(
+    const reply = await respondWithTools(
       env,
       provider,
       [
@@ -503,19 +566,9 @@ export async function probeProvider(env: Env, provider: Provider): Promise<Probe
         { role: 'user', content: 'Call the ping tool with ok set to true.' },
       ],
       [PROBE_TOOL],
-      { maxTokens: 64, timeoutMs: DEFAULT_PROBE_MODEL_TIMEOUT_MS },
+      { maxOutputTokens: 64, timeoutMs: DEFAULT_PROBE_MODEL_TIMEOUT_MS },
     )
-    if (reply.toolCalls.length === 0) {
-      const answered = reply.content?.trim() ?? ''
-      return {
-        reachable: true,
-        modelOk: true,
-        toolCallingOk: false,
-        detail: answered.length > 0
-          ? `The model answered without calling the tool: ${truncate(answered)}`
-          : 'The model answered without calling the tool, so the catalog agent could not act.',
-      }
-    }
+    assertActionableReply(reply)
     return {
       reachable: true,
       modelOk: true,
@@ -524,6 +577,14 @@ export async function probeProvider(env: Env, provider: Provider): Promise<Probe
     }
   }
   catch (error) {
+    if (error instanceof AppError && error.code === 'PROVIDER_TOOL_UNSUPPORTED') {
+      return {
+        reachable: true,
+        modelOk: true,
+        toolCallingOk: false,
+        detail: truncate(`${error.code}: ${error.message}`),
+      }
+    }
     const message = error instanceof AppError
       ? `${error.code}: ${error.message}`
       : error instanceof Error

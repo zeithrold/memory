@@ -1,4 +1,4 @@
-import type { ChatMessage, LlmToolCall } from '../llm'
+import type { LlmToolCall, ModelMessage } from '../llm'
 import type { BatchMemory, CategoryRow } from './model'
 
 /**
@@ -84,8 +84,8 @@ export function rebuildMessages(
   systemPrompt: string,
   batchMessage: string,
   turns: TurnRow[],
-): ChatMessage[] {
-  const messages: ChatMessage[] = [
+): ModelMessage[] {
+  const messages: ModelMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: batchMessage },
   ]

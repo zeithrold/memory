@@ -1,9 +1,9 @@
 import type { Env } from '../env'
-import type { ChatMessage, LlmToolCall } from '../llm'
+import type { LlmToolCall, ModelMessage } from '../llm'
 import type { CatalogSnapshot } from './model'
 import type { ActionRecord, ToolContext } from './tools'
 import { AppError } from '../errors'
-import { chatWithTools, describeProvider } from '../llm'
+import { assertActionableReply, describeProvider, respondWithTools } from '../llm'
 import { loadSnapshot } from './model'
 import { buildBatchMessage, buildSystemPrompt, rebuildMessages } from './prompt'
 import { providerForOwner } from './settings'
@@ -77,6 +77,7 @@ interface TurnRow {
   tool_calls_json: string | null
   tool_results_json: string | null
   action_summary_json: string | null
+  finish_reason: string | null
 }
 
 interface ToolResultRow {
@@ -91,7 +92,7 @@ function now(): string {
 
 async function loadTurns(env: Env, runId: string, batch: number): Promise<TurnRow[]> {
   const rows = await env.DB.prepare(
-    `SELECT turn, content, tool_calls_json, tool_results_json, action_summary_json
+    `SELECT turn, content, tool_calls_json, tool_results_json, action_summary_json, finish_reason
      FROM catalog_turns WHERE run_id = ? AND batch = ? ORDER BY turn`,
   )
     .bind(runId, batch)
@@ -101,7 +102,7 @@ async function loadTurns(env: Env, runId: string, batch: number): Promise<TurnRo
 
 async function loadTurn(env: Env, runId: string, batch: number, turn: number): Promise<TurnRow | null> {
   return env.DB.prepare(
-    'SELECT turn, content, tool_calls_json, tool_results_json, action_summary_json FROM catalog_turns WHERE run_id = ? AND batch = ? AND turn = ?',
+    'SELECT turn, content, tool_calls_json, tool_results_json, action_summary_json, finish_reason FROM catalog_turns WHERE run_id = ? AND batch = ? AND turn = ?',
   )
     .bind(runId, batch, turn)
     .first<TurnRow>()
@@ -115,8 +116,9 @@ async function loadTurnContext(input: TurnInput): Promise<CatalogSnapshot> {
 export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
   const existing = await loadTurn(input.env, input.runId, input.batch, input.turn)
   if (existing !== null && existing.tool_calls_json !== null) {
-    const recordedCalls = JSON.parse(existing.tool_calls_json) as unknown[]
+    const recordedCalls = JSON.parse(existing.tool_calls_json) as LlmToolCall[]
     // This turn already ran: a step retry must not pay for it twice.
+    assertRecordedTurnActionable(existing.finish_reason, recordedCalls)
     return {
       turn: input.turn,
       content: existing.content,
@@ -139,19 +141,19 @@ export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
   const snapshot = await loadTurnContext(input)
   const systemPrompt = buildSystemPrompt(snapshot.categories, input.includeContent)
   const batchMessage = buildBatchMessage(snapshot.memories)
-  const messages: ChatMessage[] = rebuildMessages(
+  const messages: ModelMessage[] = rebuildMessages(
     systemPrompt,
     batchMessage,
     await loadTurns(input.env, input.runId, input.batch),
   )
 
   const started = Date.now()
-  const reply = await chatWithTools(
+  const reply = await respondWithTools(
     input.env,
     provider,
     messages,
     toolsFor({ includeSearch: false }),
-    { maxTokens: 4096 },
+    { maxOutputTokens: 4096 },
   )
   const described = describeProvider(provider)
 
@@ -170,10 +172,18 @@ export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
       reply.usage.promptTokens ?? null,
       reply.usage.completionTokens ?? null,
       Date.now() - started,
-      reply.toolCalls.length > 0 ? 'tool_calls' : 'stop',
+      provider.kind === 'responses-api'
+        ? reply.finishReason
+        : reply.toolCalls.length > 0 ? 'tool_calls' : 'stop',
       now(),
     )
     .run()
+
+  // Persist the provider's terminal state and any paid usage before rejecting
+  // an unusable response. A Workflow replay reads this row and raises the same
+  // error without calling the provider again.
+  if (provider.kind === 'responses-api')
+    assertActionableReply(reply)
 
   return {
     turn: input.turn,
@@ -184,6 +194,33 @@ export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
     completionTokens: reply.usage.completionTokens ?? null,
     provider: described.provider,
     model: described.model,
+  }
+}
+
+function assertRecordedTurnActionable(
+  finishReason: string | null,
+  calls: LlmToolCall[],
+): void {
+  if (finishReason?.startsWith('incomplete:') === true) {
+    throw new AppError(
+      'PROVIDER_OUTPUT_INCOMPLETE',
+      `The model response was incomplete (${finishReason.slice('incomplete:'.length)}).`,
+      false,
+    )
+  }
+  if (finishReason?.startsWith('failed:') === true) {
+    throw new AppError(
+      'PROVIDER_ERROR',
+      `The model reported a failed response (${finishReason.slice('failed:'.length)}).`,
+      false,
+    )
+  }
+  if (finishReason === 'completed' && calls.length === 0) {
+    throw new AppError(
+      'PROVIDER_TOOL_UNSUPPORTED',
+      'The model completed the request without calling a required tool.',
+      false,
+    )
   }
 }
 
@@ -327,8 +364,8 @@ export async function actTurn(input: TurnInput, reassignmentsSoFar: number): Pro
     results.push({ toolCallId: call.id, name: call.name, content: JSON.stringify(outcome.result) })
   }
 
-  // OpenAI-compatible providers require exactly one tool response for every
-  // tool_call id before another assistant message. The previous implementation
+  // Responses providers require exactly one function_call_output for every
+  // function call id before another assistant message. The previous implementation
   // silently sliced the array, producing an invalid transcript on the next
   // turn. Overflow calls are refused, journalled and answered without running
   // their requested effect.

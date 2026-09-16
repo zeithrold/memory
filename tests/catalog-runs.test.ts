@@ -62,7 +62,7 @@ async function call(path: string, method = 'GET', body?: unknown) {
 }
 async function configure(extra: Record<string, unknown> = {}) {
   return call('/api/v1/catalog/settings', 'PUT', {
-    provider: 'openai-compatible',
+    provider: 'responses-api',
     baseUrl: 'https://api.example.com',
     model: 'deepseek-v4-flash',
     apiKey: 'sk-live-0123456789abcdef',

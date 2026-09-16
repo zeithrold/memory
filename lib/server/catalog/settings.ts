@@ -17,7 +17,7 @@ import {
  * client, and the plaintext is never placed in a Workflow step result, because
  * step results are persisted as instance state.
  */
-export const providerKinds = ['none', 'openai-compatible', 'workers-ai'] as const
+export const providerKinds = ['none', 'responses-api', 'workers-ai'] as const
 export type ProviderKind = (typeof providerKinds)[number]
 
 export const settingsInputSchema = z
@@ -214,7 +214,7 @@ export async function updateCatalogSettings(
   let iv = current?.api_key_iv ?? null
   let hint = current?.api_key_hint ?? null
 
-  if (provider === 'openai-compatible' && baseUrl !== null)
+  if (provider === 'responses-api' && baseUrl !== null)
     baseUrl = normalizeBaseUrl(baseUrl, allowLoopbackHttp(env))
 
   if (input.clearApiKey === true) {
@@ -243,6 +243,11 @@ export async function updateCatalogSettings(
   const dailyTokenBudget = input.dailyTokenBudget
     ?? current?.daily_token_budget
     ?? DEFAULT_DAILY_TOKEN_BUDGET
+  const probeInvalidated = input.apiKey !== undefined
+    || input.clearApiKey === true
+    || (input.provider !== undefined && input.provider !== current?.provider)
+    || (input.baseUrl !== undefined && baseUrl !== current?.base_url)
+    || (input.model !== undefined && model !== current?.model)
   if (maxBatch > maxToolCalls - 2) {
     throw new AppError(
       'INVALID_INPUT',
@@ -259,12 +264,12 @@ export async function updateCatalogSettings(
     if (model === null || model.length === 0) {
       throw new AppError('INVALID_INPUT', 'A model name is required before enabling the catalog agent.')
     }
-    if (provider === 'openai-compatible') {
+    if (provider === 'responses-api') {
       if (baseUrl === null || baseUrl.length === 0) {
-        throw new AppError('INVALID_INPUT', 'An endpoint URL is required for an OpenAI-compatible provider.')
+        throw new AppError('INVALID_INPUT', 'An endpoint URL is required for a Responses API provider.')
       }
       if (ciphertext === null) {
-        throw new AppError('INVALID_INPUT', 'An API key is required for an OpenAI-compatible provider.')
+        throw new AppError('INVALID_INPUT', 'An API key is required for a Responses API provider.')
       }
     }
   }
@@ -292,6 +297,9 @@ export async function updateCatalogSettings(
        daily_token_budget = excluded.daily_token_budget,
        auto_apply_structural = excluded.auto_apply_structural,
        dry_run_until_reviewed = excluded.dry_run_until_reviewed,
+       last_probe_at = excluded.last_probe_at,
+       last_probe_ok = excluded.last_probe_ok,
+       last_probe_error = excluded.last_probe_error,
        updated_at = excluded.updated_at`,
   )
     .bind(
@@ -311,10 +319,9 @@ export async function updateCatalogSettings(
       dailyTokenBudget,
       (input.autoApplyStructural ?? current?.auto_apply_structural === 1) ? 1 : 0,
       (input.dryRunUntilReviewed ?? current?.dry_run_until_reviewed !== 0) ? 1 : 0,
-      // A configuration change invalidates the previous probe result.
-      current?.last_probe_at ?? null,
-      current?.last_probe_ok ?? null,
-      current?.last_probe_error ?? null,
+      probeInvalidated ? null : current?.last_probe_at ?? null,
+      probeInvalidated ? null : current?.last_probe_ok ?? null,
+      probeInvalidated ? null : current?.last_probe_error ?? null,
       timestamp,
     )
     .run()
@@ -377,7 +384,7 @@ export async function providerForOwner(env: Env, ownerId: string): Promise<Provi
   if (row.api_key_ciphertext === null || row.api_key_iv === null)
     return { kind: 'none' }
   return {
-    kind: 'openai-compatible',
+    kind: 'responses-api',
     model: row.model,
     baseUrl: row.base_url ?? '',
     apiKey: await openSecret(env, {
