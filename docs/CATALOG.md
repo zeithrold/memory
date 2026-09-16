@@ -22,16 +22,29 @@ evidence behind them, and what is knowingly unfinished.
 
 | Piece | Choice |
 | --- | --- |
-| Runtime | Cloudflare Workflows, one class, `schedules: ["*/30 * * * *"]` |
+| Runtime | Cloudflare Workflows, one class |
 | Model | Bring your own OpenAI-compatible endpoint. The platform never pays for inference. |
 | Storage | D1 (catalog, audit, settings) |
-| Trigger | the Workflow's own schedule, plus `POST /api/v1/catalog/runs` |
+| Trigger | the existing minute Cron Trigger dispatches one instance per 30-minute window, plus `POST /api/v1/catalog/runs` |
 
-The Workflow's own `schedules` entry is used instead of a second Cron Trigger:
-Workflows created this way receive the cron time on `event.schedule`, and on the
-paid plan a scheduled instance gets an hour of budget per firing without
-consuming a concurrency slot. The Worker's existing `* * * * *` cron keeps doing
-index maintenance and keeps its Sentry heartbeat.
+A `schedules` entry on the Workflow binding would be the obvious way to run this
+on a timer, and it is what this feature first used. **It does not work on the
+Free plan**: the deployment rejects the trigger configuration with *"Workflow
+has `schedules` configured, but scheduled Workflows require a paid Workers
+plan"*, after the upload, as a partial trigger update. Workflows themselves are
+available on Free — only the automatic schedule is not.
+
+So the dispatch lives in the Cron Trigger this Worker already had. It fires every
+minute and starts an instance only when the clock lands on a 30-minute boundary,
+using the window as the instance id so a retried cron event collapses onto the
+instance it already created. `scripts/deploy-check.ts` fails the build if a
+`schedules` entry reappears, because the alternative is rediscovering this at
+deploy time.
+
+The cost is that the minute cron now also carries the dispatch, so the two share
+one Sentry Crons monitor. Creating 48 instances a day is negligible against the
+Free plan's 100,000 daily requests, and it keeps the minute-level index
+maintenance and the catalog on one trigger rather than two.
 
 ### Why not the Agents SDK
 

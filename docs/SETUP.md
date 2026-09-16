@@ -93,11 +93,15 @@ in plaintext. Changing the secret makes already stored credentials unreadable,
 and they must be entered again.
 
 The catalog needs its Workflow binding, which `wrangler.jsonc` already declares
-as `memory-catalog` with the schedule `*/30 * * * *`. `pnpm deploy` runs
-`pnpm check:bundle` between the build and the upload, because a Workflow binds
-by *exported class name*: if the production bundle ever stopped exporting
-`CatalogWorkflow`, the deploy would fail loudly instead of shipping a Worker
-whose schedule silently does nothing.
+as `memory-catalog`. There is deliberately **no `schedules` entry**: a scheduled
+Workflow requires a paid Workers plan, and Cloudflare rejects the trigger
+configuration for it after the upload. The Worker's existing minute Cron Trigger
+dispatches one instance per 30-minute window instead, so the catalog runs on a
+timer regardless of plan. `pnpm deploy` runs two guards before the upload:
+`pnpm check:bundle`, because a Workflow binds by *exported class name* and a
+bundle that stopped exporting `CatalogWorkflow` would deploy without error and
+then never run, and `scripts/deploy-check.ts`, which refuses a `schedules` entry
+because that failure only surfaces at deploy time otherwise.
 
 Then, per account, in the **Catalog** tab (or over the API):
 

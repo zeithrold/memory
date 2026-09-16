@@ -36,9 +36,6 @@
       "name": "memory-catalog",
       "binding": "CATALOG_WORKFLOW",
       "class_name": "CatalogWorkflow",
-      "schedules": [
-        "*/30 * * * *"
-      ],
       "limits": {
         "steps": 400
       },

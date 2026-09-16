@@ -1,6 +1,7 @@
 import type { Env } from './lib/server/env'
 import * as Sentry from '@sentry/cloudflare'
 import handler from 'vinext/server/fetch-handler'
+import { dispatchCatalogWorkflow } from './lib/server/catalog/run'
 import { maintenance } from './lib/server/indexer'
 import { sentryOptions } from './lib/server/observability'
 
@@ -13,12 +14,19 @@ const base = handler as unknown as ExportedHandler<Env>
 
 const worker = {
   ...base,
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     // Beyond the automatic `faas.cron` span, this upserts a Sentry Crons monitor
     // so a silently stopped indexer becomes visible.
     await Sentry.withMonitor(
       'shared-memory-maintenance',
-      async () => maintenance(env),
+      async () => {
+        await maintenance(env)
+        // The catalog is dispatched from here rather than by a Workflow
+        // `schedules` entry, because a scheduled Workflow requires a paid plan.
+        // One instance is created per cadence window; the other 29 minutes of
+        // every half hour do nothing.
+        await dispatchCatalogWorkflow(env, controller.scheduledTime)
+      },
       {
         schedule: { type: 'crontab', value: '* * * * *' },
         checkinMargin: 2,

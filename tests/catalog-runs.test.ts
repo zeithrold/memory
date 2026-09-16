@@ -4,6 +4,7 @@ import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../lib/server/api'
 import { listProposals, revertRun } from '../lib/server/catalog/query'
+import { dispatchCatalogWorkflow } from '../lib/server/catalog/run'
 import { createMemory, moveMemoryProject } from '../lib/server/memories'
 import { database } from './database'
 
@@ -419,5 +420,32 @@ describe('moving a memory between projects', () => {
         expectedVersion: mem.version,
       }),
     ).rejects.toMatchObject({ code: 'IMMUTABLE_PROJECT' })
+  })
+})
+
+describe('scheduled dispatch', () => {
+  it('starts one instance per cadence window, keyed to the window', async () => {
+    const onBoundary = await dispatchCatalogWorkflow(env, 30 * 60_000)
+    expect(onBoundary).toEqual({ dispatched: true, instanceId: 'catalog-30' })
+    expect(createRun).toHaveBeenCalledWith({ id: 'catalog-30', params: {} })
+    // A Workflow `schedules` entry is rejected on a Free plan, so the minute
+    // cron is the only thing that can start an instance.
+    createRun.mockClear()
+    const offBoundary = await dispatchCatalogWorkflow(env, 31 * 60_000)
+    expect(offBoundary).toEqual({ dispatched: false, instanceId: null })
+    expect(createRun).not.toHaveBeenCalled()
+  })
+  it('collapses a repeated cron event onto the instance it already made', async () => {
+    createRun.mockRejectedValueOnce(new Error('A workflow instance with this id already exists'))
+    const result = await dispatchCatalogWorkflow(env, 0)
+    expect(result).toEqual({ dispatched: false, instanceId: 'catalog-0' })
+  })
+  it('propagates a real failure instead of hiding it', async () => {
+    createRun.mockRejectedValueOnce(new Error('workflow limit exceeded'))
+    await expect(dispatchCatalogWorkflow(env, 0)).rejects.toThrow(/limit exceeded/)
+  })
+  it('does nothing where the deployment declares no Workflow', async () => {
+    const bare: Env = { ...env, CATALOG_WORKFLOW: undefined }
+    expect(await dispatchCatalogWorkflow(bare, 0)).toEqual({ dispatched: false, instanceId: null })
   })
 })

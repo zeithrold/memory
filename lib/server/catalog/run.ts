@@ -29,8 +29,53 @@ import { loadSettingsRow } from './settings'
 export const MAX_OWNERS_PER_FIRING = 2
 export const MAX_BATCHES_PER_RUN = 2
 export const MAX_STEPS_PER_FIRING = 40
+/**
+ * How often a catalog run is dispatched. A Cron Trigger fires this Worker every
+ * minute, and only the windows on this boundary start an instance.
+ */
+export const CATALOG_CADENCE_MINUTES = 30
 /** A run left in `running` beyond this is treated as abandoned. */
 export const STALE_RUN_MINUTES = 15
+
+/**
+ * Starts one catalog instance per cadence window.
+ *
+ * Declaring `schedules` on the Workflow binding would be the obvious mechanism,
+ * but **a scheduled Workflow requires a paid Workers plan**: the deployment
+ * rejects the trigger configuration outright. So the existing minute Cron
+ * Trigger dispatches instead. It is already deployed and already covered by a
+ * Sentry Crons monitor, and Workflows themselves are available on the Free plan
+ * — only the automatic schedule is not.
+ *
+ * The instance id is derived from the window rather than generated, so a
+ * retried cron event collapses onto the instance it already created instead of
+ * starting a second run over the same accounts.
+ */
+export async function dispatchCatalogWorkflow(
+  env: Env,
+  scheduledTime: number,
+): Promise<{ dispatched: boolean, instanceId: string | null }> {
+  if (!env.CATALOG_WORKFLOW)
+    return { dispatched: false, instanceId: null }
+  // Cron reports the scheduled time, which for a minutely trigger is the minute
+  // boundary; rounding tolerates the few milliseconds of skew a scheduler
+  // occasionally introduces.
+  const minute = Math.round(scheduledTime / 60_000)
+  if (minute % CATALOG_CADENCE_MINUTES !== 0)
+    return { dispatched: false, instanceId: null }
+  const instanceId = `catalog-${minute}`
+  try {
+    await env.CATALOG_WORKFLOW.create({ id: instanceId, params: {} })
+  }
+  catch (error) {
+    // Instance ids are unique, so a collision means this window already has an
+    // instance, which is the outcome the caller wanted.
+    if (error instanceof Error && error.message.includes('already exists'))
+      return { dispatched: false, instanceId }
+    throw error
+  }
+  return { dispatched: true, instanceId }
+}
 export const MANUAL_DEDUPE_SECONDS = 60
 
 export interface DueOwner {
