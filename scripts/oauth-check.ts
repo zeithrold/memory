@@ -2,6 +2,9 @@ import { existsSync } from 'node:fs'
 import process from 'node:process'
 import { clerkIssuer, OAUTH_SCOPES } from '../lib/server/oauth'
 
+/** Advertised by Clerk and requested by ChatGPT whether or not we ask for them. */
+const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access']
+
 // ChatGPT and other MCP hosts need an authorization server that can register a
 // client without a human copying credentials. Clerk offers three ways to do that
 // (CIMD, DCR, or a predefined client); this command reports which ones the
@@ -51,6 +54,14 @@ async function main(): Promise<void> {
   process.stdout.write(
     `memory scopes advertised: ${OAUTH_SCOPES.filter(scope => scopes.includes(scope)).join(', ') || 'none'}\n`,
   )
+  const oidcScopes = OIDC_SCOPES.filter(scope => scopes.includes(scope))
+  if (oidcScopes.length > 0) {
+    // ChatGPT requests whatever OIDC scopes the authorization server advertises,
+    // so a client that is not allowed to request them fails with invalid_scope.
+    process.stdout.write(
+      `note: ${oidcScopes.join(', ')} advertised — ChatGPT requests these during the flow, so they must be included in "Default scopes for dynamic clients". Clients registered before that change keep their old scope set and need re-linking.\n`,
+    )
+  }
   const problems: string[] = []
   if (!pkce.includes('S256'))
     problems.push('The authorization server does not advertise PKCE S256; MCP hosts are unsupported without it.')

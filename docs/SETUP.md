@@ -114,6 +114,12 @@ Then connect:
 
 If no consent screen appears, check that `curl -s https://YOUR_ORIGIN/.well-known/oauth-protected-resource` returns JSON, that the 401 from `/mcp` carries a `resource_metadata` challenge, and that Clerk lists the connection under **OAuth applications → Applications**.
 
+If the callback comes back with `error=invalid_scope` and a description like *The OAuth 2.0 Client is not allowed to request scope 'openid'*, the dynamic client is missing a scope ChatGPT asks for on its own. ChatGPT requests every OIDC scope the authorization server advertises, and Clerk advertises `openid`, `profile`, `email`, and `offline_access`, so those must be in the client's allowed scopes even though this server never asks for them. Fix it in this order:
+
+1. **OAuth applications → Settings → Client onboarding → Default scopes for dynamic clients**: include `openid profile email offline_access` alongside `memory:read memory:write`.
+2. **Re-register the existing client.** Changing the defaults does not widen a client that already exists. Under **OAuth applications → Applications**, either edit that client's scopes to add the OIDC scopes, or delete it, then reconnect in ChatGPT so a fresh client is registered. `npx clerk@latest api oauth_applications` lists each application with the scopes it may request.
+3. Re-run `pnpm oauth:check`, which prints the advertised OIDC scopes and the same warning.
+
 Two Clerk behaviours are worth knowing. Its metadata advertises RFC 9207 issuer identification, which is what lets ChatGPT reuse the stable `https://chatgpt.com/connector_platform_oauth_redirect` callback; if an instance ever stops advertising it, ChatGPT falls back to a connection-specific redirect URI and registers a separate OAuth client per connection, and nothing here needs to change. Clerk also does not bind tokens to an audience, so this server verifies issuer, expiry, and scope, but not the `resource` parameter.
 
 ### Codex
