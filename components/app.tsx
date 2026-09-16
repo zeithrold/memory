@@ -16,7 +16,9 @@ import { useState } from 'react'
 import { messages } from '@/lib/i18n/messages'
 import { Dashboard } from './dashboard'
 import { BrowserObservability } from './observability'
+import { PageSkeleton } from './skeletons'
 import { Button } from './ui/button'
+import { Toaster } from './ui/sonner'
 
 export type Tab = 'memories' | 'tokens' | 'usage' | 'connect'
 export default function App({
@@ -45,6 +47,7 @@ export default function App({
   const content = (account?: React.ReactNode) => (
     <div className="app-shell">
       <BrowserObservability dsn={sentryDsn} release={sentryRelease} />
+      <Toaster containerAriaLabel={t.notifications} />
       <aside className="sidebar">
         <a className="brand" href="/">
           <span className="brand-mark">
@@ -146,7 +149,7 @@ function Authenticated({
   if (!isLoaded) {
     return (
       <main className="page">
-        <p role="status">{t.working}</p>
+        <PageSkeleton />
       </main>
     )
   }

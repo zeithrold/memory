@@ -38,6 +38,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-server-dom-webpack": "^19.3.0",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "vinext": "1.0.0-beta.10",
     "zod": "^4.6.5"

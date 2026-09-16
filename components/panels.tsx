@@ -5,7 +5,9 @@ import type { Scope, TokenSummary, UsageSummary } from '@/lib/contracts'
 import type { Messages } from '@/lib/i18n/messages'
 import { Copy, KeyRound } from 'lucide-react'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { toast } from 'sonner'
 import { ConfirmAction } from './confirm-action'
+import { TokenListSkeleton, UsageSkeleton } from './skeletons'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -23,6 +25,7 @@ export function TokenPanel({
   const [tokens, setTokens] = useState<TokenSummary[]>([])
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(ready)
   const [busy, setBusy] = useState(false)
   const [scopes, setScopes] = useState<Scope[]>([
     'memory:read',
@@ -31,11 +34,15 @@ export function TokenPanel({
   const load = useCallback(async () => {
     if (!ready)
       return
+    setLoading(true)
     try {
       setTokens((await api<{ tokens: TokenSummary[] }>('tokens')).tokens)
     }
     catch (err) {
       setError(err instanceof Error ? err.message : t.loadError)
+    }
+    finally {
+      setLoading(false)
     }
   }, [api, ready, t.loadError])
   useEffect(() => {
@@ -58,9 +65,10 @@ export function TokenPanel({
       setSecret(result.token)
       form.reset()
       await load()
+      toast.success(t.tokenCreated)
     }
     catch (err) {
-      setError(err instanceof Error ? err.message : t.loadError)
+      toast.error(err instanceof Error ? err.message : t.loadError)
     }
     finally {
       setBusy(false)
@@ -154,61 +162,69 @@ export function TokenPanel({
           </Button>
         </div>
       </form>
-      {tokens.length === 0
+      {loading && tokens.length === 0
         ? (
-            <p className="muted">{t.noTokens}</p>
+            <TokenListSkeleton />
           )
-        : (
-            <div className="token-list">
-              {tokens.map(token => (
-                <div key={token.id} className="token-row">
-                  <div>
-                    <strong>{token.name}</strong>
-                    <p>
-                      <code>
-                        {token.prefix}
-                        …
-                      </code>
-                      {' '}
-                      ·
-                      {token.project ?? '*'}
-                      {' '}
-                      ·
-                      {' '}
-                      {token.scopes.join(', ')}
-                    </p>
-                    <small>
-                      {t.expires}
-                      :
-                      {token.expires_at.slice(0, 10)}
-                      {' '}
-                      ·
-                      {t.lastUsed}
-                      :
-                      {' '}
-                      {token.last_used_at?.slice(0, 10) ?? t.never}
-                    </small>
+        : tokens.length === 0
+          ? (
+              <p className="muted">{t.noTokens}</p>
+            )
+          : (
+              <div className="token-list">
+                {tokens.map(token => (
+                  <div key={token.id} className="token-row">
+                    <div>
+                      <strong>{token.name}</strong>
+                      <p>
+                        <code>
+                          {token.prefix}
+                          …
+                        </code>
+                        {' '}
+                        ·
+                        {token.project ?? '*'}
+                        {' '}
+                        ·
+                        {' '}
+                        {token.scopes.join(', ')}
+                      </p>
+                      <small>
+                        {t.expires}
+                        :
+                        {token.expires_at.slice(0, 10)}
+                        {' '}
+                        ·
+                        {t.lastUsed}
+                        :
+                        {' '}
+                        {token.last_used_at?.slice(0, 10) ?? t.never}
+                      </small>
+                    </div>
+                    {token.revoked_at !== null
+                      ? (
+                          <Badge variant="outline">{t.revoked}</Badge>
+                        )
+                      : (
+                          <ConfirmAction
+                            label={t.revoke}
+                            description={t.revokeConfirm}
+                            cancel={t.cancel}
+                            disabled={busy}
+                            onConfirm={() => {
+                              setBusy(true)
+                              void api(`tokens/${token.id}`, { method: 'DELETE' })
+                                .then(load)
+                                .then(() => toast.success(t.tokenRevoked))
+                                .catch((err: unknown) => toast.error(err instanceof Error ? err.message : t.loadError))
+                                .finally(() => setBusy(false))
+                            }}
+                          />
+                        )}
                   </div>
-                  {token.revoked_at !== null
-                    ? (
-                        <Badge variant="outline">{t.revoked}</Badge>
-                      )
-                    : (
-                        <ConfirmAction
-                          label={t.revoke}
-                          description={t.revokeConfirm}
-                          cancel={t.cancel}
-                          disabled={busy}
-                          onConfirm={() => {
-                            setBusy(true)
-                            void api(`tokens/${token.id}`, { method: 'DELETE' }).then(load).catch((err: unknown) => setError(err instanceof Error ? err.message : t.loadError)).finally(() => setBusy(false))
-                          }}
-                        />
-                      )}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
     </>
   )
 }
@@ -224,6 +240,7 @@ export function UsagePanel({
   const [usage, setUsage] = useState<UsageSummary[]>([])
   const [error, setError] = useState('')
   const [pending, setPending] = useState(0)
+  const [loading, setLoading] = useState(ready)
   useEffect(() => {
     if (!ready)
       return
@@ -242,6 +259,10 @@ export function UsagePanel({
         if (active)
           setError(err instanceof Error ? err.message : t.loadError)
       })
+      .finally(() => {
+        if (active)
+          setLoading(false)
+      })
     return () => {
       active = false
     }
@@ -255,60 +276,68 @@ export function UsagePanel({
           {error}
         </p>
       )}
-      <div className="stats">
-        <div>
-          <span>{t.calls}</span>
-          <strong>{total}</strong>
-        </div>
-        <div>
-          <span>{t.errors}</span>
-          <strong>{errors}</strong>
-        </div>
-        <div>
-          <span>{t.pending}</span>
-          <strong>{pending}</strong>
-        </div>
-      </div>
-      <p className="muted">{t.usageNote}</p>
-      {usage.length === 0
+      {loading
         ? (
-            <div className="empty-state">
-              <h2>{t.noUsage}</h2>
-            </div>
+            <UsageSkeleton />
           )
         : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t.day}</th>
-                    <th>{t.tokenName}</th>
-                    <th>{t.operation}</th>
-                    <th>{t.calls}</th>
-                    <th>{t.errors}</th>
-                    <th>{t.latency}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usage.map(row => (
-                    <tr key={`${row.day}:${row.token_id}:${row.client_id}:${row.operation}`}>
-                      <td>{row.day}</td>
-                      <td>{connectionLabel(row, t)}</td>
-                      <td>
-                        <code>{row.operation}</code>
-                      </td>
-                      <td>{row.calls}</td>
-                      <td>{row.errors}</td>
-                      <td>
-                        {row.average_ms}
-                        {' '}
-                        ms
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="stats">
+                <div>
+                  <span>{t.calls}</span>
+                  <strong>{total}</strong>
+                </div>
+                <div>
+                  <span>{t.errors}</span>
+                  <strong>{errors}</strong>
+                </div>
+                <div>
+                  <span>{t.pending}</span>
+                  <strong>{pending}</strong>
+                </div>
+              </div>
+              <p className="muted">{t.usageNote}</p>
+              {usage.length === 0
+                ? (
+                    <div className="empty-state">
+                      <h2>{t.noUsage}</h2>
+                    </div>
+                  )
+                : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{t.day}</th>
+                            <th>{t.tokenName}</th>
+                            <th>{t.operation}</th>
+                            <th>{t.calls}</th>
+                            <th>{t.errors}</th>
+                            <th>{t.latency}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {usage.map(row => (
+                            <tr key={`${row.day}:${row.token_id}:${row.client_id}:${row.operation}`}>
+                              <td>{row.day}</td>
+                              <td>{connectionLabel(row, t)}</td>
+                              <td>
+                                <code>{row.operation}</code>
+                              </td>
+                              <td>{row.calls}</td>
+                              <td>{row.errors}</td>
+                              <td>
+                                {row.average_ms}
+                                {' '}
+                                ms
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+            </>
           )}
     </>
   )
@@ -401,28 +430,21 @@ export function ConnectPanel({ t }: { t: Messages }) {
 }
 function CopyButton({ value, t }: { value: string, t: Messages }) {
   const [copied, setCopied] = useState(false)
-  const [failed, setFailed] = useState(false)
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          void navigator.clipboard
-            .writeText(value)
-            .then(() => {
-              setCopied(true)
-              setFailed(false)
-            })
-            .catch(() => setFailed(true))
-        }}
-      >
-        <Copy size={14} />
-        {copied ? t.copied : t.copy}
-      </Button>
-      {failed && <span role="alert">{t.loadError}</span>}
-    </>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        void navigator.clipboard
+          .writeText(value)
+          .then(() => setCopied(true))
+          .catch(() => toast.error(t.copyFailed))
+      }}
+    >
+      <Copy size={14} />
+      {copied ? t.copied : t.copy}
+    </Button>
   )
 }
 
