@@ -1,0 +1,36 @@
+name: Check and Deploy
+on:
+  push:
+  pull_request:
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm build
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          node -e 'const fs = require("node:fs"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${require("@playwright/test/package.json").version}\n`)'
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-${{ steps.playwright-version.outputs.version }}-chromium-v1
+      # Installation reuses cached browsers; Linux system dependencies still
+      # need to be installed on each fresh runner.
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Build and deploy
+        run: pnpm run deploy
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

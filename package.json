@@ -1,0 +1,61 @@
+{
+  "name": "memory",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "vinext dev --port 3000",
+    "build": "vinext build",
+    "start": "wrangler dev --config dist/server/wrangler.json",
+    "deploy": "tsx scripts/deploy-check.ts && pnpm build && wrangler deploy --config dist/server/wrangler.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "check": "pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.18.1",
+    "@clerk/localizations": "^4.17.1",
+    "@clerk/react": "^6.16.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@vinext/cloudflare": "1.0.0-beta.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.46.0",
+    "radix-ui": "^1.6.7",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-server-dom-webpack": "^19.3.0",
+    "tailwind-merge": "^3.7.0",
+    "vinext": "1.0.0-beta.10",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^9.5.1",
+    "@cloudflare/vite-plugin": "^1.54.10",
+    "@cloudflare/workers-types": "^5.20260916.1",
+    "@eslint-react/eslint-plugin": "^5.19.1",
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-rsc": "^0.5.35",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "tailwindcss": "latest",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1",
+    "wrangler": "^4.132.0"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.vite/
+.vinext/
+.wrangler/
+.next/
+.env*
+!.env.example
+.dev.vars*
+!.dev.vars.example
+*.tsbuildinfo
+test-results/
+playwright-report/
+__pycache__/
+*.pyc

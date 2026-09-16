@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "memory",
+  "compatibility_date": "2026-09-16",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "worker.ts",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "vars": {
+    "APP_ORIGIN": "https://memory.ztd.one"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shared-memory",
+      "database_id": "b0fff0a7-7b5d-423a-99f5-86a87a05dd0b",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "shared-memory",
+      "remote": true
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+import { z } from 'zod'
+
+export const scopeSchema = z.enum([
+  'memory:read',
+  'memory:write',
+  'memory:delete',
+])
+export const projectSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[\w.-]+$/)
+export const memoryInputSchema = z
+  .object({
+    project: projectSchema.default('global'),
+    title: z.string().trim().min(1).max(160),
+    content: z.string().trim().min(1).max(6000),
+    kind: z.enum(['preference', 'fact', 'decision', 'experience']),
+    tags: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
+    source: z.string().trim().min(1).max(1000),
+  })
+  .strict()
+export const createSchema = memoryInputSchema.extend({
+  idempotencyKey: z.string().uuid(),
+})
+export const updateSchema = memoryInputSchema.extend({
+  expectedVersion: z.number().int().positive(),
+})
+export const searchSchema = z
+  .object({
+    query: z.string().trim().min(1).max(300),
+    project: projectSchema.default('global'),
+    limit: z.number().int().min(1).max(20).default(8),
+  })
+  .strict()
+export const tokenInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    scopes: z.array(scopeSchema).min(1).max(3),
+    project: projectSchema.nullable().default(null),
+    expiresInDays: z.number().int().min(1).max(365).default(90),
+  })
+  .strict()
+export type Scope = z.infer<typeof scopeSchema>
+export type MemoryInput = z.infer<typeof memoryInputSchema>
+export interface Memory extends MemoryInput {
+  id: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+export interface MemoryRevision {
+  version: number
+  title: string
+  content: string
+  kind: MemoryInput['kind']
+  tags: string
+  source: string
+  created_at: string
+}
+export interface Principal {
+  ownerId: string
+  tokenId: string | null
+  scopes: Scope[]
+  project: string | null
+}
+export interface TokenSummary {
+  id: string
+  name: string
+  prefix: string
+  scopes: Scope[]
+  project: string | null
+  created_at: string
+  expires_at: string
+  revoked_at: string | null
+  last_used_at: string | null
+}
+export interface UsageSummary {
+  operation: string
+  calls: number
+  errors: number
+  average_ms: number
+  day: string
+  token_id: string | null
+  token_name: string | null
+}
