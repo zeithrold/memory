@@ -35,6 +35,8 @@ pnpm build
 pnpm test:e2e
 ```
 
-The test suite executes the real migrations against SQLite and tests authorization, OAuth scope mapping and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, and plugin packaging. Playwright checks the unsigned interface, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Clerk authentication or OAuth linking, remote D1/Vectorize, Cron, or client acceptance testing.
+`pnpm test:e2e` runs `pnpm e2e:build` first, which rebuilds the preview with no Clerk or Sentry credentials, so the browser checks never depend on your local `.env.local` or a real identity provider.
+
+The test suite executes the real migrations against SQLite and tests authorization, OAuth scope mapping and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, and plugin packaging. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Clerk authentication or OAuth linking, remote D1/Vectorize, Cron, or client acceptance testing.
 
 `pnpm lint` uses strict, type-aware antfu ESLint and allows no warnings. TypeScript strictness includes unchecked indexed access. Dependency versions are pinned by `pnpm-lock.yaml`.
