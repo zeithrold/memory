@@ -2,6 +2,13 @@ export interface Env {
   DB: D1Database
   VECTORIZE?: VectorizeIndex
   AI?: Ai
+  /** Absent when the deployment (or the e2e preview) declares no Workflow. */
+  CATALOG_WORKFLOW?: Workflow<unknown>
+  /**
+   * 64 hex characters (32 bytes). Encrypts each account's model credential;
+   * without it the service refuses to store one rather than keeping plaintext.
+   */
+  AGENT_SETTINGS_KEY?: string
   CLERK_SECRET_KEY?: string
   /** Optional explicit Clerk issuer. Derived from the publishable key when unset. */
   CLERK_ISSUER?: string

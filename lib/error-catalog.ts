@@ -255,6 +255,117 @@ export const ERROR_DEFINITIONS = {
     ],
     retryable: false,
   },
+  AGENT_NOT_CONFIGURED: {
+    slug: 'agent-not-configured',
+    status: 409,
+    title: 'Catalog agent not configured',
+    summary:
+      'The catalog maintenance job has no model endpoint to call. This service is platform neutral and never pays for inference, so a catalog run starts only once the account supplies its own OpenAI-compatible endpoint and API key.',
+    remediation: [
+      'Open the Catalog tab and enter an endpoint, a model, and an API key for the account.',
+      'Run the connection test before saving, so an endpoint without tool support fails at configuration time instead of mid-run.',
+      'A scheduled run against an unconfigured account finishes immediately with status `skipped` and changes nothing.',
+    ],
+    retryable: false,
+  },
+  AGENT_KEY_UNCONFIGURED: {
+    slug: 'agent-key-unconfigured',
+    status: 503,
+    title: 'Credential storage unavailable',
+    summary:
+      'The deployment has no usable `AGENT_SETTINGS_KEY`, so a per-account model credential cannot be encrypted. The service fails closed rather than storing a key in plaintext.',
+    remediation: [
+      'Set the secret with `wrangler secret put AGENT_SETTINGS_KEY`, using 64 hex characters (32 bytes), for example from `openssl rand -hex 32`.',
+      'Redeploy after setting it. Changing the key makes already stored credentials unreadable, and they must be entered again.',
+    ],
+    retryable: false,
+  },
+  CATALOG_DISABLED: {
+    slug: 'catalog-disabled',
+    status: 409,
+    title: 'Catalog unavailable',
+    summary:
+      'This deployment declares no catalog Workflow, so maintenance runs cannot be scheduled or triggered here. The end-to-end test build omits the binding on purpose.',
+    remediation: [
+      'Deploy the `workflows` entry from `wrangler.jsonc` to enable scheduled catalog maintenance.',
+      'The read-only catalog stays available, but remains empty until the first run completes.',
+    ],
+    retryable: false,
+  },
+  RUN_NOT_FOUND: {
+    slug: 'run-not-found',
+    status: 404,
+    title: 'Run not found',
+    summary:
+      'No catalog run exists with that identifier for this account. Identifiers belonging to another account are never disclosed.',
+    remediation: [
+      'List recent runs with `GET /api/v1/catalog/runs` and use an identifier from that response.',
+    ],
+    retryable: false,
+  },
+  RUN_IN_PROGRESS: {
+    slug: 'run-in-progress',
+    status: 409,
+    title: 'Run already in progress',
+    summary:
+      'A catalog run for this account is already queued or running. Runs are serialized per account so two agents cannot reorganize the same catalog at the same time.',
+    remediation: [
+      'Wait for the current run to reach a terminal status; the catalog page shows its progress.',
+      'Repeat the request once it has finished.',
+    ],
+    retryable: true,
+  },
+  PROVIDER_ENDPOINT_INVALID: {
+    slug: 'provider-endpoint-invalid',
+    status: 400,
+    title: 'Model endpoint invalid',
+    summary:
+      'The configured model endpoint is not a usable URL. It must be an absolute HTTPS URL, and it must not redirect: a redirect is refused so a bearer credential is never forwarded to another host.',
+    remediation: [
+      'Enter the base URL of an OpenAI-compatible endpoint, for example `https://api.deepseek.com` or `https://openrouter.ai/api/v1`.',
+      'Keep the version path the provider documents, but omit any query string or fragment; the service appends the chat-completions route itself.',
+      'Plain HTTP is accepted only for a loopback host while `APP_ORIGIN` is itself a local origin.',
+    ],
+    retryable: false,
+  },
+  PROVIDER_TOOL_UNSUPPORTED: {
+    slug: 'provider-tool-unsupported',
+    status: 502,
+    title: 'Model does not support tools',
+    summary:
+      'The configured model answered but did not accept tool definitions, and the catalog agent acts exclusively through tools. Falling back to prose would produce changes nothing could audit.',
+    remediation: [
+      'Choose a model that supports function calling, then run the connection test again.',
+      'Some self-hosted deployments expose models without tool support; point the endpoint at a tool-capable one.',
+    ],
+    retryable: false,
+  },
+  PROVIDER_ERROR: {
+    slug: 'provider-error',
+    status: 502,
+    title: 'Model request failed',
+    summary:
+      'The configured model endpoint returned an error or an unreadable response during a catalog run. The run stops, leaving the catalog exactly as the last completed batch left it.',
+    remediation: [
+      'Read the failing run in the Catalog tab; the recorded error code names the cause.',
+      'Check the endpoint, the model name, and the credential, then run the connection test again.',
+      'Batches that already completed stay applied; only the failed batch is incomplete and will be retried.',
+    ],
+    retryable: true,
+  },
+  PROVIDER_TIMEOUT: {
+    slug: 'provider-timeout',
+    status: 504,
+    title: 'Model request timed out',
+    summary:
+      'The configured model endpoint did not answer within the time allowed for one conversation turn of a catalog run.',
+    remediation: [
+      'Run the catalog again; batches that already completed are not repeated.',
+      'Lower `max_batch` if the endpoint is slow, so each turn carries less input.',
+      'Choose a faster model when timeouts recur on the same batch.',
+    ],
+    retryable: true,
+  },
 } as const satisfies Record<string, ErrorDefinition>
 
 export type ErrorCode = keyof typeof ERROR_DEFINITIONS
