@@ -24,11 +24,14 @@ export default function App({
   publishableKey,
   sentryDsn = '',
   sentryRelease = '',
+  initialMemoryId,
 }: {
   initialLocale: Locale
   publishableKey: string
   sentryDsn?: string
   sentryRelease?: string
+  /** Set on `/memories/[id]`, which opens that memory's detail page. */
+  initialMemoryId?: string
 }) {
   const [locale, setLocale] = useState(initialLocale)
   const [tab, setTab] = useState<Tab>('memories')
@@ -98,10 +101,21 @@ export default function App({
         </header>
         {publishableKey
           ? (
-              <Authenticated t={t} locale={locale} tab={tab} />
+              <Authenticated
+                t={t}
+                locale={locale}
+                tab={tab}
+                memoryId={initialMemoryId}
+              />
             )
           : (
-              <Dashboard t={t} locale={locale} tab={tab} authState="unconfigured" />
+              <Dashboard
+                t={t}
+                locale={locale}
+                tab={tab}
+                authState="unconfigured"
+                memoryId={initialMemoryId}
+              />
             )}
       </div>
     </div>
@@ -121,10 +135,12 @@ function Authenticated({
   t,
   locale,
   tab,
+  memoryId,
 }: {
   t: Messages
   locale: Locale
   tab: Tab
+  memoryId?: string
 }) {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   if (!isLoaded) {
@@ -155,6 +171,7 @@ function Authenticated({
       tab={tab}
       authState="ready"
       getToken={getToken}
+      memoryId={memoryId}
     />
   )
 }

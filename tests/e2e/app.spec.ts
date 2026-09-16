@@ -23,6 +23,18 @@ test('English-first preview, navigation and persisted Chinese locale', async ({ 
   expect(errors).toEqual([])
 })
 
+test('a direct memory link opens the detail page', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/memories/11111111-1111-4111-8111-111111111111')
+  await expect(page.getByRole('link', { name: 'Back to memories' })).toBeVisible()
+  await expect(page.getByText('Connect your identity provider')).toBeVisible()
+  // The list-only affordances must not leak onto the detail route.
+  await expect(page.getByRole('button', { name: 'New memory' })).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(errors).toEqual([])
+})
+
 test('private APIs fail closed without a credential', async ({ request }) => {
   const response = await request.get('/api/v1/memories')
   expect(response.status()).toBe(401)
