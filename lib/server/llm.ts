@@ -256,6 +256,7 @@ function workerAiTools(tools: ToolSpec[]): unknown[] {
 interface RequestFailure {
   code: 'PROVIDER_TIMEOUT' | 'PROVIDER_ERROR'
   message: string
+  retryable: boolean
 }
 
 function requestFailure(error: unknown): RequestFailure {
@@ -263,13 +264,19 @@ function requestFailure(error: unknown): RequestFailure {
     return {
       code: 'PROVIDER_TIMEOUT',
       message: `The model endpoint did not answer within ${Math.round(TIMEOUT_MS / 1000)} seconds.`,
+      retryable: true,
     }
   }
+  const status = typeof error === 'object' && error !== null && 'status' in error
+    && typeof error.status === 'number'
+    ? error.status
+    : null
   return {
     code: 'PROVIDER_ERROR',
     message: error instanceof Error
       ? `The model endpoint could not be reached: ${truncate(error.message)}`
       : 'The model endpoint could not be reached.',
+    retryable: status === 429 || (status !== null && status >= 500),
   }
 }
 
@@ -320,12 +327,13 @@ async function callOpenAiCompatible(
   }
   catch (error) {
     const failure = requestFailure(error)
-    throw new AppError(failure.code, failure.message)
+    throw new AppError(failure.code, failure.message, failure.retryable)
   }
   if (isRedirect(response)) {
     throw new AppError(
       'PROVIDER_ENDPOINT_INVALID',
       'The model endpoint redirected the request. A redirect is refused so the credential is not forwarded to another host.',
+      false,
     )
   }
   if (!response.ok) {
@@ -333,6 +341,7 @@ async function callOpenAiCompatible(
     throw new AppError(
       'PROVIDER_ERROR',
       `The model endpoint returned HTTP ${response.status}${detail.length > 0 ? `: ${detail}` : '.'}`,
+      response.status === 408 || response.status === 429 || response.status >= 500,
     )
   }
   let payload: unknown
@@ -340,18 +349,19 @@ async function callOpenAiCompatible(
     payload = await response.json()
   }
   catch {
-    throw new AppError('PROVIDER_ERROR', 'The model endpoint returned a body that is not JSON.')
+    throw new AppError('PROVIDER_ERROR', 'The model endpoint returned a body that is not JSON.', false)
   }
   const parsed = replySchema.safeParse(payload)
   if (!parsed.success) {
     throw new AppError(
       'PROVIDER_ERROR',
       'The model endpoint returned a body that does not match the chat-completions schema.',
+      false,
     )
   }
   const choice = parsed.data.choices[0]
   if (choice === undefined)
-    throw new AppError('PROVIDER_ERROR', 'The model endpoint returned no completion choices.')
+    throw new AppError('PROVIDER_ERROR', 'The model endpoint returned no completion choices.', false)
   return {
     content: choice.message.content ?? null,
     toolCalls: normalizeToolCalls(choice.message.tool_calls),
@@ -402,13 +412,14 @@ async function callWorkersAi(
   }
   catch (error) {
     const failure = requestFailure(error)
-    throw new AppError(failure.code, failure.message)
+    throw new AppError(failure.code, failure.message, failure.retryable)
   }
   const parsed = workerAiReplySchema.safeParse(payload)
   if (!parsed.success) {
     throw new AppError(
       'PROVIDER_ERROR',
       'Workers AI returned a body that does not match the text-generation schema.',
+      false,
     )
   }
   return {

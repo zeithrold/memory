@@ -104,8 +104,10 @@ describe('catalog settings authorisation', () => {
       canStoreKey: true,
       intervalMinutes: 30,
       // Free-plan budgets: every turn costs two Workflow steps.
-      maxBatch: 10,
-      maxTurns: 3,
+      maxBatch: 6,
+      maxTurns: 2,
+      maxToolCalls: 8,
+      dailyTokenBudget: 100000,
     })
   })
 })
@@ -183,6 +185,26 @@ describe('catalog settings validation', () => {
     const valid = await call('/api/v1/catalog/settings', 'PUT', { intervalMinutes: 60 })
     expect(valid.status).toBe(200)
     expect(valid.body).toMatchObject({ intervalMinutes: 60 })
+  })
+  it('reserves two tool calls beyond the batch size', async () => {
+    const invalid = await call('/api/v1/catalog/settings', 'PUT', {
+      maxBatch: 7,
+      maxToolCalls: 8,
+    })
+    expect(invalid.status).toBe(400)
+    expect(invalid.body).toMatchObject({ code: 'INVALID_INPUT' })
+
+    const valid = await call('/api/v1/catalog/settings', 'PUT', {
+      maxBatch: 6,
+      maxToolCalls: 8,
+      dailyTokenBudget: 120000,
+    })
+    expect(valid.status).toBe(200)
+    expect(valid.body).toMatchObject({
+      maxBatch: 6,
+      maxToolCalls: 8,
+      dailyTokenBudget: 120000,
+    })
   })
 })
 

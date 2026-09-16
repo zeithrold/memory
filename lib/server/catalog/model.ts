@@ -213,31 +213,40 @@ export async function selectBatch(
   ownerId: string,
   limit: number,
   reviewCutoff: string,
+  retryNow = new Date().toISOString(),
 ): Promise<string[]> {
   const rows = await env.DB.prepare(
     `WITH candidate AS (
        SELECT m.id, m.updated_at, m.version,
               (SELECT max(mc.updated_at) FROM memory_categories mc
-                WHERE mc.memory_id = m.id AND mc.owner_id = m.owner_id) AS classified_at
+                WHERE mc.memory_id = m.id AND mc.owner_id = m.owner_id) AS classified_at,
+              (SELECT r.reviewed_at FROM catalog_memory_reviews r
+                WHERE r.memory_id = m.id AND r.owner_id = m.owner_id
+                  AND r.memory_version = m.version) AS reviewed_at
        FROM memories m
        WHERE m.owner_id = ? AND m.deleted = 0
      )
      SELECT c.id, (c.classified_at IS NULL OR c.classified_at < c.updated_at) AS needs_work
      FROM candidate c
      LEFT JOIN catalog_skips s ON s.memory_id = c.id AND s.owner_id = ?
-     WHERE (c.classified_at IS NULL OR c.classified_at < c.updated_at OR c.classified_at < ?)
+     WHERE (
+       c.classified_at IS NULL
+       OR c.classified_at < c.updated_at
+       OR max(c.classified_at, COALESCE(c.reviewed_at, c.classified_at)) < ?
+     )
        AND (
          s.memory_id IS NULL
          OR s.memory_version != c.version
          OR (
            COALESCE(s.source, CASE WHEN s.reason = ? THEN 'implicit' ELSE 'explicit' END) = 'implicit'
            AND s.attempts < 3
+           AND (s.retry_after IS NULL OR s.retry_after <= ?)
          )
        )
      ORDER BY needs_work DESC, c.updated_at, c.id
      LIMIT ?`,
   )
-    .bind(ownerId, ownerId, reviewCutoff, IMPLICIT_SKIP_REASON, limit)
+    .bind(ownerId, ownerId, reviewCutoff, IMPLICIT_SKIP_REASON, retryNow, limit)
     .all<{ id: string, needs_work: number }>()
   return rows.results.map(row => row.id)
 }
@@ -252,6 +261,8 @@ export interface CatalogStateRow {
   orphan_count: number
   skipped_count: number
   enabled: number
+  awaiting_review: number
+  failure_streak: number
 }
 
 export async function loadState(env: Env, ownerId: string): Promise<CatalogStateRow | null> {

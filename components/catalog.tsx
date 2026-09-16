@@ -43,8 +43,14 @@ interface CatalogSettings {
   maxBatch: number
   maxTurns: number
   maxToolCalls: number
+  dailyTokenBudget: number
   autoApplyStructural: boolean
   dryRunUntilReviewed: boolean
+  awaitingReview: boolean
+  failureStreak: number
+  todayTokens: number
+  tokenUsageComplete: boolean
+  budgetExceeded: boolean
   lastProbeAt: string | null
   lastProbeOk: boolean | null
   lastProbeError: string | null
@@ -85,6 +91,11 @@ interface RunSummary {
   memoriesSeen: number
   actionsApplied: number
   unorganized: number
+  promptTokens: number | null
+  completionTokens: number | null
+  totalTokens: number | null
+  usageMissingTurns: number
+  tokenUsageComplete: boolean
   errorCode: string | null
   startedAt: string
   finishedAt: string | null
@@ -117,7 +128,7 @@ interface Proposal {
 }
 interface Metrics {
   totals: Record<string, number>
-  daily: { day: string, runs: number, applied: number, rejected: number, reassignments: number, orphan_count: number }[]
+  daily: { day: string, runs: number, applied: number, rejected: number, reassignments: number, orphan_count: number, prompt_tokens: number, completion_tokens: number, usage_missing_turns: number }[]
 }
 interface ProbeResult {
   reachable: boolean
@@ -137,6 +148,8 @@ interface FormState {
   intervalMinutes: number
   maxBatch: number
   maxTurns: number
+  maxToolCalls: number
+  dailyTokenBudget: number
 }
 
 const ACTIVE_RUN_STATES = new Set(['queued', 'running'])
@@ -155,6 +168,8 @@ function formFrom(settings: CatalogSettings): FormState {
     intervalMinutes: settings.intervalMinutes,
     maxBatch: settings.maxBatch,
     maxTurns: settings.maxTurns,
+    maxToolCalls: settings.maxToolCalls,
+    dailyTokenBudget: settings.dailyTokenBudget,
   }
 }
 
@@ -287,6 +302,8 @@ export function CatalogPanel({
           intervalMinutes: form.intervalMinutes,
           maxBatch: form.maxBatch,
           maxTurns: form.maxTurns,
+          maxToolCalls: form.maxToolCalls,
+          dailyTokenBudget: form.dailyTokenBudget,
           ...(form.apiKey.length > 0 ? { apiKey: form.apiKey } : {}),
         }),
       })
@@ -310,7 +327,12 @@ export function CatalogPanel({
 
   async function startRun(dryRun: boolean) {
     await run(async () => {
-      await api('catalog/runs', { method: 'POST', body: JSON.stringify({ dryRun }) })
+      const started = await api<{ budgetWarning: boolean }>('catalog/runs', {
+        method: 'POST',
+        body: JSON.stringify({ dryRun }),
+      })
+      if (started.budgetWarning)
+        toast.warning(t.manualBudgetWarning)
       await load()
     }, t.runStarted)
   }
@@ -347,6 +369,31 @@ export function CatalogPanel({
           <ShieldAlert />
           <AlertTitle>{t.loadError}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {settings?.awaitingReview === true && (
+        <Alert>
+          <ShieldAlert />
+          <AlertTitle>{t.awaitingReview}</AlertTitle>
+          <AlertDescription>{t.awaitingReviewDescription}</AlertDescription>
+        </Alert>
+      )}
+      {settings?.failureStreak !== undefined && settings.failureStreak > 0 && (
+        <Alert>
+          <ShieldAlert />
+          <AlertTitle>{t.failureBackoff}</AlertTitle>
+          <AlertDescription>{`${t.failureBackoffDescription} ${settings.failureStreak}`}</AlertDescription>
+        </Alert>
+      )}
+      {settings !== null && (
+        <Alert variant={settings.budgetExceeded ? 'destructive' : 'default'}>
+          <ShieldAlert />
+          <AlertTitle>{t.dailyTokenBudget}</AlertTitle>
+          <AlertDescription>
+            {`${settings.todayTokens.toLocaleString()} / ${settings.dailyTokenBudget.toLocaleString()} ${t.modelTokens}`}
+            {!settings.tokenUsageComplete && ` · ${t.usageIncomplete}`}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -486,6 +533,29 @@ export function CatalogPanel({
                   max={8}
                   value={form.maxTurns}
                   onChange={event => patch({ maxTurns: Number(event.target.value) })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="catalog-tool-calls">{t.maxToolCalls}</Label>
+                <Input
+                  id="catalog-tool-calls"
+                  type="number"
+                  min={3}
+                  max={24}
+                  value={form.maxToolCalls}
+                  onChange={event => patch({ maxToolCalls: Number(event.target.value) })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="catalog-token-budget">{t.dailyTokenBudget}</Label>
+                <Input
+                  id="catalog-token-budget"
+                  type="number"
+                  min={10000}
+                  max={5000000}
+                  step={10000}
+                  value={form.dailyTokenBudget}
+                  onChange={event => patch({ dailyTokenBudget: Number(event.target.value) })}
                 />
               </div>
             </div>
@@ -653,6 +723,7 @@ export function CatalogPanel({
                       <TableHead>{t.toolCalls}</TableHead>
                       <TableHead>{t.rejectedCalls}</TableHead>
                       <TableHead>{t.actionsApplied}</TableHead>
+                      <TableHead>{t.modelTokens}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -681,6 +752,10 @@ export function CatalogPanel({
                         <TableCell>{row.toolCalls}</TableCell>
                         <TableCell>{row.rejected}</TableCell>
                         <TableCell>{row.actionsApplied}</TableCell>
+                        <TableCell>
+                          {row.totalTokens?.toLocaleString() ?? '—'}
+                          {!row.tokenUsageComplete && <span className="muted"> *</span>}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -763,6 +838,7 @@ export function CatalogPanel({
                   <TableHead>{t.actionsApplied}</TableHead>
                   <TableHead>{t.rejectedCalls}</TableHead>
                   <TableHead>{t.unclassified}</TableHead>
+                  <TableHead>{t.modelTokens}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -773,6 +849,10 @@ export function CatalogPanel({
                     <TableCell>{row.applied}</TableCell>
                     <TableCell>{row.rejected}</TableCell>
                     <TableCell>{row.orphan_count}</TableCell>
+                    <TableCell>
+                      {(row.prompt_tokens + row.completion_tokens).toLocaleString()}
+                      {row.usage_missing_turns > 0 && <span className="muted"> *</span>}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

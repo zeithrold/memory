@@ -96,8 +96,9 @@ The catalog needs its Workflow binding, which `wrangler.jsonc` already declares
 as `memory-catalog`. There is deliberately **no `schedules` entry**: a scheduled
 Workflow requires a paid Workers plan, and Cloudflare rejects the trigger
 configuration for it after the upload. The Worker's existing minute Cron Trigger
-dispatches one instance per 30-minute window instead, so the catalog runs on a
-timer regardless of plan. `pnpm deploy` runs two guards before the upload:
+performs a Catalog preflight on each 30-minute boundary and creates an instance
+only when an account has actionable work, so the catalog runs on a timer without
+paying for empty Workflow instances. `pnpm deploy` runs two guards before the upload:
 `pnpm check:bundle`, because a Workflow binds by *exported class name* and a
 bundle that stopped exporting `CatalogWorkflow` would deploy without error and
 then never run, and `scripts/deploy-check.ts`, which refuses a `schedules` entry
@@ -112,15 +113,22 @@ Then, per account, in the **Catalog** tab (or over the API):
    *and* whether it called the probe tool. Most configuration mistakes are
    models that answer in prose but cannot call tools, and the agent acts only
    through tools.
-3. Save, then enable. The first run after enabling is a **dry run**: it records
+3. Save, then enable. The first scheduled run after enabling is a **dry run**: it records
    what would happen without changing categories, memberships, proposals or
-   skips. Review it, then let the next run apply changes. Run intervals must be
+   skips. It processes one batch and then pauses automatic runs in an
+   `awaiting review` state. Disable the review gate after inspection to allow
+   live scheduling; toggling it off and on allows one new scheduled preview.
+   Manual dry runs still work while paused. Run intervals must be
    between 30 and 1,440 minutes in 30-minute increments; scheduled runs stay
    anchored to the `:00`/`:30` dispatch grid.
 
-Budgets default to the Free plan's shape: 10 memories per batch, 3 conversation
-turns, 8 tool calls. Workers Free allows 3,000 Workflow steps per day, and every
-turn costs two of them, so accounts take turns rather than all running at once.
+Budgets default to 6 memories per batch, 2 conversation turns, 8 tool calls per
+turn, 4,096 completion tokens per model call, and 100,000 recorded model tokens
+per UTC day. `maxBatch` must be at least two below `maxToolCalls`. Workers Free
+allows 3,000 Workflow steps per day, and every turn costs two; with two owners
+per active window the default worst case is 1,440 steps/day, while idle windows
+cost zero Catalog Workflow steps. Manual runs may pass the daily token budget,
+but the API and UI warn and still count their usage.
 
 The tab also shows the taxonomy, the run history with a turn-by-turn replay of
 every tool call, the suggestions waiting for a decision, and a button to undo a

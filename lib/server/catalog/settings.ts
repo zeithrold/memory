@@ -33,7 +33,8 @@ export const settingsInputSchema = z
     intervalMinutes: z.number().int().min(30).max(1440).refine(value => value % 30 === 0, 'Run interval must be a multiple of 30 minutes.').optional(),
     maxBatch: z.number().int().min(1).max(25).optional(),
     maxTurns: z.number().int().min(1).max(8).optional(),
-    maxToolCalls: z.number().int().min(1).max(24).optional(),
+    maxToolCalls: z.number().int().min(3).max(24).optional(),
+    dailyTokenBudget: z.number().int().min(10000).max(5000000).optional(),
     autoApplyStructural: z.boolean().optional(),
     dryRunUntilReviewed: z.boolean().optional(),
   })
@@ -53,6 +54,7 @@ export interface CatalogSettingsRow {
   max_batch: number
   max_turns: number
   max_tool_calls: number
+  daily_token_budget: number
   auto_apply_structural: number
   dry_run_until_reviewed: number
   last_probe_at: string | null
@@ -74,8 +76,14 @@ export interface CatalogSettingsView {
   maxBatch: number
   maxTurns: number
   maxToolCalls: number
+  dailyTokenBudget: number
   autoApplyStructural: boolean
   dryRunUntilReviewed: boolean
+  awaitingReview: boolean
+  failureStreak: number
+  todayTokens: number
+  tokenUsageComplete: boolean
+  budgetExceeded: boolean
   lastProbeAt: string | null
   lastProbeOk: boolean | null
   lastProbeError: string | null
@@ -89,9 +97,10 @@ const DEFAULT_INTERVAL_MINUTES = 30
  * steps against a 3,000-step daily allowance, and each step has a 10 ms CPU
  * budget, so batches stay small until a user raises them.
  */
-const DEFAULT_MAX_BATCH = 10
-const DEFAULT_MAX_TURNS = 3
+const DEFAULT_MAX_BATCH = 6
+const DEFAULT_MAX_TURNS = 2
 const DEFAULT_MAX_TOOL_CALLS = 8
+const DEFAULT_DAILY_TOKEN_BUDGET = 100000
 
 export async function loadSettingsRow(
   env: Env,
@@ -102,7 +111,24 @@ export async function loadSettingsRow(
     .first<CatalogSettingsRow>()
 }
 
-export function settingsView(row: CatalogSettingsRow | null, env: Env): CatalogSettingsView {
+interface CatalogRuntimeStatus {
+  awaitingReview: boolean
+  failureStreak: number
+  todayTokens: number
+  tokenUsageComplete: boolean
+}
+
+export function settingsView(
+  row: CatalogSettingsRow | null,
+  env: Env,
+  status: CatalogRuntimeStatus = {
+    awaitingReview: false,
+    failureStreak: 0,
+    todayTokens: 0,
+    tokenUsageComplete: true,
+  },
+): CatalogSettingsView {
+  const dailyTokenBudget = row?.daily_token_budget ?? DEFAULT_DAILY_TOKEN_BUDGET
   return {
     enabled: row?.enabled === 1,
     provider: row?.provider ?? 'none',
@@ -115,8 +141,14 @@ export function settingsView(row: CatalogSettingsRow | null, env: Env): CatalogS
     maxBatch: row?.max_batch ?? DEFAULT_MAX_BATCH,
     maxTurns: row?.max_turns ?? DEFAULT_MAX_TURNS,
     maxToolCalls: row?.max_tool_calls ?? DEFAULT_MAX_TOOL_CALLS,
+    dailyTokenBudget,
     autoApplyStructural: row?.auto_apply_structural === 1,
     dryRunUntilReviewed: row?.dry_run_until_reviewed !== 0,
+    awaitingReview: status.awaitingReview,
+    failureStreak: status.failureStreak,
+    todayTokens: status.todayTokens,
+    tokenUsageComplete: status.tokenUsageComplete,
+    budgetExceeded: status.todayTokens >= dailyTokenBudget,
     lastProbeAt: row?.last_probe_at ?? null,
     lastProbeOk: row?.last_probe_ok === null || row?.last_probe_ok === undefined
       ? null
@@ -130,7 +162,27 @@ export async function getCatalogSettings(
   env: Env,
   ownerId: string,
 ): Promise<CatalogSettingsView> {
-  return settingsView(await loadSettingsRow(env, ownerId), env)
+  const [row, state, usage] = await Promise.all([
+    loadSettingsRow(env, ownerId),
+    env.DB.prepare(
+      'SELECT awaiting_review, failure_streak FROM catalog_state WHERE owner_id = ?',
+    )
+      .bind(ownerId)
+      .first<{ awaiting_review: number, failure_streak: number }>(),
+    env.DB.prepare(
+      `SELECT COALESCE(sum(COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)), 0) AS tokens,
+              sum(CASE WHEN prompt_tokens IS NULL OR completion_tokens IS NULL THEN 1 ELSE 0 END) AS missing
+       FROM catalog_turns WHERE owner_id = ? AND substr(created_at, 1, 10) = ?`,
+    )
+      .bind(ownerId, now().slice(0, 10))
+      .first<{ tokens: number, missing: number }>(),
+  ])
+  return settingsView(row, env, {
+    awaitingReview: state?.awaiting_review === 1,
+    failureStreak: state?.failure_streak ?? 0,
+    todayTokens: usage?.tokens ?? 0,
+    tokenUsageComplete: (usage?.missing ?? 0) === 0,
+  })
 }
 
 function allowLoopbackHttp(env: Env): boolean {
@@ -185,6 +237,18 @@ export async function updateCatalogSettings(
   }
 
   const enabled = input.enabled ?? current?.enabled === 1
+  const maxBatch = input.maxBatch ?? current?.max_batch ?? DEFAULT_MAX_BATCH
+  const maxTurns = input.maxTurns ?? current?.max_turns ?? DEFAULT_MAX_TURNS
+  const maxToolCalls = input.maxToolCalls ?? current?.max_tool_calls ?? DEFAULT_MAX_TOOL_CALLS
+  const dailyTokenBudget = input.dailyTokenBudget
+    ?? current?.daily_token_budget
+    ?? DEFAULT_DAILY_TOKEN_BUDGET
+  if (maxBatch > maxToolCalls - 2) {
+    throw new AppError(
+      'INVALID_INPUT',
+      'Memories per batch must be at least two below the per-turn tool-call budget.',
+    )
+  }
   if (enabled) {
     if (provider === 'none') {
       throw new AppError(
@@ -209,9 +273,9 @@ export async function updateCatalogSettings(
   await env.DB.prepare(
     `INSERT INTO agent_settings(
        owner_id, enabled, provider, base_url, model, api_key_ciphertext, api_key_iv, api_key_hint,
-       include_content, interval_minutes, max_batch, max_turns, max_tool_calls,
+       include_content, interval_minutes, max_batch, max_turns, max_tool_calls, daily_token_budget,
        auto_apply_structural, dry_run_until_reviewed, last_probe_at, last_probe_ok, last_probe_error, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(owner_id) DO UPDATE SET
        enabled = excluded.enabled,
        provider = excluded.provider,
@@ -225,6 +289,7 @@ export async function updateCatalogSettings(
        max_batch = excluded.max_batch,
        max_turns = excluded.max_turns,
        max_tool_calls = excluded.max_tool_calls,
+       daily_token_budget = excluded.daily_token_budget,
        auto_apply_structural = excluded.auto_apply_structural,
        dry_run_until_reviewed = excluded.dry_run_until_reviewed,
        updated_at = excluded.updated_at`,
@@ -240,9 +305,10 @@ export async function updateCatalogSettings(
       hint,
       (input.includeContent ?? current?.include_content === 1) ? 1 : 0,
       input.intervalMinutes ?? current?.interval_minutes ?? DEFAULT_INTERVAL_MINUTES,
-      input.maxBatch ?? current?.max_batch ?? DEFAULT_MAX_BATCH,
-      input.maxTurns ?? current?.max_turns ?? DEFAULT_MAX_TURNS,
-      input.maxToolCalls ?? current?.max_tool_calls ?? DEFAULT_MAX_TOOL_CALLS,
+      maxBatch,
+      maxTurns,
+      maxToolCalls,
+      dailyTokenBudget,
       (input.autoApplyStructural ?? current?.auto_apply_structural === 1) ? 1 : 0,
       (input.dryRunUntilReviewed ?? current?.dry_run_until_reviewed !== 0) ? 1 : 0,
       // A configuration change invalidates the previous probe result.
@@ -252,6 +318,20 @@ export async function updateCatalogSettings(
       timestamp,
     )
     .run()
+
+  // Toggling the preview gate is the explicit acknowledgement that allows one
+  // new scheduled preview, or resumes live maintenance when it is disabled.
+  const reviewGateChanged = input.dryRunUntilReviewed !== undefined
+    && input.dryRunUntilReviewed !== (current?.dry_run_until_reviewed !== 0)
+  if (reviewGateChanged) {
+    await env.DB.prepare(
+      `INSERT INTO catalog_state(owner_id, version, awaiting_review)
+       VALUES (?, 1, 0)
+       ON CONFLICT(owner_id) DO UPDATE SET awaiting_review = 0`,
+    )
+      .bind(ownerId)
+      .run()
+  }
 
   return getCatalogSettings(env, ownerId)
 }

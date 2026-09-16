@@ -8,6 +8,8 @@ export class AppError extends Error {
   constructor(
     public code: ErrorCode,
     message: string,
+    /** null means the caller owns retry policy; provider errors set this explicitly. */
+    public retryable: boolean | null = null,
   ) {
     super(message)
   }

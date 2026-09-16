@@ -95,13 +95,17 @@ export interface RunSummary {
   unorganized: number
   promptTokens: number | null
   completionTokens: number | null
+  totalTokens: number | null
+  usageMissingTurns: number
+  tokenUsageComplete: boolean
   errorCode: string | null
   startedAt: string
   finishedAt: string | null
 }
 
 const RUN_COLUMNS = `id, trigger, mode, status, provider, model, batches, turns, tool_calls, rejected,
-  memories_seen, actions_applied, unorganized, prompt_tokens, completion_tokens, error_code, started_at, finished_at`
+  memories_seen, actions_applied, unorganized, prompt_tokens, completion_tokens, usage_missing_turns,
+  error_code, started_at, finished_at`
 
 interface RunRow {
   id: string
@@ -119,6 +123,7 @@ interface RunRow {
   unorganized: number
   prompt_tokens: number | null
   completion_tokens: number | null
+  usage_missing_turns: number
   error_code: string | null
   started_at: string
   finished_at: string | null
@@ -141,6 +146,11 @@ function serializeRun(row: RunRow): RunSummary {
     unorganized: row.unorganized,
     promptTokens: row.prompt_tokens,
     completionTokens: row.completion_tokens,
+    totalTokens: row.prompt_tokens === null && row.completion_tokens === null
+      ? null
+      : (row.prompt_tokens ?? 0) + (row.completion_tokens ?? 0),
+    usageMissingTurns: row.usage_missing_turns,
+    tokenUsageComplete: row.usage_missing_turns === 0,
     errorCode: row.error_code,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
@@ -297,7 +307,10 @@ export async function getMetrics(env: Env, ownerId: string): Promise<unknown> {
     env.DB.prepare(
       `SELECT count(*) AS runs, COALESCE(sum(turns), 0) AS turns, COALESCE(sum(tool_calls), 0) AS tool_calls,
               COALESCE(sum(applied), 0) AS applied, COALESCE(sum(rejected), 0) AS rejected,
-              COALESCE(sum(reassignments), 0) AS reassignments, COALESCE(sum(unorganized), 0) AS unorganized
+              COALESCE(sum(reassignments), 0) AS reassignments, COALESCE(sum(unorganized), 0) AS unorganized,
+              COALESCE(sum(prompt_tokens), 0) AS prompt_tokens,
+              COALESCE(sum(completion_tokens), 0) AS completion_tokens,
+              COALESCE(sum(usage_missing_turns), 0) AS usage_missing_turns
        FROM catalog_metrics_daily WHERE owner_id = ?`,
     )
       .bind(ownerId)

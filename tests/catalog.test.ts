@@ -56,6 +56,7 @@ describe('catalog schema', () => {
     expect(rows.results.map(row => row.name)).toEqual([
       'agent_settings',
       'catalog_actions',
+      'catalog_memory_reviews',
       'catalog_metrics_daily',
       'catalog_proposal_evidence',
       'catalog_proposals',
@@ -72,7 +73,14 @@ describe('catalog schema', () => {
     try {
       legacy.sqlite.exec(`
         INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, started_at)
-        VALUES ('run-1', 'alice', 'manual', 'live', 'succeeded', '2026-09-16T00:00:00.000Z');
+        VALUES ('run-1', 'alice', 'schedule', 'dry_run', 'succeeded', '2026-09-16T00:00:00.000Z');
+        INSERT INTO catalog_turns(
+          run_id, owner_id, batch, turn, tool_calls_json, prompt_tokens,
+          completion_tokens, created_at
+        ) VALUES (
+          'run-1', 'alice', 0, 0, '[{"id":"call-1"}]', 123, 45,
+          '2026-09-16T00:00:01.000Z'
+        );
         INSERT INTO catalog_proposals(
           id, owner_id, first_run_id, last_run_id, kind, payload_json,
           rationale, evidence_runs, status, created_at
@@ -103,6 +111,8 @@ describe('catalog schema', () => {
         );
         INSERT INTO catalog_state(owner_id, category_count, assigned_count, orphan_count, skipped_count)
         VALUES ('alice', 0, 0, 0, 2);
+        INSERT INTO catalog_metrics_daily(owner_id, day, runs, prompt_tokens, completion_tokens)
+        VALUES ('alice', '2026-09-16', 1, 0, 0);
         INSERT INTO agent_settings(
           owner_id, enabled, provider, include_content, interval_minutes, max_batch,
           max_turns, max_tool_calls, auto_apply_structural, dry_run_until_reviewed, updated_at
@@ -111,6 +121,9 @@ describe('catalog schema', () => {
 
       legacy.sqlite.exec(
         readFileSync(new URL('../migrations/0004_catalog_agent_repairs.sql', import.meta.url), 'utf8'),
+      )
+      legacy.sqlite.exec(
+        readFileSync(new URL('../migrations/0005_catalog_cost_controls.sql', import.meta.url), 'utf8'),
       )
 
       expect(
@@ -122,8 +135,31 @@ describe('catalog schema', () => {
       expect(legacy.sqlite.prepare('SELECT interval_minutes FROM agent_settings').get())
         .toEqual({ interval_minutes: 60 })
       expect(
-        legacy.sqlite.prepare('SELECT category_count, skipped_count FROM catalog_state').get(),
-      ).toEqual({ category_count: 1, skipped_count: 1 })
+        legacy.sqlite.prepare(
+          'SELECT max_batch, max_turns, daily_token_budget FROM agent_settings',
+        ).get(),
+      ).toEqual({ max_batch: 6, max_turns: 2, daily_token_budget: 100000 })
+      expect(
+        legacy.sqlite.prepare(
+          'SELECT turns, tool_calls, prompt_tokens, completion_tokens, usage_missing_turns FROM catalog_runs',
+        ).get(),
+      ).toEqual({
+        turns: 1,
+        tool_calls: 1,
+        prompt_tokens: 123,
+        completion_tokens: 45,
+        usage_missing_turns: 0,
+      })
+      expect(
+        legacy.sqlite.prepare(
+          'SELECT prompt_tokens, completion_tokens, usage_missing_turns FROM catalog_metrics_daily',
+        ).get(),
+      ).toEqual({ prompt_tokens: 123, completion_tokens: 45, usage_missing_turns: 0 })
+      expect(
+        legacy.sqlite.prepare(
+          'SELECT category_count, skipped_count, awaiting_review FROM catalog_state',
+        ).get(),
+      ).toEqual({ category_count: 1, skipped_count: 1, awaiting_review: 1 })
     }
     finally {
       legacy.sqlite.close()

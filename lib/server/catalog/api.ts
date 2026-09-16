@@ -160,7 +160,12 @@ export async function catalogApi(
           throw error
       }
       return Response.json(
-        { runId: claim.runId, status: 'queued', mode: claim.dryRun ? 'dry_run' : 'live' },
+        {
+          runId: claim.runId,
+          status: 'queued',
+          mode: claim.dryRun ? 'dry_run' : 'live',
+          budgetWarning: claim.budgetWarning,
+        },
         { status: 202 },
       )
     }

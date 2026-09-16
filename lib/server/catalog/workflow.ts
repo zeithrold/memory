@@ -1,9 +1,11 @@
 import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 import type { Env } from '../env'
-import type { BatchStats } from './run'
+import type { BatchStats, DueOwner } from './run'
 import { WorkflowEntrypoint } from 'cloudflare:workers'
+import { NonRetryableError } from 'cloudflare:workflows'
 import { AppError } from '../errors'
 import {
+  automaticTurnAllowed,
   claimRun,
   consolidate,
   dueOwners,
@@ -11,6 +13,7 @@ import {
   finishRun,
   MAX_BATCHES_PER_RUN,
   MAX_OWNERS_PER_FIRING,
+  SCHEDULED_DRY_RUN_MAX_BATCH,
   startBatch,
 } from './run'
 import { actTurn, thinkTurn } from './turn'
@@ -29,6 +32,8 @@ export interface CatalogWorkflowParams {
    */
   runId?: string
   dryRun?: boolean
+  /** Preflighted by the Cron handler so an idle window creates no instance. */
+  owners?: DueOwner[]
 }
 
 /**
@@ -72,7 +77,10 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
       )
     }
 
-    const due = await step.do('due-owners', async () =>
+    // New dispatches carry the preflighted owners and spend no Workflow step on
+    // discovery. The step fallback keeps already-created legacy instances
+    // replayable across a deployment.
+    const due = event.payload.owners ?? await step.do('due-owners', async () =>
       dueOwners(this.env, MAX_OWNERS_PER_FIRING))
     const owners: unknown[] = []
     for (const [index, owner] of due.entries()) {
@@ -104,17 +112,25 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
     // return an identifier before the instance has even started.
     const claim = existingRunId === undefined
       ? await step.do(`${prefix}-claim`, async () => claimRun(this.env, ownerId, trigger, dryRun))
-      : { runId: existingRunId, reused: false, dryRun }
+      : { runId: existingRunId, reused: false, dryRun, budgetWarning: false }
     if (claim.reused)
       return { ownerId, runId: claim.runId, outcome: 'already-running' }
 
     const runId = claim.runId
     const totals: BatchStats = { turns: 0, toolCalls: 0, rejected: 0, applied: 0 }
     let exhausted = false
+    let budgetStopped = false
     try {
-      for (let batch = 0; batch < MAX_BATCHES_PER_RUN; batch++) {
+      const maxBatches = trigger === 'schedule' && dryRun ? 1 : MAX_BATCHES_PER_RUN
+      for (let batch = 0; batch < maxBatches; batch++) {
         const opened = await step.do(`${prefix}-${batch}-open`, async () =>
-          startBatch(this.env, ownerId, runId, dryRun))
+          startBatch(
+            this.env,
+            ownerId,
+            runId,
+            dryRun,
+            trigger === 'schedule' && dryRun ? SCHEDULED_DRY_RUN_MAX_BATCH : undefined,
+          ))
         if (opened.memoryIds.length === 0)
           break
         const memoryIds = opened.memoryIds
@@ -143,8 +159,36 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
               retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' },
               timeout: '5 minutes',
             },
-            async () => thinkTurn(input),
+            async () => {
+              if (trigger === 'schedule' && !(await automaticTurnAllowed(this.env, ownerId))) {
+                return {
+                  turn,
+                  content: null,
+                  toolCallCount: 0,
+                  noToolCalls: true,
+                  promptTokens: null,
+                  completionTokens: null,
+                  provider: 'budget',
+                  model: null,
+                  budgetExceeded: true,
+                }
+              }
+              try {
+                return { ...(await thinkTurn(input)), budgetExceeded: false }
+              }
+              catch (error) {
+                if (error instanceof AppError && error.retryable === false)
+                  throw new NonRetryableError(`${error.code}:${error.message}`)
+                throw error
+              }
+            },
           )
+          if (thought.budgetExceeded) {
+            budgetStopped = true
+            exhausted = true
+            closed = true
+            break
+          }
           batchStats.turns += 1
           batchStats.toolCalls += thought.toolCallCount
           if (thought.noToolCalls) {
@@ -173,12 +217,16 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
         }
         if (!closed)
           exhausted = true
-        await step.do(`${prefix}-${batch}-close`, async () =>
-          finalizeBatch(this.env, ownerId, runId, memoryIds, batchStats, opened.mode))
+        if (batchStats.turns > 0) {
+          await step.do(`${prefix}-${batch}-close`, async () =>
+            finalizeBatch(this.env, ownerId, runId, memoryIds, batchStats, opened.mode))
+        }
         totals.turns += batchStats.turns
         totals.toolCalls += batchStats.toolCalls
         totals.rejected += batchStats.rejected
         totals.applied += batchStats.applied
+        if (budgetStopped)
+          break
       }
       // A dry run may write its audit trail and scheduling metadata, but it
       // must not apply an older pending proposal or create maintenance
@@ -193,7 +241,7 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
           ownerId,
           runId,
           exhausted ? 'partial' : 'succeeded',
-          undefined,
+          budgetStopped ? 'DAILY_TOKEN_BUDGET' : undefined,
           scheduledAt,
         ))
       return { ownerId, runId, outcome: exhausted ? 'partial' : 'complete', totals }
@@ -201,7 +249,11 @@ export class CatalogWorkflow extends WorkflowEntrypoint<
     catch (error) {
       // A run must not stay `running` just because a step gave up: an abandoned
       // run blocks the account until it is treated as stale.
-      const code = error instanceof AppError ? error.code : 'INTERNAL_ERROR'
+      const code = error instanceof AppError
+        ? error.code
+        : error instanceof Error && /^[A-Z_]+:/.test(error.message)
+          ? error.message.slice(0, error.message.indexOf(':'))
+          : 'INTERNAL_ERROR'
       await step.do(`${prefix}-fail`, async () =>
         finishRun(this.env, ownerId, runId, 'failed', code, scheduledAt))
       throw error

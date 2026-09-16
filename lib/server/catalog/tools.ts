@@ -194,6 +194,57 @@ const assignTool: ToolDefinition = {
   },
 }
 
+const confirmMembershipsTool: ToolDefinition = {
+  name: 'confirm_memberships',
+  description:
+    'Confirm that an already-classified memory still belongs in its current categories. Use this during a periodic review when no assignment should change.',
+  effect: 'immediate',
+  schema: z.object({ memoryId: memoryIdSchema, reason: reasonSchema }).strict(),
+  async run(ctx, args) {
+    const input = args as { memoryId: string, reason: string }
+    const scopeError = memoryIdMembership(ctx, input.memoryId)
+    if (scopeError !== null)
+      return rejected('confirm_memberships', 'immediate', scopeError, { memoryId: input.memoryId })
+    const memberships = ctx.snapshot.memberships.get(input.memoryId) ?? []
+    if (memberships.length === 0) {
+      return rejected(
+        'confirm_memberships',
+        'immediate',
+        'This memory has no membership to confirm. Assign it or skip it instead.',
+        { memoryId: input.memoryId },
+      )
+    }
+    const memory = ctx.snapshot.memories.find(row => row.id === input.memoryId)
+    if (memory === undefined)
+      return rejected('confirm_memberships', 'immediate', 'No such batch memory.', { memoryId: input.memoryId })
+    const action: ActionRecord = {
+      kind: 'confirm_memberships',
+      effect: 'immediate',
+      decision: ctx.mode === 'dry_run' ? 'proposed' : 'applied',
+      memoryId: input.memoryId,
+      rationale: input.reason,
+      before: memberships,
+      after: { reviewedVersion: memory.version },
+    }
+    if (ctx.mode === 'dry_run') {
+      return {
+        result: { ok: true, confirmed: false, simulated: true },
+        action,
+      }
+    }
+    await ctx.env.DB.prepare(
+      `INSERT INTO catalog_memory_reviews(owner_id, memory_id, memory_version, reviewed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(owner_id, memory_id) DO UPDATE SET
+         memory_version = excluded.memory_version,
+         reviewed_at = excluded.reviewed_at`,
+    )
+      .bind(ctx.ownerId, input.memoryId, memory.version, now())
+      .run()
+    return { result: { ok: true, confirmed: true }, action }
+  },
+}
+
 const unassignTool: ToolDefinition = {
   name: 'unassign',
   description:
@@ -775,6 +826,7 @@ const DEFINITIONS: ToolDefinition[] = [
   memoryLookupTool,
   memorySearchTool,
   assignTool,
+  confirmMembershipsTool,
   unassignTool,
   skipTool,
   proposeCategoryTool,
@@ -788,8 +840,20 @@ const BY_NAME = new Map(DEFINITIONS.map(definition => [definition.name, definiti
 
 /** JSON Schema for every offered tool, derived from the validating schema. */
 export function toolsFor(options: { includeSearch: boolean }): ToolSpec[] {
+  const classificationTools = new Set([
+    'assign',
+    'confirm_memberships',
+    'unassign',
+    'skip',
+    'propose_category',
+    'propose_merge',
+    'propose_retire',
+    'propose_project_move',
+    'finish',
+  ])
   return DEFINITIONS.filter(
-    definition => definition.optional !== true || options.includeSearch,
+    definition => classificationTools.has(definition.name)
+      || (options.includeSearch && definition.name === 'memory_search'),
   ).map(definition => ({
     name: definition.name,
     description: definition.description,

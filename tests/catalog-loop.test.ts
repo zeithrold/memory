@@ -3,7 +3,7 @@ import type { TurnInput } from '../lib/server/catalog/turn'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { selectBatch } from '../lib/server/catalog/model'
-import { consolidate, finalizeBatch } from '../lib/server/catalog/run'
+import { consolidate, finalizeBatch, startBatch } from '../lib/server/catalog/run'
 import { updateCatalogSettings } from '../lib/server/catalog/settings'
 import { actTurn, thinkTurn } from '../lib/server/catalog/turn'
 import { createMemory } from '../lib/server/memories'
@@ -172,9 +172,12 @@ describe('the agent loop', () => {
     // Tools arrive in the OpenAI dialect, where the name nests under `function`.
     const names = body.tools.map(tool => tool.function.name)
     expect(names).toContain('assign')
+    expect(names).toContain('confirm_memberships')
     expect(names).toContain('propose_category')
     // The embedding-backed search tool is withheld from a maintenance run.
     expect(names).not.toContain('memory_search')
+    expect(names).not.toContain('catalog_list')
+    expect(names).not.toContain('membership_list')
   })
 
   it('withholds memory bodies unless the account opted in', async () => {
@@ -399,6 +402,23 @@ describe('the agent loop', () => {
     expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_skips').first('n')).toBe(0)
   })
 
+  it('caps a scheduled dry-run batch at six memories', async () => {
+    for (let index = 0; index < 5; index++) {
+      await createMemory(env, alice, {
+        project: 'global',
+        title: `Extra memory ${index}`,
+        content: 'Additional unclassified content.',
+        kind: 'fact',
+        tags: [],
+        source: 'Catalog batch cap test.',
+        idempotencyKey: crypto.randomUUID(),
+      })
+    }
+    await updateCatalogSettings(env, 'alice', { maxBatch: 10, maxToolCalls: 12 })
+    const opened = await startBatch(env, 'alice', runId, true, 6)
+    expect(opened.memoryIds).toHaveLength(6)
+  })
+
   it('retries an implicit skip three times and keeps an explicit skip suppressed', async () => {
     const stats = { turns: 1, toolCalls: 0, rejected: 0, applied: 0 }
     const cutoff = '2000-01-01T00:00:00.000Z'
@@ -406,8 +426,15 @@ describe('the agent loop', () => {
     const secondMemory = memoryIds[1]!
     for (let attempt = 1; attempt <= 3; attempt++) {
       await finalizeBatch(env, 'alice', runId, [firstMemory], stats, 'live')
-      const selected = await selectBatch(env, 'alice', 10, cutoff)
-      expect(selected.includes(firstMemory)).toBe(attempt < 3)
+      expect((await selectBatch(env, 'alice', 10, cutoff)).includes(firstMemory)).toBe(false)
+      if (attempt < 3) {
+        await env.DB.prepare(
+          'UPDATE catalog_skips SET retry_after = ? WHERE memory_id = ?',
+        )
+          .bind('2000-01-01T00:00:00.000Z', firstMemory)
+          .run()
+        expect((await selectBatch(env, 'alice', 10, cutoff)).includes(firstMemory)).toBe(true)
+      }
     }
 
     vi.unstubAllGlobals()
@@ -430,6 +457,42 @@ describe('the agent loop', () => {
     const acted = await actTurn(input({ turn: 1 }), 0)
     expect(acted.rejected).toBe(1)
     expect((await actions()).at(-1)?.policy_reason).toContain('has not changed since')
+  })
+
+  it('checkpoints an unchanged membership until seven days pass or the memory changes', async () => {
+    const categoryId = await seedCategory('backend', 'Backend')
+    const memoryId = memoryIds[0]!
+    // The update trigger archives the previous row at the same version. Remove
+    // the create-time revision before backdating this fixture.
+    await env.DB.prepare('DELETE FROM revisions WHERE memory_id = ?').bind(memoryId).run()
+    await env.DB.prepare('DELETE FROM index_jobs WHERE memory_id = ?').bind(memoryId).run()
+    await env.DB.prepare(
+      'UPDATE memories SET updated_at = ? WHERE id = ?',
+    )
+      .bind('2019-01-01T00:00:00.000Z', memoryId)
+      .run()
+    await env.DB.prepare(
+      `INSERT INTO memory_categories(owner_id, memory_id, category_id, is_primary, confidence, assigned_by, catalog_version, created_at, updated_at)
+       VALUES ('alice', ?, ?, 1, 0.9, 'agent', 1, '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z')`,
+    )
+      .bind(memoryId, categoryId)
+      .run()
+    script(calls([{
+      name: 'confirm_memberships',
+      arguments: { memoryId, reason: 'The existing category remains correct.' },
+    }]))
+    await thinkTurn(input())
+    expect(await actTurn(input(), 0)).toMatchObject({ applied: 1, rejected: 0 })
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+    expect((await selectBatch(env, 'alice', 10, sevenDaysAgo)).includes(memoryId)).toBe(false)
+
+    await env.DB.prepare(
+      'UPDATE memories SET version = version + 1, updated_at = ? WHERE id = ?',
+    )
+      .bind(new Date(Date.now() + 1000).toISOString(), memoryId)
+      .run()
+    expect((await selectBatch(env, 'alice', 10, sevenDaysAgo)).includes(memoryId)).toBe(true)
   })
 
   it('enforces the batch churn budget', async () => {
@@ -469,12 +532,27 @@ describe('the agent loop', () => {
   it('truncates a turn that exceeds the tool-call budget', async () => {
     const categoryId = await seedCategory('backend', 'Backend')
     script(calls(
-      memoryIds.map(id => ({ name: 'assign', arguments: { memoryId: id, categoryId, confidence: 0.9, reason: 'Budget.' } })),
+      Array.from({ length: 11 }, (_, index) => ({
+        name: 'assign',
+        arguments: {
+          memoryId: memoryIds[index % memoryIds.length],
+          categoryId,
+          confidence: 0.9,
+          reason: 'Budget.',
+        },
+      })),
     ))
     await thinkTurn(input())
-    const acted = await actTurn(input({ maxToolCalls: 1 }), 0)
-    expect(acted.applied).toBe(1)
-    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions').first('n')).toBe(1)
+    const acted = await actTurn(input({ maxToolCalls: 8 }), 0)
+    expect(acted.applied).toBe(8)
+    expect(acted.rejected).toBe(3)
+    expect(acted.stalled).toBe(true)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions').first('n')).toBe(11)
+    const results = JSON.parse(
+      await env.DB.prepare('SELECT tool_results_json FROM catalog_turns').first<string>('tool_results_json') ?? '[]',
+    ) as { toolCallId: string }[]
+    expect(results).toHaveLength(11)
+    expect(new Set(results.map(result => result.toolCallId)).size).toBe(11)
   })
 
   it('keeps the credential and the batch bodies out of the step result', async () => {
@@ -491,5 +569,17 @@ describe('the agent loop', () => {
   it('refuses to run without a configured provider', async () => {
     await env.DB.prepare('DELETE FROM agent_settings').run()
     await expect(thinkTurn(input())).rejects.toMatchObject({ code: 'AGENT_NOT_CONFIGURED' })
+  })
+
+  it('marks deterministic provider failures non-retryable and timeouts retryable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('bad request', { status: 400 })))
+    await expect(thinkTurn(input())).rejects.toMatchObject({ retryable: false })
+
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      const error = new Error('timed out')
+      error.name = 'TimeoutError'
+      throw error
+    }))
+    await expect(thinkTurn(input({ turn: 1 }))).rejects.toMatchObject({ retryable: true })
   })
 })

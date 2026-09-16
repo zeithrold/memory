@@ -24,9 +24,9 @@ import { loadSettingsRow } from './settings'
  * Workflow steps per day.
  *
  * One owner costs at most 1 (claim) + batches x (1 + 2 per turn + 1) + 2
- * (consolidate, finish). With two owners, two batches and three turns that is
- * 38 steps per firing, and a firing every 30 minutes gives 48 x 38 = 1,824
- * steps per day, leaving a third of the allowance for manual runs.
+ * (consolidate, finish). With two owners, two batches and two turns that is
+ * 30 steps per firing, and a firing every 30 minutes gives 48 x 30 = 1,440
+ * steps per day. Idle windows create no Workflow at all.
  *
  * Raising either cap without redoing this arithmetic spends a day's budget
  * before the day is over; the queue is ordered by `next_run_at`, so accounts
@@ -34,7 +34,8 @@ import { loadSettingsRow } from './settings'
  */
 export const MAX_OWNERS_PER_FIRING = 2
 export const MAX_BATCHES_PER_RUN = 2
-export const MAX_STEPS_PER_FIRING = 40
+export const MAX_STEPS_PER_FIRING = 32
+export const SCHEDULED_DRY_RUN_MAX_BATCH = 6
 /**
  * How often a catalog run is dispatched. A Cron Trigger fires this Worker every
  * minute, and only the windows on this boundary start an instance.
@@ -71,8 +72,11 @@ export async function dispatchCatalogWorkflow(
     return { dispatched: false, instanceId: null }
   const instanceId = `catalog-${minute}`
   const windowTime = minute * 60_000
+  const owners = await dueOwners(env, MAX_OWNERS_PER_FIRING)
+  if (owners.length === 0)
+    return { dispatched: false, instanceId: null }
   try {
-    await env.CATALOG_WORKFLOW.create({ id: instanceId, params: { scheduledAt: windowTime } })
+    await env.CATALOG_WORKFLOW.create({ id: instanceId, params: { scheduledAt: windowTime, owners } })
   }
   catch (error) {
     // Instance ids are unique, so a collision means this window already has an
@@ -90,6 +94,12 @@ export interface DueOwner {
   dryRun: boolean
 }
 
+export interface DailyCatalogUsage {
+  tokens: number
+  turns: number
+  missingTurns: number
+}
+
 function isoNow(): string {
   return new Date().toISOString()
 }
@@ -102,22 +112,78 @@ function minutesAgo(minutes: number): string {
  * never selected, so the Free plan's step budget is not spent on runs that
  * would immediately do nothing.
  */
+export async function dailyCatalogUsage(env: Env, ownerId: string): Promise<DailyCatalogUsage> {
+  const row = await env.DB.prepare(
+    `SELECT COALESCE(sum(COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)), 0) AS tokens,
+            count(*) AS turns,
+            sum(CASE WHEN prompt_tokens IS NULL OR completion_tokens IS NULL THEN 1 ELSE 0 END) AS missing
+     FROM catalog_turns WHERE owner_id = ? AND substr(created_at, 1, 10) = ?`,
+  )
+    .bind(ownerId, isoNow().slice(0, 10))
+    .first<{ tokens: number, turns: number, missing: number }>()
+  return { tokens: row?.tokens ?? 0, turns: row?.turns ?? 0, missingTurns: row?.missing ?? 0 }
+}
+
+/**
+ * Automatic runs stop before the next paid model call when the daily guard is
+ * reached. Manual runs deliberately bypass this check, but still contribute to
+ * the usage total shown in settings.
+ */
+export async function automaticTurnAllowed(env: Env, ownerId: string): Promise<boolean> {
+  const [settings, usage] = await Promise.all([
+    loadSettingsRow(env, ownerId),
+    dailyCatalogUsage(env, ownerId),
+  ])
+  if (settings === null || usage.tokens >= settings.daily_token_budget)
+    return false
+  return usage.missingTurns === 0 || usage.turns < 4
+}
+
 export async function dueOwners(env: Env, limit: number): Promise<DueOwner[]> {
   const rows = await env.DB.prepare(
-    `SELECT s.owner_id, s.dry_run_until_reviewed
+    `SELECT s.owner_id, s.dry_run_until_reviewed, s.max_batch, s.daily_token_budget,
+            s.auto_apply_structural, COALESCE(c.awaiting_review, 0) AS awaiting_review
      FROM agent_settings s
      LEFT JOIN catalog_state c ON c.owner_id = s.owner_id
      WHERE s.enabled = 1 AND s.provider != 'none'
        AND (c.next_run_at IS NULL OR c.next_run_at <= ?)
      ORDER BY COALESCE(c.next_run_at, '') , s.owner_id
-     LIMIT ?`,
+     LIMIT 100`,
   )
-    .bind(isoNow(), limit)
-    .all<{ owner_id: string, dry_run_until_reviewed: number }>()
-  return rows.results.map(row => ({
-    ownerId: row.owner_id,
-    dryRun: row.dry_run_until_reviewed === 1,
-  }))
+    .bind(isoNow())
+    .all<{
+    owner_id: string
+    dry_run_until_reviewed: number
+    max_batch: number
+    daily_token_budget: number
+    auto_apply_structural: number
+    awaiting_review: number
+  }>()
+  const due: DueOwner[] = []
+  const cutoff = new Date(Date.now() - REASSIGNMENT_AGE_DAYS * 86_400_000).toISOString()
+  for (const row of rows.results) {
+    const dryRun = row.dry_run_until_reviewed === 1
+    if (dryRun && row.awaiting_review === 1)
+      continue
+    const usage = await dailyCatalogUsage(env, row.owner_id)
+    if (usage.tokens >= row.daily_token_budget)
+      continue
+    if (usage.missingTurns > 0 && usage.turns >= 4)
+      continue
+    const candidate = await selectBatch(env, row.owner_id, 1, cutoff)
+    const actionableProposal = row.auto_apply_structural === 1 && (await env.DB.prepare(
+      `SELECT count(*) AS n FROM catalog_proposals
+       WHERE owner_id = ? AND status = 'pending' AND evidence_runs >= ?`,
+    )
+      .bind(row.owner_id, MIN_EVIDENCE_RUNS)
+      .first<number>('n') ?? 0) > 0
+    if (candidate.length === 0 && !actionableProposal)
+      continue
+    due.push({ ownerId: row.owner_id, dryRun })
+    if (due.length >= limit)
+      break
+  }
+  return due
 }
 
 /**
@@ -130,7 +196,7 @@ export async function claimRun(
   ownerId: string,
   trigger: 'schedule' | 'manual',
   dryRun: boolean,
-): Promise<{ runId: string, reused: boolean, dryRun: boolean }> {
+): Promise<{ runId: string, reused: boolean, dryRun: boolean, budgetWarning: boolean }> {
   const settings = await loadSettingsRow(env, ownerId)
   if (settings === null || settings.enabled !== 1 || settings.provider === 'none') {
     throw new AppError(
@@ -152,7 +218,7 @@ export async function claimRun(
         'A catalog run for this account is already in progress.',
       )
     }
-    return { runId: inFlight.id, reused: true, dryRun: inFlight.mode === 'dry_run' }
+    return { runId: inFlight.id, reused: true, dryRun: inFlight.mode === 'dry_run', budgetWarning: false }
   }
 
   const stale = await env.DB.prepare(
@@ -173,7 +239,22 @@ export async function claimRun(
   )
     .bind(runId, ownerId, trigger, mode, settings.provider, settings.model, isoNow())
     .run()
-  return { runId, reused: false, dryRun }
+  if (trigger === 'schedule' && dryRun) {
+    await env.DB.prepare(
+      `INSERT INTO catalog_state(owner_id, version, awaiting_review)
+       VALUES (?, 1, 1)
+       ON CONFLICT(owner_id) DO UPDATE SET awaiting_review = 1`,
+    )
+      .bind(ownerId)
+      .run()
+  }
+  const usage = await dailyCatalogUsage(env, ownerId)
+  return {
+    runId,
+    reused: false,
+    dryRun,
+    budgetWarning: usage.tokens >= settings.daily_token_budget,
+  }
 }
 
 export interface BatchStart {
@@ -194,12 +275,18 @@ export async function startBatch(
   ownerId: string,
   runId: string,
   dryRun: boolean,
+  maxMemories?: number,
 ): Promise<BatchStart> {
   const settings = await loadSettingsRow(env, ownerId)
   if (settings === null)
     throw new AppError('AGENT_NOT_CONFIGURED', 'This account has no catalog settings.')
   const cutoff = new Date(Date.now() - REASSIGNMENT_AGE_DAYS * 86_400_000).toISOString()
-  const memoryIds = await selectBatch(env, ownerId, settings.max_batch, cutoff)
+  const memoryIds = await selectBatch(
+    env,
+    ownerId,
+    Math.min(settings.max_batch, maxMemories ?? settings.max_batch),
+    cutoff,
+  )
   const mode = dryRun ? 'dry_run' : 'live'
   await env.DB.prepare('UPDATE catalog_runs SET mode = ? WHERE id = ? AND status = ?')
     .bind(mode, runId, 'running')
@@ -253,11 +340,14 @@ export async function finalizeBatch(
     ),
   ]
   if (mode === 'live') {
+    const timestamp = isoNow()
+    const retryAfterSixHours = new Date(Date.now() + 6 * 3_600_000).toISOString()
+    const retryAfterOneDay = new Date(Date.now() + 24 * 3_600_000).toISOString()
     for (const memoryId of memoryIds) {
       statements.push(
         env.DB.prepare(
-          `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at, source)
-           SELECT ?, ?, ?, m.version, 1, ?, 'implicit'
+          `INSERT INTO catalog_skips(owner_id, memory_id, reason, memory_version, attempts, created_at, source, retry_after)
+           SELECT ?, ?, ?, m.version, 1, ?, 'implicit', ?
            FROM memories m
            WHERE m.id = ? AND m.owner_id = ? AND m.deleted = 0
              AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id = m.id)
@@ -269,7 +359,12 @@ export async function finalizeBatch(
                ELSE 1
              END,
              created_at = excluded.created_at,
-             source = 'implicit'
+             source = 'implicit',
+             retry_after = CASE
+               WHEN catalog_skips.memory_version != excluded.memory_version THEN excluded.retry_after
+               WHEN catalog_skips.attempts = 1 THEN ?
+               ELSE NULL
+             END
            WHERE catalog_skips.memory_version != excluded.memory_version
               OR COALESCE(
                    catalog_skips.source,
@@ -279,9 +374,11 @@ export async function finalizeBatch(
           ownerId,
           memoryId,
           IMPLICIT_SKIP_REASON,
-          isoNow(),
+          timestamp,
+          retryAfterSixHours,
           memoryId,
           ownerId,
+          retryAfterOneDay,
           IMPLICIT_SKIP_REASON,
         ),
       )
@@ -533,15 +630,29 @@ export async function finishRun(
 ): Promise<void> {
   const settings = await loadSettingsRow(env, ownerId)
   const interval = settings?.interval_minutes ?? 30
-  const state = await env.DB.prepare('SELECT next_run_at FROM catalog_state WHERE owner_id = ?')
+  const state = await env.DB.prepare(
+    'SELECT next_run_at, failure_streak FROM catalog_state WHERE owner_id = ?',
+  )
     .bind(ownerId)
-    .first<{ next_run_at: string | null }>()
+    .first<{ next_run_at: string | null, failure_streak: number }>()
+  await aggregateRunAudit(env, runId)
   // Scheduled runs stay anchored to their dispatch window, so model latency
   // cannot turn a 30-minute interval into almost an hour. A manual run never
   // postpones an existing schedule; NULL means the next cadence window is due.
-  const next = scheduledAt === undefined
-    ? (state?.next_run_at ?? null)
-    : new Date(scheduledAt + interval * 60_000).toISOString()
+  let next = state?.next_run_at ?? null
+  let failureStreak = state?.failure_streak ?? 0
+  if (status === 'failed') {
+    failureStreak += 1
+    if (scheduledAt !== undefined) {
+      const backoffMinutes = [120, 360, 1440][Math.min(failureStreak - 1, 2)] ?? 1440
+      next = alignToCatalogWindow(scheduledAt + Math.max(interval, backoffMinutes) * 60_000)
+    }
+  }
+  else {
+    failureStreak = 0
+    if (scheduledAt !== undefined)
+      next = new Date(scheduledAt + interval * 60_000).toISOString()
+  }
   const run = await env.DB.prepare('SELECT unorganized FROM catalog_runs WHERE id = ?')
     .bind(runId)
     .first<{ unorganized: number }>()
@@ -550,15 +661,44 @@ export async function finishRun(
     : status
   await env.DB.batch([
     env.DB.prepare(
-      'UPDATE catalog_runs SET status = ?, error_code = ?, finished_at = ? WHERE id = ?',
-    ).bind(finalStatus, errorCode ?? null, isoNow(), runId),
+      `UPDATE catalog_runs SET status = ?, error_code = ?, finished_at = ?,
+       budget_exhausted = CASE WHEN ? = 'DAILY_TOKEN_BUDGET' THEN 1 ELSE budget_exhausted END
+       WHERE id = ?`,
+    ).bind(finalStatus, errorCode ?? null, isoNow(), errorCode ?? null, runId),
     env.DB.prepare(
-      `INSERT INTO catalog_state(owner_id, version, last_run_at, next_run_at)
-       VALUES (?, 1, ?, ?)
-       ON CONFLICT(owner_id) DO UPDATE SET last_run_at = excluded.last_run_at, next_run_at = excluded.next_run_at`,
-    ).bind(ownerId, isoNow(), next),
+      `INSERT INTO catalog_state(owner_id, version, last_run_at, next_run_at, failure_streak)
+       VALUES (?, 1, ?, ?, ?)
+       ON CONFLICT(owner_id) DO UPDATE SET last_run_at = excluded.last_run_at,
+         next_run_at = excluded.next_run_at, failure_streak = excluded.failure_streak`,
+    ).bind(ownerId, isoNow(), next, failureStreak),
   ])
   await rollupMetrics(env, ownerId, runId)
+}
+
+function alignToCatalogWindow(timestamp: number): string {
+  const windowMs = CATALOG_CADENCE_MINUTES * 60_000
+  return new Date(Math.ceil(timestamp / windowMs) * windowMs).toISOString()
+}
+
+async function aggregateRunAudit(env: Env, runId: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE catalog_runs SET
+       turns = (SELECT count(*) FROM catalog_turns t WHERE t.run_id = catalog_runs.id),
+       tool_calls = COALESCE((SELECT sum(json_array_length(t.tool_calls_json)) FROM catalog_turns t WHERE t.run_id = catalog_runs.id), 0),
+       rejected = (SELECT count(*) FROM catalog_actions a WHERE a.run_id = catalog_runs.id AND a.decision = 'rejected_by_policy'),
+       actions_applied = (SELECT count(*) FROM catalog_actions a WHERE a.run_id = catalog_runs.id AND a.decision IN ('applied', 'skipped')),
+       prompt_tokens = CASE WHEN EXISTS (SELECT 1 FROM catalog_turns t WHERE t.run_id = catalog_runs.id)
+         THEN COALESCE((SELECT sum(t.prompt_tokens) FROM catalog_turns t WHERE t.run_id = catalog_runs.id), 0)
+         ELSE prompt_tokens END,
+       completion_tokens = CASE WHEN EXISTS (SELECT 1 FROM catalog_turns t WHERE t.run_id = catalog_runs.id)
+         THEN COALESCE((SELECT sum(t.completion_tokens) FROM catalog_turns t WHERE t.run_id = catalog_runs.id), 0)
+         ELSE completion_tokens END,
+       usage_missing_turns = (SELECT count(*) FROM catalog_turns t WHERE t.run_id = catalog_runs.id
+         AND (t.prompt_tokens IS NULL OR t.completion_tokens IS NULL))
+     WHERE id = ?`,
+  )
+    .bind(runId)
+    .run()
 }
 
 /**
@@ -566,62 +706,54 @@ export async function finishRun(
  * after 90 days, so the trends the project measures have to survive them.
  */
 async function rollupMetrics(env: Env, ownerId: string, runId: string): Promise<void> {
-  const day = isoNow().slice(0, 10)
   const run = await env.DB.prepare(
-    'SELECT turns, tool_calls, actions_applied, rejected, unorganized, prompt_tokens, completion_tokens, mode FROM catalog_runs WHERE id = ?',
+    'SELECT substr(started_at, 1, 10) AS day FROM catalog_runs WHERE id = ?',
   )
     .bind(runId)
-    .first<{
-    turns: number
-    tool_calls: number
-    actions_applied: number
-    rejected: number
-    unorganized: number
-    prompt_tokens: number | null
-    completion_tokens: number | null
-    mode: string
-  }>()
-  const reassignments = await env.DB.prepare(
-    'SELECT count(*) AS n FROM catalog_actions WHERE run_id = ? AND kind = \'assign\' AND decision = \'applied\'',
-  )
-    .bind(runId)
-    .first<{ n: number }>()
+    .first<{ day: string }>()
+  const day = run?.day ?? isoNow().slice(0, 10)
   const state = await env.DB.prepare(
     'SELECT category_count, orphan_count FROM catalog_state WHERE owner_id = ?',
   )
     .bind(ownerId)
     .first<{ category_count: number, orphan_count: number }>()
   await env.DB.prepare(
-    `INSERT INTO catalog_metrics_daily(owner_id, day, runs, dry_runs, turns, tool_calls, applied, rejected, unorganized, reassignments, category_count, orphan_count, prompt_tokens, completion_tokens)
-     VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO catalog_metrics_daily(owner_id, day, runs, dry_runs, turns, tool_calls, applied, rejected, unorganized, reassignments, category_count, orphan_count, prompt_tokens, completion_tokens, usage_missing_turns)
+     SELECT ?, ?, count(*),
+       COALESCE(sum(CASE WHEN mode = 'dry_run' THEN 1 ELSE 0 END), 0),
+       COALESCE(sum(turns), 0), COALESCE(sum(tool_calls), 0), COALESCE(sum(actions_applied), 0),
+       COALESCE(sum(rejected), 0), COALESCE(sum(unorganized), 0),
+       (SELECT count(*) FROM catalog_actions a JOIN catalog_runs rr ON rr.id = a.run_id
+        WHERE rr.owner_id = ? AND substr(rr.started_at, 1, 10) = ?
+          AND rr.status NOT IN ('queued', 'running') AND a.kind = 'assign' AND a.decision = 'applied'),
+       ?, ?, COALESCE(sum(prompt_tokens), 0), COALESCE(sum(completion_tokens), 0),
+       COALESCE(sum(usage_missing_turns), 0)
+     FROM catalog_runs WHERE owner_id = ? AND substr(started_at, 1, 10) = ?
+       AND status NOT IN ('queued', 'running')
      ON CONFLICT(owner_id, day) DO UPDATE SET
-       runs = runs + 1,
-       dry_runs = dry_runs + excluded.dry_runs,
-       turns = turns + excluded.turns,
-       tool_calls = tool_calls + excluded.tool_calls,
-       applied = applied + excluded.applied,
-       rejected = rejected + excluded.rejected,
-       unorganized = unorganized + excluded.unorganized,
-       reassignments = reassignments + excluded.reassignments,
+       runs = excluded.runs,
+       dry_runs = excluded.dry_runs,
+       turns = excluded.turns,
+       tool_calls = excluded.tool_calls,
+       applied = excluded.applied,
+       rejected = excluded.rejected,
+       unorganized = excluded.unorganized,
+       reassignments = excluded.reassignments,
        category_count = excluded.category_count,
        orphan_count = excluded.orphan_count,
-       prompt_tokens = prompt_tokens + excluded.prompt_tokens,
-       completion_tokens = completion_tokens + excluded.completion_tokens`,
+       prompt_tokens = excluded.prompt_tokens,
+       completion_tokens = excluded.completion_tokens,
+       usage_missing_turns = excluded.usage_missing_turns`,
   )
     .bind(
       ownerId,
       day,
-      run?.mode === 'dry_run' ? 1 : 0,
-      run?.turns ?? 0,
-      run?.tool_calls ?? 0,
-      run?.actions_applied ?? 0,
-      run?.rejected ?? 0,
-      run?.unorganized ?? 0,
-      reassignments?.n ?? 0,
+      ownerId,
+      day,
       state?.category_count ?? 0,
       state?.orphan_count ?? 0,
-      run?.prompt_tokens ?? 0,
-      run?.completion_tokens ?? 0,
+      ownerId,
+      day,
     )
     .run()
 }

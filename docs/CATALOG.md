@@ -41,15 +41,20 @@ instance it already created. `scripts/deploy-check.ts` fails the build if a
 `schedules` entry reappears, because the alternative is rediscovering this at
 deploy time.
 
+Before creating that instance the Cron handler checks for an actionable memory
+or an auto-applicable proposal, and carries at most two candidate owners in the
+scheduled payload. An idle window therefore creates no Catalog Workflow and
+spends no Catalog Workflow steps. The Workflow rechecks settings, concurrency
+and the daily model budget before it calls the provider.
+
 Per-account intervals are 30-minute multiples. A scheduled run computes its
 next due time from the dispatch window rather than from model completion, so
 provider latency cannot turn a 30-minute cadence into almost an hour. A manual
 run does not postpone an already scheduled run.
 
-The cost is that the minute cron now also carries the dispatch, so the two share
-one Sentry Crons monitor. Creating 48 instances a day is negligible against the
-Free plan's 100,000 daily requests, and it keeps the minute-level index
-maintenance and the catalog on one trigger rather than two.
+The cost is that the minute cron now also carries the preflight, so the two
+share one Sentry Crons monitor. This keeps minute-level index maintenance and
+the catalog on one trigger without creating 48 empty Workflow instances a day.
 
 ### Why not the Agents SDK
 
@@ -66,8 +71,8 @@ instance**, and **10 ms of CPU per step** (paid is 30 s). Long model waits do
 not consume CPU, so the binding constraints are step count and per-step work.
 
 One owner costs at most `1 + batches x (1 + 2 per turn + 1) + 2` steps. With two
-owners, two batches and three turns that is 38 steps per firing; 48 firings a
-day is 1,824 steps, leaving a third of the allowance for manual runs. Those caps
+owners, two batches and two turns that is 30 steps per firing; even if every
+half-hour window has work, that is at most 1,440 steps a day. Those caps
 are constants in `lib/server/catalog/run.ts`, with the arithmetic written next to
 them: raising one without redoing the sum spends a day's budget before the day
 is over.
@@ -80,6 +85,14 @@ Two consequences worth knowing:
 - **A step must stay tiny.** One D1 query and one fetch per step. That is why
   the batch step returns memory *identifiers* only and the prompt is assembled
   inside the model step.
+- **Inference has its own circuit breaker.** Automatic calls stop after 100,000
+  recorded prompt-plus-completion tokens per UTC day by default. If a provider
+  omits usage, automatic work is capped at four model turns that day. Manual
+  runs remain available and show a warning instead of being refused.
+- **Failures do not hammer the provider.** Timeout, 429 and 5xx failures use the
+  Workflow retry policy. Deterministic 4xx and response-schema failures do not;
+  subsequent scheduled runs back off by 2 hours, then 6 hours, then 24 hours,
+  aligned to the half-hour grid.
 
 Under a 10 ms ceiling, splitting each turn into two steps is a safety feature
 rather than overhead: every step gets a fresh CPU budget, and each half is
@@ -100,9 +113,9 @@ tractable:
 
 | Tool | Effect |
 | --- | --- |
-| `catalog_overview`, `catalog_list`, `catalog_members`, `batch_list`, `memory_lookup` | read, not recorded |
-| `memory_search` | read, withheld by default (it would embed, and both the CPU budget and the shared Workers AI allowance are tight) |
+| Read helpers | not exposed in new prompts because the batch and taxonomy are already inline; their executors remain for historical replay |
 | `assign`, `unassign` | immediate, reversible |
+| `confirm_memberships` | records that an unchanged classification was reviewed |
 | `skip` | immediate; an explicit skip suppresses re-proposal until the memory changes |
 | `propose_category`, `propose_merge`, `propose_retire`, `propose_project_move` | backlogged only |
 | `finish` | ends the batch |
@@ -142,6 +155,10 @@ A memory keeps its classification unless the memory itself changed or the
 classification is older than seven days. Re-classifications are additionally
 capped per batch at `min(10, 25% of the batch)`. Without both, two plausible
 categories trade the same memories back and forth.
+
+An unchanged periodic review must call `confirm_memberships`. Its checkpoint
+keeps that memory out of the next seven days of runs, and the checkpoint stops
+matching immediately when the memory version changes.
 
 ### The threat model of giving an agent write tools
 
@@ -189,7 +206,7 @@ keys — so a BYOK alias is not a per-user boundary.
 ## Watching it work
 
 The Catalog tab shows the taxonomy as a tree, the pending suggestions with the
-number of runs behind each, and the run history. Opening a run replays it turn by
+number of runs behind each, token usage and budget state, and the run history. Opening a run replays it turn by
 turn: the model's reasoning, each tool call with its arguments, the decision, and
 the policy reason whenever a call was refused. A run can be undone from the same
 view.
@@ -247,10 +264,19 @@ never pruned, which is what keeps the trends after the raw rows are gone.
 `GET /api/v1/catalog/metrics` returns both.
 
 An unclassified memory receives an implicit deferral, distinct from an explicit
-`skip`. It is retried up to three times, and creating a category clears implicit
+`skip`. Its second attempt is delayed six hours, its final attempt another 24
+hours, and the third failure stops automatic retries. A memory edit or creating a category clears implicit
 deferrals so the memories that motivated it can be classified. Dry runs write
 only audit, metrics and scheduling metadata; they never write either kind of
 skip or change catalog content.
+
+A scheduled dry-run gate executes one batch of at most six memories and sets
+`awaiting_review` as soon as it starts. Later automatic windows do nothing until
+the user disables or re-enables that gate; manual dry runs remain available.
+Model replies are capped at 4,096 completion tokens. If a reply contains more
+tool calls than allowed, every excess call receives a synthetic rejection and
+is written to the audit journal, keeping the provider transcript protocol
+complete while ending that batch.
 
 ## What the audit log measures
 
@@ -261,6 +287,11 @@ drift under repeated runs over a fixed corpus, how often the category caps bind,
 orphan accumulation, and how often a dry run agrees with a live run. Run rows
 also carry `unorganized` and `rejected` counts, which show when the Free-plan
 budget, rather than the model, is the limiting factor.
+
+Run completion rebuilds turn, call, rejection and token totals from the audit
+journal. The daily row is recomputed from finished runs rather than incremented,
+so a replayed finish step cannot double-count usage. Missing provider usage is
+reported separately instead of being silently presented as zero.
 
 ## Known gaps
 
@@ -277,8 +308,9 @@ budget, rather than the model, is the limiting factor.
   anti-starvation property and nothing about real query quality.
 - **No reranker.** The catalog narrows and balances candidates; the final
   ordering is still RRF over keyword and vector ranks.
-- Batch selection reviews older memories once nothing needs attention, so a
-  large library spends turns on review rather than on new entries.
+- Batch selection reviews older memories once nothing needs attention; explicit
+  review checkpoints prevent an unchanged large library from being reread each
+  half hour.
 
 ## Related
 

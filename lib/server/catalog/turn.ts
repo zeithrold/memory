@@ -115,12 +115,13 @@ async function loadTurnContext(input: TurnInput): Promise<CatalogSnapshot> {
 export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
   const existing = await loadTurn(input.env, input.runId, input.batch, input.turn)
   if (existing !== null && existing.tool_calls_json !== null) {
+    const recordedCalls = JSON.parse(existing.tool_calls_json) as unknown[]
     // This turn already ran: a step retry must not pay for it twice.
     return {
       turn: input.turn,
       content: existing.content,
-      toolCallCount: (JSON.parse(existing.tool_calls_json) as unknown[]).length,
-      noToolCalls: false,
+      toolCallCount: recordedCalls.length,
+      noToolCalls: recordedCalls.length === 0,
       promptTokens: null,
       completionTokens: null,
       provider: 'recorded',
@@ -150,6 +151,7 @@ export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
     provider,
     messages,
     toolsFor({ includeSearch: false }),
+    { maxTokens: 4096 },
   )
   const described = describeProvider(provider)
 
@@ -275,7 +277,9 @@ export async function actTurn(input: TurnInput, reassignmentsSoFar: number): Pro
   let finished = false
   let reassignments = 0
 
-  for (const [callIndex, call] of calls.slice(0, input.maxToolCalls).entries()) {
+  const executable = calls.slice(0, input.maxToolCalls)
+  const overflow = calls.slice(input.maxToolCalls)
+  for (const [callIndex, call] of executable.entries()) {
     const recorded = await loadAction(input.env, input.runId, input.batch, input.turn, callIndex)
     if (recorded !== null) {
       const parsed = recorded.result_json === null
@@ -323,12 +327,39 @@ export async function actTurn(input: TurnInput, reassignmentsSoFar: number): Pro
     results.push({ toolCallId: call.id, name: call.name, content: JSON.stringify(outcome.result) })
   }
 
+  // OpenAI-compatible providers require exactly one tool response for every
+  // tool_call id before another assistant message. The previous implementation
+  // silently sliced the array, producing an invalid transcript on the next
+  // turn. Overflow calls are refused, journalled and answered without running
+  // their requested effect.
+  for (const [offset, call] of overflow.entries()) {
+    const callIndex = input.maxToolCalls + offset
+    const reason = `This turn exceeded its budget of ${input.maxToolCalls} tool calls. The extra call was not executed.`
+    const result = { ok: false, rejected: true, budgetExceeded: true, reason }
+    await recordAction(
+      input.env,
+      input,
+      callIndex,
+      call.name,
+      JSON.stringify(call.arguments ?? {}),
+      result,
+      {
+        kind: call.name,
+        effect: 'control',
+        decision: 'rejected_by_policy',
+        policyReason: reason,
+      },
+    )
+    rejected += 1
+    results.push({ toolCallId: call.id, name: call.name, content: JSON.stringify(result) })
+  }
+
   const summary: Omit<ActResult, 'turn'> = {
     finished,
     applied,
     rejected,
     reassignments,
-    stalled: false,
+    stalled: overflow.length > 0,
   }
   await input.env.DB.prepare(
     'UPDATE catalog_turns SET tool_results_json = ?, action_summary_json = ? WHERE run_id = ? AND batch = ? AND turn = ?',
