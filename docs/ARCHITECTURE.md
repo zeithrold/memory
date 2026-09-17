@@ -23,7 +23,7 @@ Forgetting clears active text, tags, source, FTS and history in the same transac
 
 Each mutation inserts an index job. Vector IDs include version. Workers never rely on successful Vectorize submission as proof of immediate search visibility. Processing is idempotent, checks after embedding for concurrent changes, removes previous-version vectors, and retries failures. A missing provider leaves work pending and search falls back to keywords. Jobs are not silently dropped after a retry limit. Vector metadata contains project only, not body text.
 
-Keyword indexing adds explicit CJK unigrams/bigrams and Latin/code tokens before FTS5. This is a lightweight baseline, not linguistic segmentation. RRF combines keyword and vector ranks. Search returns only up to 20 entries; MCP previews are capped at 500 characters per entry.
+Keyword indexing adds explicit CJK unigrams/bigrams and Latin/code tokens before FTS5. This is a lightweight baseline, not linguistic segmentation. RRF combines keyword and vector ranks. Search returns only up to 20 entries; MCP previews are capped at 500 characters per entry. Catalog discovery is a separate read path: it scores short category metadata, filters categories and counts through memories visible in the requested project, and returns identifiers that can explicitly scope memory search. The account-wide catalog snapshot is retained for the UI and diagnostics rather than used as the normal model-retrieval payload.
 
 ## Identity and access
 

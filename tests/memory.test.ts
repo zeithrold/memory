@@ -376,6 +376,26 @@ describe('hTTP, credentials and MCP', () => {
     expect(await env.DB.prepare('SELECT count(*) AS n FROM usage_events').first('n')).toBe(0)
     expect(await env.DB.prepare('SELECT count(*) AS n FROM rate_limits').first('n')).toBe(0)
   })
+  it('exposes project-filtered catalog search to read credentials', async () => {
+    const key = await token('alice', ['memory:read'], 'global')
+    const allowed = await api(
+      request('/api/v1/catalog/search', key.secret, 'POST', {
+        query: 'database',
+        project: 'global',
+      }),
+      env,
+    )
+    expect(allowed.status).toBe(200)
+    expect(await allowed.json()).toEqual({ project: 'global', categories: [] })
+    const denied = await api(
+      request('/api/v1/catalog/search', key.secret, 'POST', {
+        query: 'database',
+        project: 'another-project',
+      }),
+      env,
+    )
+    expect(denied.status).toBe(403)
+  })
   it('limits requests per owner across different tokens', async () => {
     const first = await token()
     const second = await token()
@@ -453,8 +473,37 @@ describe('hTTP, credentials and MCP', () => {
     )
     const text = await list.text()
     expect(text).toContain('memory_get')
+    expect(text).toContain('memory_catalog_search')
     expect(text).not.toContain('memory_create')
     expect((await mcp(request('/mcp', key.secret), env)).status).toBe(405)
+  })
+  it('hides the account-wide catalog from project-restricted MCP clients', async () => {
+    const key = await token('alice', ['memory:read'], 'global')
+    const list = await mcp(
+      request('/mcp', key.secret, 'POST', {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      }),
+      env,
+    )
+    const text = await list.text()
+    expect(text).toContain('memory_catalog_search')
+    expect(text).not.toContain('"name":"memory_catalog"')
+
+    const direct = await mcp(
+      request('/mcp', key.secret, 'POST', {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'memory_catalog', arguments: {} },
+      }),
+      env,
+    )
+    expect(await direct.json()).toMatchObject({
+      result: { isError: true },
+    })
   })
 })
 it('provides Chinese translations for every English interface key', () => {

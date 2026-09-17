@@ -23,10 +23,10 @@ import {
 } from './settings'
 
 /**
- * Everything under `/api/v1/catalog` manages an account's configuration or
- * triggers work, so the whole surface is session-only. A personal token or an
- * OAuth link must not be able to re-arrange a catalog, read a provider
- * configuration, or spend the account's model quota.
+ * Everything in this module manages an account's configuration or triggers
+ * work, so those routes are session-only. The separate read-only catalog search
+ * service is intentionally available to memory:read credentials and does not
+ * expose management state.
  */
 const probeInputSchema = z
   .object({

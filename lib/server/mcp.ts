@@ -11,6 +11,8 @@ import * as Sentry from '@sentry/cloudflare'
 import { z } from 'zod'
 import {
   catalogSchema,
+  catalogSearchResultSchema,
+  catalogSearchSchema,
   createSchema,
   deleteResultSchema,
   memorySchema,
@@ -20,6 +22,7 @@ import {
 } from '../contracts'
 import { authenticate, preAuthRateLimit, rateLimit } from './auth'
 import { getCatalogView } from './catalog/query'
+import { searchCatalog } from './catalog/search'
 import { AppError, errorResponse, problemDocument, problemResponse, requirePermission } from './errors'
 import { readJson, secureResponse } from './http'
 import {
@@ -58,9 +61,18 @@ const SEARCH_TOOL = {
   name: 'memory_search',
   scope: 'memory:read',
   description:
-    'Search one project (global by default). Returns short previews; use memory_get for full text. Search global and the current project separately when both are relevant.',
+    'Search one project (global by default), optionally within categoryIds returned by memory_catalog_search. A depth-1 category includes its children. Returns short previews; use memory_get for full text. Search global and the current project separately when both are relevant.',
   schema: searchSchema,
   outputSchema: searchResultSchema,
+  annotations: READ_ANNOTATIONS,
+} as const satisfies ToolMetadata
+const CATALOG_SEARCH_TOOL = {
+  name: 'memory_catalog_search',
+  scope: 'memory:read',
+  description:
+    'Search the catalog for categories relevant to a broad question. Results and counts are restricted to memories visible in the requested project. Pass chosen category ids to memory_search.categoryIds.',
+  schema: catalogSearchSchema,
+  outputSchema: catalogSearchResultSchema,
   annotations: READ_ANNOTATIONS,
 } as const satisfies ToolMetadata
 const GET_TOOL = {
@@ -113,6 +125,7 @@ const CATALOG_TOOL = {
 
 const TOOLS: readonly ToolMetadata[] = [
   SEARCH_TOOL,
+  CATALOG_SEARCH_TOOL,
   GET_TOOL,
   CREATE_TOOL,
   UPDATE_TOOL,
@@ -209,6 +222,18 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
       }),
   )
   server.registerTool(
+    CATALOG_SEARCH_TOOL.name,
+    {
+      description: CATALOG_SEARCH_TOOL.description,
+      inputSchema: CATALOG_SEARCH_TOOL.schema,
+      outputSchema: CATALOG_SEARCH_TOOL.outputSchema,
+      annotations: CATALOG_SEARCH_TOOL.annotations,
+    },
+    async input =>
+      call(CATALOG_SEARCH_TOOL.name, CATALOG_SEARCH_TOOL.scope, async () =>
+        searchCatalog(env, principal, input)),
+  )
+  server.registerTool(
     GET_TOOL.name,
     {
       description: GET_TOOL.description,
@@ -267,12 +292,22 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
       annotations: CATALOG_TOOL.annotations,
     },
     async () =>
-      call(CATALOG_TOOL.name, CATALOG_TOOL.scope, async () =>
-        getCatalogView(env, principal.ownerId)),
+      call(CATALOG_TOOL.name, CATALOG_TOOL.scope, async () => {
+        if (principal.project !== null) {
+          throw new AppError(
+            'FORBIDDEN',
+            'A project-restricted credential cannot read the account-wide catalog. Use memory_catalog_search instead.',
+          )
+        }
+        return getCatalogView(env, principal.ownerId)
+      }),
   )
   // The pinned MCP SDK predates per-tool `securitySchemes`, so the advertised
   // tool list is emitted here instead of by `McpServer`.
-  const advertised = TOOLS.filter(tool => principal.scopes.includes(tool.scope))
+  const advertised = TOOLS.filter(tool =>
+    principal.scopes.includes(tool.scope)
+    && (tool.name !== CATALOG_TOOL.name || principal.project === null),
+  )
     .map(tool => ({
       name: tool.name,
       description: tool.description,

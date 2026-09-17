@@ -7,6 +7,7 @@ import * as catalog from '../app/api/v1/catalog/route'
 import * as revert from '../app/api/v1/catalog/runs/[id]/revert/route'
 import * as run from '../app/api/v1/catalog/runs/[id]/route'
 import * as runs from '../app/api/v1/catalog/runs/route'
+import * as catalogSearch from '../app/api/v1/catalog/search/route'
 import * as settings from '../app/api/v1/catalog/settings/route'
 import * as settingsTest from '../app/api/v1/catalog/settings/test/route'
 import * as history from '../app/api/v1/memories/[id]/history/route'
@@ -42,6 +43,7 @@ const routes = [
   ['/api/v1/usage', usage, ['GET']],
   ['/api/v1/status', status, ['GET']],
   ['/api/v1/catalog', catalog, ['GET']],
+  ['/api/v1/catalog/search', catalogSearch, ['POST']],
   ['/api/v1/catalog/settings', settings, ['GET', 'PUT']],
   ['/api/v1/catalog/settings/test', settingsTest, ['POST']],
   ['/api/v1/catalog/metrics', catalogMetrics, ['GET']],

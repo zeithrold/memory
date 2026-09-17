@@ -15,7 +15,8 @@ All endpoints require `Authorization: Bearer <credential>`. Browser calls use a 
 | DELETE | `/api/v1/tokens/{id}` | session only | Revocation, HTTP 204 |
 | GET | `/api/v1/usage` | session only | `{usage, degraded}`: daily operation/token/client aggregates, last 30 days, max 500 groups |
 | GET | `/api/v1/status` | session only | Semantic configuration and per-user pending/retrying index jobs |
-| GET | `/api/v1/catalog` | read | Two-level catalog: categories, counts, pending proposals |
+| GET | `/api/v1/catalog` | session only | Account-wide two-level catalog: categories, counts, pending proposals |
+| POST | `/api/v1/catalog/search` | read | Project-filtered matching categories and visible member counts |
 | GET/PUT | `/api/v1/catalog/settings` | session only | Model endpoint, budgets and privacy settings; the credential is write-only |
 | POST | `/api/v1/catalog/settings/test` | session only | Live probe: reachable, model accepted, tool calling supported |
 | GET | `/api/v1/catalog/runs?limit=20` | session only | Run history |
@@ -49,12 +50,25 @@ Updates replace the editable fields, omit `idempotencyKey` and add `expectedVers
   "query": "How should my Go services access SQL?",
   "project": "global",
   "limit": 8,
+  "categoryIds": ["6a67360d-6167-42bc-8bb4-20c121642494"],
   "mode": "flat",
   "balance": "sqrt"
 }
 ```
 
 `mode` is `hybrid` or `keyword`; `degraded: true` means semantic retrieval was unavailable. The service never sends a cross-project result simply because it is semantically similar.
+
+`categoryIds` explicitly scopes retrieval to catalog categories chosen by the caller. A depth-1 category includes its depth-2 children; a depth-2 category includes only itself. Use `POST /api/v1/catalog/search` first when a broad question needs topic discovery:
+
+```json
+{
+  "query": "database conventions",
+  "project": "global",
+  "limit": 5
+}
+```
+
+It returns only categories backed by memories visible in that project, including each category's path, boundary and `visibleMemberCount`. This is the normal agent retrieval path; `GET /api/v1/catalog` is the account-wide browser/admin view, not a document to inject into model context.
 
 Two optional fields route the query through the catalog. `mode: "catalog"` narrows candidates to the categories the query matches best and balances the budget between them, so a large category cannot crowd out a small one; the flat ranking is always fused in, so a routing miss costs ranking quality and never recall. `balance` picks the allocation rule (`equal`, `sqrt` — the default — or `neyman`) and is only consulted when routing. The response reports what happened:
 
@@ -108,7 +122,7 @@ This replaces the earlier `{ "error": { "code", "message" } }` envelope.
 
 - 400 `INVALID_INPUT` / `INVALID_JSON` / `IMMUTABLE_PROJECT` / `PROVIDER_ENDPOINT_INVALID`, 415 `JSON_REQUIRED`: fix the request body. Unknown mutation fields are rejected, not ignored. `IMMUTABLE_PROJECT` still applies to updates: a memory's project changes only when a user approves a catalog proposal.
 - 401 `UNAUTHORIZED`: missing, invalid, expired or revoked credential.
-- 403 `FORBIDDEN` / `INSUFFICIENT_SCOPE` / `SESSION_REQUIRED` / `INVALID_ORIGIN`: wrong scope, project restriction, a session-only endpoint, or an origin that is not `APP_ORIGIN`. `INSUFFICIENT_SCOPE` means the OAuth link granted no memory scope at all. Every `/api/v1/catalog` endpoint is session-only: an agent token cannot reconfigure a model endpoint or re-arrange a catalog.
+- 403 `FORBIDDEN` / `INSUFFICIENT_SCOPE` / `SESSION_REQUIRED` / `INVALID_ORIGIN`: wrong scope, project restriction, a session-only endpoint, or an origin that is not `APP_ORIGIN`. `INSUFFICIENT_SCOPE` means the OAuth link granted no memory scope at all. Catalog management endpoints are session-only; `POST /api/v1/catalog/search` is the read-only exception and applies the same project restriction as memory search.
 - 404 `NOT_FOUND` / `RUN_NOT_FOUND`: absent or inaccessible. Another account's identifiers are not disclosed.
 - 405 `METHOD_NOT_ALLOWED`: read the `Allow` header.
 - 409 `VERSION_CONFLICT`: reread and reconcile. `FORGOTTEN`: do not auto-recreate. `CONFLICT`: idempotency payload drift or duplicate content. `AGENT_NOT_CONFIGURED` / `CATALOG_DISABLED`: the account has no model endpoint, or this deployment declares no catalog Workflow. `RUN_IN_PROGRESS`: runs are serialized per account.
@@ -125,6 +139,8 @@ Reuse a creation idempotency key only with its original payload. Do not blindly 
 `POST /mcp` uses JSON-RPC over Streamable HTTP. Send `Accept: application/json, text/event-stream`. Credentials are either a personal API token or a Clerk OAuth access token; a browser session is not accepted. The SDK handles initialize, discovery and tool schema validation. Tools are advertised according to the credential's scopes, and every tool call is authorized again by the shared service. Tool failures use MCP `isError` with the API error envelope. GET/DELETE transport methods return 405; this server has no protocol session to resume or delete.
 
 Every tool advertises an `outputSchema` and every successful call returns the matching `structuredContent`, so a host can read fields such as `id` and `version` without parsing text. The serialized JSON is still returned in a `TextContent` block because the MCP specification asks tools that return structured content to keep it for clients that predate `structuredContent`. A declared output schema is strict: a result that does not match it becomes an `isError` tool result rather than silently reaching the model.
+
+`memory_catalog_search` performs project-filtered topic discovery. Its category identifiers can be passed to `memory_search.categoryIds` for explicit scoped retrieval. The legacy `memory_catalog` tool returns the account-wide tree for browsing and diagnostics; it is not advertised to project-restricted credentials.
 
 ## OAuth discovery
 

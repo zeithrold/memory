@@ -300,12 +300,21 @@ export async function searchMemories(
   const input = searchSchema.parse(value)
   requirePermission(principal, 'memory:read', input.project)
   const query = ftsQuery(input.query)
+  const explicitScope = categoryScope(input.categoryIds)
   const keywords = query
     ? (
         await env.DB.prepare(
-          `SELECT m.* FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid WHERE memories_fts MATCH ? AND m.owner_id = ? AND m.project = ? AND m.deleted = 0 ORDER BY bm25(memories_fts) LIMIT 40`,
+          `SELECT m.* FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid
+           WHERE memories_fts MATCH ? AND m.owner_id = ? AND m.project = ? AND m.deleted = 0
+           ${explicitScope.clause}
+           ORDER BY bm25(memories_fts) LIMIT 40`,
         )
-          .bind(query, principal.ownerId, input.project)
+          .bind(
+            query,
+            principal.ownerId,
+            input.project,
+            ...explicitScope.bindings(principal.ownerId),
+          )
           .all<MemoryRow>()
       ).results
     : []
@@ -325,9 +334,17 @@ export async function searchMemories(
         if (id === undefined || version === undefined)
           continue
         const row = await env.DB.prepare(
-          'SELECT * FROM memories WHERE id = ? AND owner_id = ? AND project = ? AND version = ? AND deleted = 0',
+          `SELECT m.* FROM memories m
+           WHERE m.id = ? AND m.owner_id = ? AND m.project = ? AND m.version = ? AND m.deleted = 0
+           ${explicitScope.clause}`,
         )
-          .bind(id, principal.ownerId, input.project, Number(version))
+          .bind(
+            id,
+            principal.ownerId,
+            input.project,
+            Number(version),
+            ...explicitScope.bindings(principal.ownerId),
+          )
           .first<MemoryRow>()
         if (row)
           vectors.push(row)
@@ -394,10 +411,12 @@ async function routeThroughCatalog(
   ranking: string[]
   categories: { id: string, label: string, candidates: number }[]
 }> {
+  const scope = categoryTreeScope(input.categoryIds)
   const categories = await env.DB.prepare(
-    'SELECT id, label, description, boundary, member_count FROM categories WHERE owner_id = ? AND state = \'active\'',
+    `SELECT id, label, description, boundary, member_count FROM categories
+     WHERE owner_id = ? AND state = 'active' ${scope.clause}`,
   )
-    .bind(principal.ownerId)
+    .bind(principal.ownerId, ...scope.bindings)
     .all<{ id: string, label: string, description: string, boundary: string, member_count: number }>()
   const scores = scoreCategories(categories.results, terms(input.query))
   const selected = [...scores.entries()]
@@ -449,6 +468,40 @@ async function routeThroughCatalog(
     routed: true,
     ranking: fuseRankings([pool.flat, ...truncated]),
     categories: reported,
+  }
+}
+
+function categoryTreeScope(categoryIds: string[] | undefined): {
+  clause: string
+  bindings: string[]
+} {
+  if (categoryIds === undefined)
+    return { clause: '', bindings: [] }
+  const placeholders = categoryIds.map(() => '?').join(', ')
+  return {
+    clause: `AND (id IN (${placeholders}) OR parent_id IN (${placeholders}))`,
+    bindings: [...categoryIds, ...categoryIds],
+  }
+}
+
+function categoryScope(categoryIds: string[] | undefined): {
+  clause: string
+  bindings: (ownerId: string) => string[]
+} {
+  if (categoryIds === undefined)
+    return { clause: '', bindings: () => [] }
+  const placeholders = categoryIds.map(() => '?').join(', ')
+  return {
+    clause: `AND EXISTS (
+      SELECT 1 FROM memory_categories scoped_mc
+      JOIN categories scoped_c ON scoped_c.id = scoped_mc.category_id
+      WHERE scoped_mc.memory_id = m.id
+        AND scoped_mc.owner_id = ?
+        AND scoped_c.owner_id = ?
+        AND scoped_c.state = 'active'
+        AND (scoped_c.id IN (${placeholders}) OR scoped_c.parent_id IN (${placeholders}))
+    )`,
+    bindings: ownerId => [ownerId, ownerId, ...categoryIds, ...categoryIds],
   }
 }
 

@@ -393,6 +393,7 @@ describe('mcp oauth surface', () => {
     }
     expect(body.result.tools.map(tool => tool.name)).toEqual([
       'memory_search',
+      'memory_catalog_search',
       'memory_get',
       // Read-only, so a read-scoped link sees it too.
       'memory_catalog',
@@ -403,6 +404,25 @@ describe('mcp oauth surface', () => {
     expect(Object.keys(body.result.tools[0]?.inputSchema.properties ?? {})).toContain(
       'query',
     )
+    expect(Object.keys(body.result.tools[0]?.inputSchema.properties ?? {})).toContain(
+      'categoryIds',
+    )
+  })
+  it('searches the catalog through a structured MCP result', async () => {
+    const key = await token(['memory:read'])
+    const response = await mcp(
+      request('/mcp', key, jsonRpc(1, 'tools/call', {
+        name: 'memory_catalog_search',
+        arguments: { query: 'database', project: 'global' },
+      })),
+      env,
+    )
+    expect(await response.json()).toMatchObject({
+      result: {
+        content: [{ type: 'text' }],
+        structuredContent: { project: 'global', categories: [] },
+      },
+    })
   })
   it('advertises an output schema for every tool', async () => {
     const key = await token()
@@ -416,6 +436,7 @@ describe('mcp oauth surface', () => {
     }
     expect(body.result.tools.map(tool => tool.name)).toEqual([
       'memory_search',
+      'memory_catalog_search',
       'memory_get',
       'memory_create',
       'memory_update',
@@ -432,6 +453,11 @@ describe('mcp oauth surface', () => {
       'degraded',
       // Routing metadata, so a caller can tell that a catalog route missed.
       'catalog',
+    ])
+    const catalogSearch = body.result.tools.find(tool => tool.name === 'memory_catalog_search')
+    expect(Object.keys(catalogSearch?.outputSchema.properties ?? {})).toEqual([
+      'project',
+      'categories',
     ])
     const catalog = body.result.tools.find(tool => tool.name === 'memory_catalog')
     expect(Object.keys(catalog?.outputSchema.properties ?? {})).toEqual([

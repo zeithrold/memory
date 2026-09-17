@@ -230,7 +230,22 @@ Before a provider is configured the panel renders its own explanation rather
 than a loading skeleton: an endless shimmer on a page where nothing is loading
 is a lie, and it also keeps the page from ever settling for a test driver.
 
-## Retrieval: catalog routing is opt-in
+## Retrieval: search the catalog, then the memories
+
+Agents do not need the full taxonomy as a special document. `POST
+/api/v1/catalog/search` and the MCP `memory_catalog_search` tool search category
+labels, descriptions and boundaries, returning only categories backed by
+memories visible in the requested project. The caller then passes the chosen
+identifiers to `memory_search.categoryIds`; selecting a depth-1 category also
+includes its depth-2 children.
+
+This two-step path keeps model context small, makes the selected scope explicit
+in the tool transcript, and lets a caller correct directory selection before
+memory retrieval. The account-wide `memory_catalog` snapshot remains for UI,
+diagnostics and backward compatibility, and is hidden from project-restricted
+MCP credentials.
+
+### Automatic catalog routing remains opt-in
 
 `POST /api/v1/search` accepts `mode` (`flat`, the default, or `catalog`) and
 `balance` (`equal`, `sqrt` — the default — or `neyman`). With `mode: 'catalog'`

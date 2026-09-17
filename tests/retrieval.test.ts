@@ -2,6 +2,7 @@ import type { Principal } from '../lib/contracts'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { allocate, deviation, scoreCategories, standardize } from '../lib/server/catalog/balance'
+import { searchCatalog } from '../lib/server/catalog/search'
 import { maintenance } from '../lib/server/indexer'
 import { createMemory, searchMemories } from '../lib/server/memories'
 import { database } from './database'
@@ -35,6 +36,23 @@ async function category(slug: string, label: string, description: string, bounda
     .run()
   return id
 }
+async function childCategory(
+  parentId: string,
+  slug: string,
+  label: string,
+  description: string,
+  boundary: string,
+) {
+  const id = crypto.randomUUID()
+  const now = '2026-09-16T00:00:00.000Z'
+  await env.DB.prepare(
+    `INSERT INTO categories(id, owner_id, parent_id, slug, label, description, boundary, depth, member_count, state, created_by, created_at, updated_at)
+     VALUES (?, 'alice', ?, ?, ?, ?, ?, 2, 0, 'active', 'user', ?, ?)`,
+  )
+    .bind(id, parentId, slug, label, description, boundary, now, now)
+    .run()
+  return id
+}
 async function assign(memoryId: string, categoryId: string) {
   await env.DB.prepare(
     `INSERT INTO memory_categories(owner_id, memory_id, category_id, is_primary, confidence, assigned_by, catalog_version, created_at, updated_at)
@@ -43,9 +61,9 @@ async function assign(memoryId: string, categoryId: string) {
     .bind(memoryId, categoryId)
     .run()
 }
-async function memory(title: string, content: string, tags: string[] = []) {
+async function memory(title: string, content: string, tags: string[] = [], project = 'global') {
   return createMemory(env, alice, {
-    project: 'global',
+    project,
     title,
     content,
     kind: 'fact',
@@ -220,6 +238,96 @@ describe('catalog-routed retrieval', () => {
       })
       expect(result.memories.map(memory => memory.id), balance).toContain(starved)
     }
+  })
+
+  it('honours an explicit category scope returned by catalog search', async () => {
+    const { compliance, starved } = await starvedLibrary()
+    const scoped = await searchMemories(env, alice, {
+      query: QUERY,
+      project: 'global',
+      categoryIds: [compliance],
+      limit: 8,
+    })
+    expect(scoped.memories.map(memory => memory.id)).toEqual([starved])
+  })
+})
+
+describe('catalog search', () => {
+  it('returns paths and project-filtered counts without exposing empty categories', async () => {
+    const root = await category(
+      'engineering',
+      'Engineering',
+      'Software and database engineering.',
+      'NOT here: travel.',
+    )
+    const database = await childCategory(
+      root,
+      'database',
+      'Database',
+      'Database access and storage.',
+      'NOT here: application UI.',
+    )
+    const hidden = await category(
+      'private-database',
+      'Private database',
+      'Database notes for another project.',
+      'NOT here: global notes.',
+    )
+    const visibleMemory = await memory('Database driver', 'Use a database driver.')
+    await assign(visibleMemory.id, database)
+    const privateMemory = await memory(
+      'Private database',
+      'A database note in another project.',
+      [],
+      'private-project',
+    )
+    await assign(privateMemory.id, hidden)
+
+    const result = await searchCatalog(env, alice, {
+      query: 'database',
+      project: 'global',
+      limit: 10,
+    })
+    expect(result.project).toBe('global')
+    expect(result.categories.map(entry => entry.id)).toEqual(
+      expect.arrayContaining([root, database]),
+    )
+    expect(result.categories.map(entry => entry.id)).not.toContain(hidden)
+    expect(result.categories.find(entry => entry.id === root)?.visibleMemberCount).toBe(1)
+    expect(result.categories.find(entry => entry.id === database)?.path).toEqual([
+      { id: root, slug: 'engineering', label: 'Engineering' },
+      { id: database, slug: 'database', label: 'Database' },
+    ])
+  })
+
+  it('enforces a project-restricted credential before searching categories', async () => {
+    await expect(searchCatalog(env, { ...alice, project: 'private-project' }, {
+      query: 'database',
+      project: 'global',
+    })).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('includes descendants when memory search scopes to a root category', async () => {
+    const root = await category(
+      'engineering',
+      'Engineering',
+      'Software engineering.',
+      'NOT here: travel.',
+    )
+    const database = await childCategory(
+      root,
+      'database',
+      'Database',
+      'Database storage.',
+      'NOT here: frontend.',
+    )
+    const created = await memory('Database access', 'Database access uses sqlc.')
+    await assign(created.id, database)
+    const result = await searchMemories(env, alice, {
+      query: 'database',
+      categoryIds: [root],
+    })
+    expect(result.memories.map(memory => memory.id)).toEqual([created.id])
   })
 })
 

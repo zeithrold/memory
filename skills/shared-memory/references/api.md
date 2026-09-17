@@ -4,7 +4,8 @@ Use the service's configured HTTPS base URL. Read `MEMORY_API_TOKEN` from the en
 
 | Operation | Endpoint | Body |
 | --- | --- | --- |
-| Search | `POST /api/v1/search` | `query`, `project` (default `global`), `limit` (1–20, default 8) |
+| Search catalog | `POST /api/v1/catalog/search` | `query`, `project` (default `global`), `limit` (1–10, default 5) |
+| Search memories | `POST /api/v1/search` | `query`, `project` (default `global`), optional `categoryIds` (1–5), `limit` (1–20, default 8) |
 | Read | `GET /api/v1/memories/{id}` | None |
 | Create | `POST /api/v1/memories` | Memory fields and UUID `idempotencyKey` |
 | Update | `PATCH /api/v1/memories/{id}` | Memory fields and integer `expectedVersion` |
@@ -14,4 +15,4 @@ Memory fields: `title` (1–160 characters), `content` (1–6000), `kind` (`pref
 
 Errors are RFC 9457 problem documents (`application/problem+json`): `type` links to a page under `/errors/<slug>`, `title` and `status` describe the error kind, `detail` describes this request, and `code` is the stable identifier to branch on. Validation failures add `fields`. Handle 401 by fixing credentials, 403 by fixing permissions (or re-linking when `code` is `INSUFFICIENT_SCOPE`), 409 by rereading/reconciling, and 429 by waiting for `Retry-After`. Never automatically retry a changed mutation payload. Treat a 5xx mutation result as uncertain and reuse its idempotency key when retrying a create.
 
-Search returns `memories`, `mode` (`hybrid` or `keyword`), and `degraded`. MCP search truncates content to 500 characters; HTTP search returns full entries. Do not send arbitrary user-provided URLs as the service endpoint.
+Catalog search returns project-visible category metadata, paths, and `visibleMemberCount`. Passing a depth-1 category to memory search includes its depth-2 children; a depth-2 category includes only itself. Memory search returns `memories`, `mode` (`hybrid` or `keyword`), and `degraded`. MCP memory search truncates content to 500 characters; HTTP search returns full entries. Do not send arbitrary user-provided URLs as the service endpoint.

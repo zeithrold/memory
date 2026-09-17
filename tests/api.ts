@@ -6,6 +6,7 @@ import * as catalog from '../app/api/v1/catalog/route'
 import * as revert from '../app/api/v1/catalog/runs/[id]/revert/route'
 import * as run from '../app/api/v1/catalog/runs/[id]/route'
 import * as runs from '../app/api/v1/catalog/runs/route'
+import * as catalogSearch from '../app/api/v1/catalog/search/route'
 import * as settings from '../app/api/v1/catalog/settings/route'
 import * as settingsTest from '../app/api/v1/catalog/settings/test/route'
 import * as history from '../app/api/v1/memories/[id]/history/route'
@@ -43,6 +44,8 @@ export async function api(request: Request, env: Env): Promise<Response> {
     route = status
   else if (resource === 'catalog' && id === undefined)
     route = catalog
+  else if (resource === 'catalog' && id === 'search')
+    route = catalogSearch
   else if (resource === 'catalog' && id === 'settings' && action === 'test')
     route = settingsTest
   else if (resource === 'catalog' && id === 'settings')

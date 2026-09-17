@@ -35,7 +35,7 @@ The synthetic memory and its revisions remain available for inspection. Its vect
 - The retrieval benchmark is a synthetic single-language fixture. Score a real multilingual query set for flat versus `mode: "catalog"` before trusting the routing numbers, and before considering a default change.
 - A Workflow replay: force a step failure mid-run and confirm the retry reports the recorded turn instead of calling the model twice, and that a reverted run leaves the catalog as it was.
 - A real `/api/v1/catalog/runs` trigger through the deployed Worker, and a manual run that is refused while another is in flight.
-- Real two-account isolation, expired Clerk sessions, and production sign-out behavior. Automated isolation tests cover the service layer, but do not replace these checks, and the catalog surface is session-only: confirm a personal token is refused by every `/api/v1/catalog` endpoint on the deployed origin.
+- Real two-account isolation, expired Clerk sessions, and production sign-out behavior. Automated isolation tests cover the service layer, but do not replace these checks. Catalog management is session-only; confirm a personal token is refused by those endpoints, while `POST /api/v1/catalog/search` returns only categories backed by memories visible to its project scope.
 - Codex and Cursor application connections. SDK compatibility alone does not prove each application's configuration.
 - Responses API tool-loop execution with a user-provided endpoint and API key.
 - A representative multilingual retrieval-quality benchmark and remote edit/delete race testing.

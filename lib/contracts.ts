@@ -38,9 +38,22 @@ export const searchSchema = z
     query: z.string().trim().min(1).max(300),
     project: projectSchema.default('global'),
     limit: z.number().int().min(1).max(20).default(8),
+    /**
+     * Explicit catalog scope. A depth-1 category includes its depth-2
+     * children; a depth-2 category includes only itself.
+     */
+    categoryIds: z.array(z.string().uuid()).min(1).max(5).optional(),
     mode: z.enum(['flat', 'catalog']).default('flat'),
     /** Only consulted when `mode` is `catalog`. */
     balance: z.enum(['equal', 'sqrt', 'neyman']).default('sqrt'),
+  })
+  .strict()
+
+export const catalogSearchSchema = z
+  .object({
+    query: z.string().trim().min(1).max(300),
+    project: projectSchema.default('global'),
+    limit: z.number().int().min(1).max(10).default(5),
   })
   .strict()
 export const tokenInputSchema = z
@@ -81,10 +94,32 @@ export const searchResultSchema = z.object({
     .nullable(),
 })
 
+export const catalogSearchCategorySchema = z.object({
+  id: z.string().uuid(),
+  parentId: z.string().uuid().nullable(),
+  depth: z.number().int(),
+  slug: z.string(),
+  label: z.string(),
+  description: z.string(),
+  boundary: z.string(),
+  path: z.array(
+    z.object({
+      id: z.string().uuid(),
+      slug: z.string(),
+      label: z.string(),
+    }),
+  ),
+  visibleMemberCount: z.number().int(),
+})
+export const catalogSearchResultSchema = z.object({
+  project: projectSchema,
+  categories: z.array(catalogSearchCategorySchema),
+})
+
 /**
- * The catalog as a read-only document. Stable enough to advertise as an MCP
- * tool output schema: a field added here without updating `CatalogView` fails a
- * test rather than a tool call.
+ * The account-wide catalog snapshot used by the UI and legacy browsing tool.
+ * Normal agent retrieval searches category metadata with catalogSearchSchema
+ * instead of injecting this whole structure into model context.
  */
 export const catalogCategorySchema = z.object({
   id: z.string().uuid(),
