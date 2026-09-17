@@ -22,6 +22,8 @@
     "e2e:build": "tsx scripts/e2e-build.ts",
     "test:e2e": "pnpm e2e:build && playwright test",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:check-tenants:local": "tsx scripts/check-tenant-integrity.ts --local",
+    "db:check-tenants:remote": "tsx scripts/check-tenant-integrity.ts --remote",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {

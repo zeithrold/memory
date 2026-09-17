@@ -46,6 +46,8 @@ Copy the D1 database ID into `wrangler.jsonc`, replacing the all-zero local plac
 }
 ```
 
+The checked-in configuration also declares `USAGE_ANALYTICS` (`memory_usage`) and two Rate Limiting bindings: `AUTH_RATE_LIMITER` namespace `7243101` at 300/minute and `API_RATE_LIMITER` namespace `7243102` at 120/minute. Keep those namespace IDs unique to these policies.
+
 The embedding model is `@cf/baai/bge-m3`, with a validated 1024-dimensional output. Changing model/dimensions requires a new index and full reindex, not mixing old and new vectors. Both AI and Vectorize need account access and may incur usage charges. Local testing of these remote services also uses your account; they are deliberately absent from the initial no-credential configuration.
 
 Vectorize requires `remote: true` for local development; it has no local simulation. Keep D1 local while testing with a dedicated development Vectorize index. Local Cron Triggers do not run automatically. After saving or editing a test memory, invoke the local scheduled handler explicitly:
@@ -64,15 +66,22 @@ This step changes remote resources. Run it only when ready to deploy the chosen 
 
 ```sh
 pnpm exec wrangler secret put CLERK_SECRET_KEY
+pnpm exec wrangler secret put CLOUDFLARE_ACCOUNT_ID
+# Create an API token with only Account Analytics Read.
+pnpm exec wrangler secret put ANALYTICS_READ_TOKEN
 # Run checks before deploying.
 pnpm check
 # Use the production Clerk publishable key in .env.local or the build environment.
 pnpm build
+pnpm db:check-tenants:remote
 pnpm exec wrangler d1 migrations apply DB --remote
+pnpm db:check-tenants:remote
 pnpm exec wrangler deploy --config dist/server/wrangler.json
 ```
 
 Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…` in the build environment or the ignored local env file **before building**. Never put `CLERK_SECRET_KEY` in a `NEXT_PUBLIC_*` variable. Runtime secret values are entered through Wrangler, not committed in `wrangler.jsonc`.
+
+The tenant check is read-only and prints only relationship names, counts and shortened identifiers. Any finding blocks the release: inspect and repair it manually before applying `0007_tenant_integrity.sql`; the migration never guesses an owner, moves a row, or deletes data.
 
 The one-minute Cron Trigger processes up to 20 index jobs per invocation and retries provider failures with bounded exponential delay. The Usage page shows pending jobs. An authenticated `GET /api/v1/status` also reports retrying jobs. Publishing an embedding is eventually consistent; keyword search works before the vector becomes visible. Do not deploy with the local all-zero D1 ID, localhost origin, or missing AI/Vectorize bindings if semantic search is expected.
 

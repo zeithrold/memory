@@ -3,7 +3,6 @@ import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { memorySchema } from '../lib/contracts'
 import { en, zh } from '../lib/i18n/messages'
-import { api } from '../lib/server/api'
 import { authenticate } from '../lib/server/auth'
 import { digest, randomToken } from '../lib/server/crypto'
 import { processIndexJobs } from '../lib/server/indexer'
@@ -17,6 +16,7 @@ import {
   updateMemory,
 } from '../lib/server/memories'
 import { ftsQuery } from '../lib/server/search'
+import { api } from './api'
 import { database } from './database'
 
 const alice: Principal = {
@@ -36,9 +36,20 @@ const input = {
 }
 let env: Env
 let store: ReturnType<typeof database>
+let usagePoints: AnalyticsEngineDataPoint[]
 beforeEach(() => {
   store = database()
-  env = { DB: store.db, APP_ORIGIN: 'https://memory.example' }
+  usagePoints = []
+  env = {
+    DB: store.db,
+    APP_ORIGIN: 'https://memory.example',
+    USAGE_ANALYTICS: {
+      writeDataPoint: (point) => {
+        if (point !== undefined)
+          usagePoints.push(point)
+      },
+    },
+  }
 })
 afterEach(() => {
   store.sqlite.close()
@@ -360,16 +371,16 @@ describe('hTTP, credentials and MCP', () => {
     expect((await api(request('/api/v1/usage', key.secret), env)).status).toBe(
       403,
     )
-    const events = await env.DB.prepare('SELECT * FROM usage_events').all()
-    expect(events.results).toHaveLength(3)
-    expect(JSON.stringify(events.results)).not.toContain(input.content)
+    expect(usagePoints).toHaveLength(3)
+    expect(JSON.stringify(usagePoints)).not.toContain(input.content)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM usage_events').first('n')).toBe(0)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM rate_limits').first('n')).toBe(0)
   })
   it('limits requests per owner across different tokens', async () => {
     const first = await token()
     const second = await token()
-    await env.DB.prepare('INSERT INTO rate_limits VALUES (?, 120, ?)')
-      .bind(`alice:${Math.floor(Date.now() / 60000)}`, Date.now() + 120000)
-      .run()
+    const limit = vi.fn().mockResolvedValue({ success: false })
+    env.API_RATE_LIMITER = { limit }
     expect(
       (await api(request('/api/v1/memories', first.secret), env)).status,
     ).toBe(429)
@@ -378,6 +389,8 @@ describe('hTTP, credentials and MCP', () => {
         'retry-after',
       ),
     ).toBe('60')
+    expect(limit).toHaveBeenNthCalledWith(1, { key: 'alice' })
+    expect(limit).toHaveBeenNthCalledWith(2, { key: 'alice' })
   })
   it('supports standard MCP initialization, discovery and tool calls over HTTP', async () => {
     const key = await token()

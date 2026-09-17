@@ -1,5 +1,10 @@
 export interface Env {
   DB: D1Database
+  USAGE_ANALYTICS?: AnalyticsEngineDataset
+  AUTH_RATE_LIMITER?: RateLimit
+  API_RATE_LIMITER?: RateLimit
+  CLOUDFLARE_ACCOUNT_ID?: string
+  ANALYTICS_READ_TOKEN?: string
   VECTORIZE?: VectorizeIndex
   AI?: Ai
   /** Absent when the deployment (or the e2e preview) declares no Workflow. */

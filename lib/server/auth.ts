@@ -1,5 +1,6 @@
 import type { Principal } from '../contracts'
 import type { Env } from './env'
+import process from 'node:process'
 import { verifyToken } from '@clerk/backend'
 import * as Sentry from '@sentry/cloudflare'
 import { z } from 'zod'
@@ -59,13 +60,29 @@ async function resolvePrincipal(
       owner_id: string
       scopes: string
       project: string | null
+      last_used_at: string | null
     }>()
     if (!row) {
       throw new AppError('UNAUTHORIZED', 'The API token is invalid, expired, or revoked.')
     }
-    await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?')
-      .bind(new Date().toISOString(), row.id)
-      .run()
+    const now = Date.now()
+    const lastUsed = row.last_used_at === null ? 0 : Date.parse(row.last_used_at)
+    if (!Number.isFinite(lastUsed) || now - lastUsed >= 3600000) {
+      const update = env.DB.prepare(
+        'UPDATE api_tokens SET last_used_at = ? WHERE id = ? AND (last_used_at IS NULL OR last_used_at < ?)',
+      )
+        .bind(
+          new Date(now).toISOString(),
+          row.id,
+          new Date(now - 3600000).toISOString(),
+        )
+        .run()
+        .catch(() => console.error('Token activity update failed', { tokenId: row.id.slice(0, 8) }))
+      if (process.env.NODE_ENV === 'test')
+        void update
+      else
+        (await import('cloudflare:workers')).waitUntil(update)
+    }
     return {
       ownerId: row.owner_id,
       tokenId: row.id,
@@ -100,16 +117,40 @@ async function resolvePrincipal(
     throw new AppError('UNAUTHORIZED', 'Your session has expired. Sign in again.')
   }
 }
-export async function rateLimit(env: Env, principal: Principal): Promise<void> {
-  const minute = Math.floor(Date.now() / 60000)
-  const row = await env.DB.prepare(
-    'INSERT INTO rate_limits(bucket, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(bucket) DO UPDATE SET count = count + 1 RETURNING count',
-  )
-    .bind(`${principal.ownerId}:${minute}`, (minute + 2) * 60000)
-    .first<{ count: number }>()
-  if (!row || row.count > 120) {
+function maySkipMissingBinding(env: Env): boolean {
+  return env.APP_ORIGIN.includes('localhost')
+    || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')
+}
+
+async function enforceLimiter(
+  env: Env,
+  limiter: RateLimit | undefined,
+  key: string,
+  binding: string,
+): Promise<void> {
+  if (limiter === undefined) {
+    if (maySkipMissingBinding(env))
+      return
+    console.error('Required rate limiter binding is missing', { binding })
+    throw new AppError('INTERNAL_ERROR', 'Request protection is not configured.')
+  }
+  const outcome = await limiter.limit({ key })
+  if (!outcome.success) {
     throw new AppError('RATE_LIMITED', 'Too many requests. Try again in one minute.')
   }
+}
+
+export async function preAuthRateLimit(request: Request, env: Env): Promise<void> {
+  await enforceLimiter(
+    env,
+    env.AUTH_RATE_LIMITER,
+    request.headers.get('cf-connecting-ip') ?? 'unknown',
+    'AUTH_RATE_LIMITER',
+  )
+}
+
+export async function rateLimit(env: Env, principal: Principal): Promise<void> {
+  await enforceLimiter(env, env.API_RATE_LIMITER, principal.ownerId, 'API_RATE_LIMITER')
 }
 export function requireSession(principal: Principal): void {
   if (principal.tokenId !== null) {

@@ -4,20 +4,22 @@ test('English-first preview, navigation and persisted Chinese locale', async ({ 
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
+  await expect(page).toHaveURL(/\/memories$/)
   await expect(page.getByRole('heading', { name: 'Your context, carried forward.' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.getByText('Connect your identity provider')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('preview.png'), fullPage: true })
   await expect(page.getByRole('button', { name: 'New memory' }).first()).toBeDisabled()
-  await page.getByRole('button', { name: 'Connect', exact: true }).click()
+  await page.getByRole('link', { name: 'Connect', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Connect', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('heading', { name: 'One memory. Every agent.' })).toBeVisible()
   await expect(page.getByText('bearer_token_env_var', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Language' }).click()
   await expect(page.getByRole('heading', { name: '一份记忆，连接不同 Agent。' })).toBeVisible()
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN')
-  await expect(page.getByRole('heading', { name: '让每一次对话接得上。' })).toBeVisible()
-  await page.getByRole('button', { name: 'API 令牌', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '一份记忆，连接不同 Agent。' })).toBeVisible()
+  await page.getByRole('link', { name: 'API 令牌', exact: true }).click()
   await expect(page.getByRole('button', { name: '创建令牌' })).toBeDisabled()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
@@ -27,7 +29,8 @@ test('the catalog tab explains itself before a provider is configured', async ({
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await page.getByRole('button', { name: 'Catalog', exact: true }).click()
+  await page.getByRole('link', { name: 'Catalog', exact: true }).click()
+  await expect(page).toHaveURL(/\/catalog$/)
   await expect(page.getByRole('heading', { name: 'Keep the library organised.' })).toBeVisible()
   await expect(page.getByText('No categories yet.')).toBeVisible()
   await expect(page.getByText('No runs yet.')).toBeVisible()
@@ -41,6 +44,22 @@ test('the catalog tab explains itself before a provider is configured', async ({
   await expect(page.getByRole('button', { name: 'Configure' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
+})
+
+test('business page chunks load only when their routes are opened', async ({ page }) => {
+  const scripts: string[] = []
+  page.on('response', (response) => {
+    if (response.url().includes('/_next/static/chunks/') && response.url().endsWith('.js'))
+      scripts.push(response.url())
+  })
+  await page.goto('/memories')
+  await expect(page.getByRole('heading', { name: 'Your context, carried forward.' })).toBeVisible()
+  expect(scripts.some(url => url.includes('dashboard-'))).toBe(true)
+  for (const chunk of ['catalog-page-', 'tokens-page-', 'usage-page-', 'connect-page-'])
+    expect(scripts.some(url => url.includes(chunk))).toBe(false)
+  await page.getByRole('link', { name: 'Catalog', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Keep the library organised.' })).toBeVisible()
+  expect(scripts.some(url => url.includes('catalog-page-'))).toBe(true)
 })
 
 test('the catalog API is session-only and unavailable without a binding', async ({ request }) => {

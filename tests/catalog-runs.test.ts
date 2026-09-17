@@ -2,11 +2,11 @@ import type { Principal } from '../lib/contracts'
 import type { getRunDetail } from '../lib/server/catalog/query'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { api } from '../lib/server/api'
 import { selectBatch } from '../lib/server/catalog/model'
 import { listProposals, revertRun } from '../lib/server/catalog/query'
 import { dispatchCatalogWorkflow, finishRun } from '../lib/server/catalog/run'
 import { createMemory, moveMemoryProject } from '../lib/server/memories'
+import { api } from './api'
 import { database } from './database'
 
 const { verifyToken } = vi.hoisted(() => ({ verifyToken: vi.fn() }))

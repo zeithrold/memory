@@ -37,13 +37,21 @@ const publishedKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 let env: Env
 let store: ReturnType<typeof database>
+let usagePoints: AnalyticsEngineDataPoint[]
 beforeEach(() => {
   store = database()
+  usagePoints = []
   env = {
     DB: store.db,
     APP_ORIGIN: 'https://memory.example',
     CLERK_SECRET_KEY: 'sk_test_placeholder',
     CLERK_ISSUER: 'https://clerk.example',
+    USAGE_ANALYTICS: {
+      writeDataPoint: (point) => {
+        if (point !== undefined)
+          usagePoints.push(point)
+      },
+    },
   }
   // Deployments always inline the publishable key; tests that need it absent
   // delete it explicitly.
@@ -549,16 +557,11 @@ describe('mcp oauth surface', () => {
       env,
     )
     expect(linked.status).toBe(200)
-    const attributed = await env.DB.prepare(
-      'SELECT client_id FROM usage_events WHERE client_id IS NOT NULL',
-    ).all<{ client_id: string }>()
-    expect(attributed.results).toEqual([
-      { client_id: 'https://chatgpt.com/oauth/callback-1/client.json' },
-    ])
-    const keyed = await env.DB.prepare(
-      'SELECT count(*) AS n FROM usage_events WHERE token_id IS NOT NULL AND client_id IS NULL',
-    ).first('n')
-    expect(keyed).toBe(1)
+    expect(usagePoints.map(point => point.blobs?.[1])).toContain(
+      'https://chatgpt.com/oauth/callback-1/client.json',
+    )
+    expect(usagePoints.some(point => String(point.blobs?.[0] ?? '').length > 0 && point.blobs?.[1] === '')).toBe(true)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM usage_events').first('n')).toBe(0)
   })
   it('attributes calls to an opaque dynamically registered client', async () => {
     oauthToken(['memory:read'], 'client_2vB7qLmN4pQr')
@@ -570,10 +573,6 @@ describe('mcp oauth surface', () => {
       env,
     )
     expect(response.status).toBe(200)
-    expect(
-      await env.DB.prepare(
-        'SELECT client_id FROM usage_events WHERE client_id IS NOT NULL',
-      ).first('client_id'),
-    ).toBe('client_2vB7qLmN4pQr')
+    expect(usagePoints.map(point => point.blobs?.[1])).toContain('client_2vB7qLmN4pQr')
   })
 })

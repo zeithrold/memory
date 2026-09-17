@@ -2,9 +2,7 @@ import type { Principal } from '../../contracts'
 import type { Env } from '../env'
 import type { Provider } from '../llm'
 import { z } from 'zod'
-import { requireSession } from '../auth'
 import { AppError } from '../errors'
-import { readJson } from '../http'
 import { probeProvider } from '../llm'
 import {
   decideProposal,
@@ -75,122 +73,109 @@ async function providerFromInput(
   return { kind: 'responses-api', model: input.model, baseUrl: input.baseUrl, apiKey }
 }
 
-export async function catalogApi(
-  request: Request,
+export async function readCatalogSettings(env: Env, ownerId: string): Promise<Response> {
+  return Response.json(await getCatalogSettings(env, ownerId))
+}
+
+export async function saveCatalogSettings(env: Env, ownerId: string, raw: unknown): Promise<Response> {
+  return Response.json(await updateCatalogSettings(env, ownerId, raw))
+}
+
+export async function testCatalogSettings(env: Env, ownerId: string, raw: unknown): Promise<Response> {
+  // An empty object probes the saved configuration; a body probes the values
+  // in the form, so a user can validate an endpoint before committing it.
+  const isEmpty = raw !== null
+    && typeof raw === 'object'
+    && Object.keys(raw).length === 0
+  const input = isEmpty ? null : probeInputSchema.parse(raw)
+  const provider = input === null
+    ? await providerForOwner(env, ownerId)
+    : await providerFromInput(env, ownerId, input)
+  const result = await probeProvider(env, provider)
+  // Only a probe of the stored configuration is recorded: an unsaved form
+  // must not overwrite the account's last known status.
+  if (input === null && provider.kind !== 'none') {
+    await recordProbe(env, ownerId, {
+      ok: result.reachable && result.toolCallingOk,
+      detail: result.detail,
+    })
+  }
+  return Response.json(result)
+}
+
+export async function readCatalog(env: Env, ownerId: string): Promise<Response> {
+  return Response.json(await getCatalogView(env, ownerId))
+}
+
+export async function readCatalogMetrics(env: Env, ownerId: string): Promise<Response> {
+  return Response.json(await getMetrics(env, ownerId))
+}
+
+export async function readCatalogRuns(env: Env, ownerId: string, rawLimit: string | null): Promise<Response> {
+  const limit = z.coerce.number().int().min(1).max(50).parse(rawLimit ?? 20)
+  return Response.json({ runs: await listRuns(env, ownerId, limit) })
+}
+
+export async function startCatalogRun(env: Env, ownerId: string, raw: unknown): Promise<Response> {
+  const body = runInputSchema.parse(raw)
+  if (!env.CATALOG_WORKFLOW) {
+    throw new AppError(
+      'CATALOG_DISABLED',
+      'This deployment declares no catalog Workflow, so a run cannot be started here.',
+    )
+  }
+  // The row is claimed first so the response can carry an identifier the
+  // caller can poll, and so a second click cannot start a parallel run.
+  const claim = await claimRun(env, ownerId, 'manual', body.dryRun)
+  try {
+    await env.CATALOG_WORKFLOW.create({
+      id: claim.runId,
+      params: {
+        ownerId,
+        runId: claim.runId,
+        dryRun: body.dryRun,
+      },
+    })
+  }
+  catch (error) {
+    // Instance ids are unique; an id collision means this run already has
+    // an instance, which is the outcome the caller wanted anyway.
+    if (!(error instanceof Error) || !error.message.includes('already exists'))
+      throw error
+  }
+  return Response.json(
+    {
+      runId: claim.runId,
+      status: 'queued',
+      mode: claim.dryRun ? 'dry_run' : 'live',
+      budgetWarning: claim.budgetWarning,
+    },
+    { status: 202 },
+  )
+}
+
+export async function readCatalogRun(env: Env, ownerId: string, rawId: unknown): Promise<Response> {
+  return Response.json(await getRunDetail(env, ownerId, z.string().uuid().parse(rawId)))
+}
+
+export async function undoCatalogRun(env: Env, ownerId: string, rawId: unknown): Promise<Response> {
+  return Response.json(await revertRun(env, ownerId, z.string().uuid().parse(rawId)))
+}
+
+export async function readCatalogProposals(env: Env, ownerId: string, rawStatus: string | null): Promise<Response> {
+  const status = z.enum(['pending', 'approved', 'rejected', 'superseded']).parse(rawStatus ?? 'pending')
+  return Response.json({ proposals: await listProposals(env, ownerId, status) })
+}
+
+export async function decideCatalogProposal(
   env: Env,
   principal: Principal,
-  segments: string[],
+  rawId: unknown,
+  raw: unknown,
 ): Promise<Response> {
-  if (segments[0] !== 'catalog')
-    throw new AppError('NOT_FOUND', 'Endpoint not found.')
-  requireSession(principal)
-  const resource = segments[1] ?? ''
-  const tail = segments[2] ?? ''
-
-  if (resource === 'settings' && tail === '') {
-    if (request.method === 'GET')
-      return Response.json(await getCatalogSettings(env, principal.ownerId))
-    if (request.method === 'PUT') {
-      return Response.json(
-        await updateCatalogSettings(env, principal.ownerId, await readJson(request)),
-      )
-    }
-  }
-  if (resource === 'settings' && tail === 'test' && request.method === 'POST') {
-    const raw = await readJson(request)
-    // An empty object probes the saved configuration; a body probes the values
-    // in the form, so a user can validate an endpoint before committing it.
-    const isEmpty = raw !== null
-      && typeof raw === 'object'
-      && Object.keys(raw).length === 0
-    const input = isEmpty ? null : probeInputSchema.parse(raw)
-    const provider = input === null
-      ? await providerForOwner(env, principal.ownerId)
-      : await providerFromInput(env, principal.ownerId, input)
-    const result = await probeProvider(env, provider)
-    // Only a probe of the stored configuration is recorded: an unsaved form
-    // must not overwrite the account's last known status.
-    if (input === null && provider.kind !== 'none') {
-      await recordProbe(env, principal.ownerId, {
-        ok: result.reachable && result.toolCallingOk,
-        detail: result.detail,
-      })
-    }
-    return Response.json(result)
-  }
-  // The bare `/catalog` path leaves `resource` empty.
-  if (resource === '' && request.method === 'GET')
-    return Response.json(await getCatalogView(env, principal.ownerId))
-
-  if (resource === 'metrics' && tail === '' && request.method === 'GET')
-    return Response.json(await getMetrics(env, principal.ownerId))
-
-  if (resource === 'runs' && tail === '') {
-    if (request.method === 'GET') {
-      const limit = z.coerce.number().int().min(1).max(50).parse(
-        new URL(request.url).searchParams.get('limit') ?? 20,
-      )
-      return Response.json({ runs: await listRuns(env, principal.ownerId, limit) })
-    }
-    if (request.method === 'POST') {
-      const body = runInputSchema.parse(await readJson(request))
-      if (!env.CATALOG_WORKFLOW) {
-        throw new AppError(
-          'CATALOG_DISABLED',
-          'This deployment declares no catalog Workflow, so a run cannot be started here.',
-        )
-      }
-      // The row is claimed first so the response can carry an identifier the
-      // caller can poll, and so a second click cannot start a parallel run.
-      const claim = await claimRun(env, principal.ownerId, 'manual', body.dryRun)
-      try {
-        await env.CATALOG_WORKFLOW.create({
-          id: claim.runId,
-          params: {
-            ownerId: principal.ownerId,
-            runId: claim.runId,
-            dryRun: body.dryRun,
-          },
-        })
-      }
-      catch (error) {
-        // Instance ids are unique; an id collision means this run already has
-        // an instance, which is the outcome the caller wanted anyway.
-        if (!(error instanceof Error) || !error.message.includes('already exists'))
-          throw error
-      }
-      return Response.json(
-        {
-          runId: claim.runId,
-          status: 'queued',
-          mode: claim.dryRun ? 'dry_run' : 'live',
-          budgetWarning: claim.budgetWarning,
-        },
-        { status: 202 },
-      )
-    }
-  }
-  if (resource === 'runs' && tail.length > 0) {
-    const runId = z.string().uuid().parse(tail)
-    const action = segments[3] ?? ''
-    if (action === '' && request.method === 'GET')
-      return Response.json(await getRunDetail(env, principal.ownerId, runId))
-    if (action === 'revert' && request.method === 'POST')
-      return Response.json(await revertRun(env, principal.ownerId, runId))
-  }
-
-  if (resource === 'proposals' && tail === '' && request.method === 'GET') {
-    const status = z.enum(['pending', 'approved', 'rejected', 'superseded']).parse(
-      new URL(request.url).searchParams.get('status') ?? 'pending',
-    )
-    return Response.json({ proposals: await listProposals(env, principal.ownerId, status) })
-  }
-  if (resource === 'proposals' && tail.length > 0 && request.method === 'POST') {
-    const proposalId = z.string().uuid().parse(tail)
-    const body = proposalDecisionSchema.parse(await readJson(request))
-    return Response.json(
-      await decideProposal(env, principal, principal.ownerId, proposalId, body.decision === 'approve'),
-    )
-  }
-  throw new AppError('NOT_FOUND', 'Endpoint not found.')
+  const proposalId = z.string().uuid().parse(rawId)
+  const body = proposalDecisionSchema.parse(raw)
+  return Response.json(
+    await decideProposal(env, principal, principal.ownerId, proposalId, body.decision === 'approve'),
+  )
 }

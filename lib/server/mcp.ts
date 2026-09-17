@@ -18,7 +18,7 @@ import {
   searchSchema,
   updateSchema,
 } from '../contracts'
-import { authenticate, rateLimit } from './auth'
+import { authenticate, preAuthRateLimit, rateLimit } from './auth'
 import { getCatalogView } from './catalog/query'
 import { AppError, errorResponse, problemDocument, problemResponse, requirePermission } from './errors'
 import { readJson, secureResponse } from './http'
@@ -148,7 +148,7 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
     try {
       requirePermission(principal, scope)
       const result = await run()
-      await recordUsage(env, principal, name, 200, started)
+      recordUsage(env, principal, name, 200, started)
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result) }],
         // Every run callback returns an object; the SDK rejects a successful
@@ -180,7 +180,7 @@ export function createMemoryServer(env: Env, principal: Principal): McpServer {
               },
             }
           : {}
-      await recordUsage(env, principal, name, response.status, started)
+      recordUsage(env, principal, name, response.status, started)
       return {
         isError: true,
         content: [{ type: 'text' as const, text: await response.text() }],
@@ -320,6 +320,7 @@ export async function mcp(request: Request, env: Env): Promise<Response> {
     )
   }
   try {
+    await preAuthRateLimit(served, env)
     const principal = await authenticate(served, env, ['personal', 'oauth'])
     await rateLimit(env, principal)
     if (served.method !== 'POST') {

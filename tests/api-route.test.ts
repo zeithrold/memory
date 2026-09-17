@@ -1,67 +1,80 @@
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as catalogMetrics from '../app/api/v1/catalog/metrics/route'
+import * as proposal from '../app/api/v1/catalog/proposals/[id]/route'
+import * as proposals from '../app/api/v1/catalog/proposals/route'
+import * as catalog from '../app/api/v1/catalog/route'
+import * as revert from '../app/api/v1/catalog/runs/[id]/revert/route'
+import * as run from '../app/api/v1/catalog/runs/[id]/route'
+import * as runs from '../app/api/v1/catalog/runs/route'
+import * as settings from '../app/api/v1/catalog/settings/route'
+import * as settingsTest from '../app/api/v1/catalog/settings/test/route'
+import * as history from '../app/api/v1/memories/[id]/history/route'
+import * as memory from '../app/api/v1/memories/[id]/route'
+import * as memories from '../app/api/v1/memories/route'
+import * as search from '../app/api/v1/search/route'
+import * as status from '../app/api/v1/status/route'
+import * as token from '../app/api/v1/tokens/[id]/route'
+import * as tokens from '../app/api/v1/tokens/route'
+import * as usage from '../app/api/v1/usage/route'
 import { database } from './database'
 
-/**
- * The App Router answers 405 for any HTTP method a route module does not
- * export, so a verb that the service layer dispatches on but this module omits
- * is unreachable in production and invisible to service-level tests. That is
- * exactly how `PUT /api/v1/catalog/settings` shipped broken: `api()` handled the
- * method, the route re-exported only GET/POST/PATCH/DELETE, and every test
- * called `api()` directly.
- *
- * These tests therefore go through the route module, which is the only place
- * the omission is observable.
- */
-const holder = vi.hoisted(() => ({ env: {} }))
-vi.mock('cloudflare:workers', () => holder)
-
+const holder = vi.hoisted(() => ({ env: {} as Env }))
+vi.mock('cloudflare:workers', () => ({ ...holder, waitUntil: vi.fn() }))
 let store: ReturnType<typeof database>
 
 beforeEach(() => {
   store = database()
-  holder.env = {
-    DB: store.db,
-    APP_ORIGIN: 'https://memory.example',
-    CLERK_SECRET_KEY: 'sk_test_placeholder',
-  } satisfies Env
+  holder.env = { DB: store.db, APP_ORIGIN: 'https://memory.example' } satisfies Env
 })
 afterEach(() => {
   store.sqlite.close()
   vi.restoreAllMocks()
 })
 
-const METHODS = ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'] as const
-const PATHS = ['/api/v1/memories', '/api/v1/catalog/settings'] as const
+const routes = [
+  ['/api/v1/memories', memories, ['GET', 'POST']],
+  ['/api/v1/memories/00000000-0000-4000-8000-000000000000', memory, ['GET', 'PATCH', 'DELETE']],
+  ['/api/v1/memories/00000000-0000-4000-8000-000000000000/history', history, ['GET']],
+  ['/api/v1/search', search, ['POST']],
+  ['/api/v1/tokens', tokens, ['GET', 'POST']],
+  ['/api/v1/tokens/00000000-0000-4000-8000-000000000000', token, ['DELETE']],
+  ['/api/v1/usage', usage, ['GET']],
+  ['/api/v1/status', status, ['GET']],
+  ['/api/v1/catalog', catalog, ['GET']],
+  ['/api/v1/catalog/settings', settings, ['GET', 'PUT']],
+  ['/api/v1/catalog/settings/test', settingsTest, ['POST']],
+  ['/api/v1/catalog/metrics', catalogMetrics, ['GET']],
+  ['/api/v1/catalog/runs', runs, ['GET', 'POST']],
+  ['/api/v1/catalog/runs/00000000-0000-4000-8000-000000000000', run, ['GET']],
+  ['/api/v1/catalog/runs/00000000-0000-4000-8000-000000000000/revert', revert, ['POST']],
+  ['/api/v1/catalog/proposals', proposals, ['GET']],
+  ['/api/v1/catalog/proposals/00000000-0000-4000-8000-000000000000', proposal, ['POST']],
+] as const
+const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
 
-describe('the api route module', () => {
-  it('exports a handler for every verb the service dispatches on', async () => {
-    const route: Record<string, unknown> = await import('../app/api/v1/[[...path]]/route')
-    for (const method of METHODS)
-      expect(route[method], `route.ts does not export ${method}`).toBeTypeOf('function')
+describe('explicit API route contract', () => {
+  it.each(routes)('%s exports supported handlers and precise 405 responses', async (path, route, allowed) => {
     expect(route.dynamic).toBe('force-dynamic')
-  })
-
-  it.each(METHODS)('routes %s instead of answering 405', async (method) => {
-    const route: Record<string, unknown> = await import('../app/api/v1/[[...path]]/route')
-    const handler = route[method]
-    expect(handler).toBeTypeOf('function')
-    const handle = handler as (request: Request) => Promise<Response>
-    for (const path of PATHS) {
-      const response = await handle(
+    for (const method of methods) {
+      const handler = route[method]
+      expect(handler).toBeTypeOf('function')
+      const response = await handler(
         new Request(`https://memory.example${path}`, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          ...(method === 'GET' || method === 'DELETE' ? {} : { body: '{}' }),
+          ...(['POST', 'PUT', 'PATCH'].includes(method) ? { body: '{}' } : {}),
         }),
+        { env: holder.env, params: Promise.resolve({}) },
       )
-      // Without a credential every one of these is a 401. The point is that it
-      // is not a 405, which would mean the method never reached the service.
-      expect(response.status, `${method} ${path}`).toBe(401)
-      expect(await response.json()).toMatchObject({
-        code: 'UNAUTHORIZED',
-        instance: path,
-      })
+      if ((allowed as readonly string[]).includes(method)) {
+        expect(response.status).toBe(401)
+      }
+      else {
+        expect(response.status).toBe(405)
+        expect(response.headers.get('allow')).toBe(allowed.join(', '))
+        expect(await response.json()).toMatchObject({ code: 'METHOD_NOT_ALLOWED', instance: path })
+      }
     }
   })
 })

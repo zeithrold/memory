@@ -13,7 +13,7 @@ All endpoints require `Authorization: Bearer <credential>`. Browser calls use a 
 | POST | `/api/v1/search` | read | `{memories, mode, degraded, catalog}` |
 | GET/POST | `/api/v1/tokens` | session only | Token list / one-time token secret |
 | DELETE | `/api/v1/tokens/{id}` | session only | Revocation, HTTP 204 |
-| GET | `/api/v1/usage` | session only | Daily operation/token/client aggregates, last 30 days, max 500 groups |
+| GET | `/api/v1/usage` | session only | `{usage, degraded}`: daily operation/token/client aggregates, last 30 days, max 500 groups |
 | GET | `/api/v1/status` | session only | Semantic configuration and per-user pending/retrying index jobs |
 | GET | `/api/v1/catalog` | read | Two-level catalog: categories, counts, pending proposals |
 | GET/PUT | `/api/v1/catalog/settings` | session only | Model endpoint, budgets and privacy settings; the credential is write-only |
@@ -80,6 +80,12 @@ Two optional fields route the query through the catalog. `mode: "catalog"` narro
 ```
 
 The returned `token` is available only in the creation response. List responses never contain the secret or digest. `project: null` allows all of the owner's projects; setting a string restricts access to that single project. Expiry is 1–365 days.
+
+## Usage telemetry
+
+`GET /api/v1/usage` merges the retained D1 history with new Analytics Engine aggregates. `degraded: true` means the Analytics SQL API was unavailable or its read credentials were not configured; the `usage` array still contains the available legacy rows. This endpoint is operational telemetry, not a billing ledger.
+
+New requests do not insert into D1 `usage_events` or `rate_limits`. Analytics points contain only the owner index, token/client identifiers, a stable operation name, latency, and an error flag. They never contain memory text, search terms, token secrets, IP addresses, email addresses, or request bodies.
 
 ## Error handling
 

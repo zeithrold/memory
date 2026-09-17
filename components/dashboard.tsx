@@ -1,6 +1,5 @@
 'use client'
 
-import type { Tab } from './app'
 import type { Memory, MemoryInput, MemoryRevision } from '@/lib/contracts'
 import type { Locale, Messages } from '@/lib/i18n/messages'
 import { ArrowLeft, ArrowUpRight, BookOpen, Plus, Search, X } from 'lucide-react'
@@ -8,101 +7,30 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { z } from 'zod'
-import { CatalogPanel } from './catalog'
 import { ConfirmAction } from './confirm-action'
-import { ConnectPanel, TokenPanel, UsagePanel } from './panels'
 import { MemoryDetailSkeleton, MemoryGridSkeleton, RevisionListSkeleton } from './skeletons'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
+import { ProblemError, SetupBanner, useWorkspace } from './workspace-shell'
 
-export type Api = <T>(path: string, init?: RequestInit) => Promise<T>
-// RFC 9457 problem document: `detail` is occurrence-specific, `title` is the
-// stable summary, and `code` is the machine identifier.
-const problemSchema = z.object({
-  code: z.string(),
-  detail: z.string().optional(),
-  title: z.string().optional(),
-})
-/** Carries the machine code so a page can tell "gone" from "failed". */
-class ProblemError extends Error {
-  readonly code: string
-  constructor(message: string, code: string) {
-    super(message)
-    this.name = 'ProblemError'
-    this.code = code
-  }
-}
 function formatDate(locale: Locale, value: string, withTime = false): string {
   const options: Intl.DateTimeFormatOptions = withTime
     ? { dateStyle: 'medium', timeStyle: 'short' }
     : { dateStyle: 'medium' }
   return new Intl.DateTimeFormat(locale, options).format(new Date(value))
 }
-function useApi(t: Messages, getToken?: () => Promise<string | null>): Api {
-  return useCallback(
-    async <T,>(path: string, init?: RequestInit): Promise<T> => {
-      const token = await getToken?.()
-      if (token === null || token === undefined || token.length === 0)
-        throw new Error(t.signIn)
-      const response = await fetch(`/api/v1/${path}`, {
-        ...init,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          ...init?.headers,
-        },
-      })
-      if (!response.ok) {
-        const body: unknown = await response.json()
-        const parsed = problemSchema.safeParse(body)
-        if (parsed.success) {
-          throw new ProblemError(
-            parsed.data.detail ?? parsed.data.title ?? t.loadError,
-            parsed.data.code,
-          )
-        }
-        throw new Error(t.loadError)
-      }
-      return (response.status === 204 ? undefined : await response.json()) as T
-    },
-    [getToken, t],
-  )
-}
 /**
  * `/memories/[id]` renders the detail page; every other view keeps the tabbed
  * workspace, so a nav click always returns to the list route's own content.
  */
-export function Dashboard({
-  t,
-  locale,
-  tab,
-  authState,
-  getToken,
-  memoryId,
-}: {
-  t: Messages
-  locale: Locale
-  tab: Tab
-  authState: 'ready' | 'unconfigured'
-  getToken?: () => Promise<string | null>
-  memoryId?: string
-}) {
-  if (tab === 'memories' && memoryId !== undefined && memoryId.length > 0)
-    return <MemoryDetail t={t} locale={locale} memoryId={memoryId} authState={authState} getToken={getToken} />
-  return <Workspace t={t} locale={locale} tab={tab} authState={authState} getToken={getToken} />
-}
-function SetupBanner({ t }: { t: Messages }) {
-  return (
-    <div className="setup-banner" role="status">
-      <strong>{t.setup}</strong>
-      <p>{t.setupBody}</p>
-      <small>{t.setupHelp}</small>
-    </div>
-  )
+export function MemoriesPage({ memoryId }: { memoryId?: string }) {
+  const { t, locale, authState, api } = useWorkspace()
+  if (memoryId !== undefined && memoryId.length > 0)
+    return <MemoryDetail t={t} locale={locale} memoryId={memoryId} authState={authState} api={api} />
+  return <Workspace t={t} locale={locale} authState={authState} api={api} />
 }
 /**
  * One revision, clamped until asked for. Revision text can be as long as a
@@ -193,15 +121,14 @@ function MemoryDetail({
   locale,
   memoryId,
   authState,
-  getToken,
+  api,
 }: {
   t: Messages
   locale: Locale
   memoryId: string
   authState: 'ready' | 'unconfigured'
-  getToken?: () => Promise<string | null>
+  api: ReturnType<typeof useWorkspace>['api']
 }) {
-  const api = useApi(t, getToken)
   const router = useRouter()
   const [memory, setMemory] = useState<Memory | null>(null)
   // `null` means the history was never requested; it loads on demand because a
@@ -267,7 +194,7 @@ function MemoryDetail({
   return (
     <main className="page detail-page">
       <div className="detail-toolbar">
-        <Link className="back-link" href="/">
+        <Link className="back-link" href="/memories">
           <ArrowLeft size={16} />
           {t.back}
         </Link>
@@ -292,13 +219,13 @@ function MemoryDetail({
                   body: JSON.stringify({ expectedVersion: memory.version }),
                 })
                 toast.success(t.deleted)
-                router.push('/')
+                router.push('/memories')
               })}
             />
           </div>
         )}
       </div>
-      {authState === 'unconfigured' && <SetupBanner t={t} />}
+      {authState === 'unconfigured' && <SetupBanner />}
       {error && (
         <div className="error-banner" role="alert">
           {error}
@@ -312,7 +239,7 @@ function MemoryDetail({
           </div>
           <h2>{t.missingMemory}</h2>
           <Button asChild variant="outline">
-            <Link href="/">{t.back}</Link>
+            <Link href="/memories">{t.back}</Link>
           </Button>
         </div>
       )}
@@ -425,17 +352,14 @@ function MemoryDetail({
 function Workspace({
   t,
   locale,
-  tab,
   authState,
-  getToken,
+  api,
 }: {
   t: Messages
   locale: Locale
-  tab: Tab
   authState: 'ready' | 'unconfigured'
-  getToken?: () => Promise<string | null>
+  api: ReturnType<typeof useWorkspace>['api']
 }) {
-  const api = useApi(t, getToken)
   const [memories, setMemories] = useState<Memory[]>([])
   const [project, setProject] = useState('global')
   const [query, setQuery] = useState('')
@@ -466,9 +390,8 @@ function Workspace({
     }
   }, [api, authState, offset, project, t.loadError])
   useEffect(() => {
-    if (tab === 'memories')
-      void load()
-  }, [load, tab])
+    void load()
+  }, [load])
   async function run(action: () => Promise<void>) {
     setBusy(true)
     setError('')
@@ -483,273 +406,252 @@ function Workspace({
       setBusy(false)
     }
   }
-  const headings = {
-    memories: [t.heading, t.intro],
-    catalog: [t.catalogHeading, t.catalogIntro],
-    tokens: [t.tokensHeading, t.tokensIntro],
-    usage: [t.usageHeading, t.usageIntro],
-    connect: [t.connectHeading, t.connectIntro],
-  }
   return (
     <main className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">{t[tab]}</span>
-          <h1>{headings[tab][0]}</h1>
-          <p>{headings[tab][1]}</p>
+          <span className="eyebrow">{t.memories}</span>
+          <h1>{t.heading}</h1>
+          <p>{t.intro}</p>
         </div>
-        {tab === 'memories' && (
-          <Button
-            disabled={authState !== 'ready' || busy}
-            onClick={() => setEditing('new')}
-          >
-            <Plus size={16} />
-            {t.newMemory}
-          </Button>
-        )}
+        <Button
+          disabled={authState !== 'ready' || busy}
+          onClick={() => setEditing('new')}
+        >
+          <Plus size={16} />
+          {t.newMemory}
+        </Button>
       </div>
-      {authState === 'unconfigured' && <SetupBanner t={t} />}
+      {authState === 'unconfigured' && <SetupBanner />}
       {error && (
         <div className="error-banner" role="alert">
           {error}
         </div>
       )}
-      {tab === 'memories' && (
-        <>
-          <form
-            className="searchbar"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void run(async () => {
-                if (!query.trim()) {
-                  await load()
-                  return
-                }
-                const result = await api<{ memories: Memory[], mode: string }>(
-                  'search',
-                  { method: 'POST', body: JSON.stringify({ query, project }) },
-                )
-                setMemories(result.memories)
-                setSearchMode(result.mode)
-              })
-            }}
-          >
-            <div className="search-input">
-              <Search size={18} />
-              <Input
-                aria-label={t.search}
-                placeholder={t.searchHint}
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                maxLength={300}
-              />
-            </div>
+      <>
+        <form
+          className="searchbar"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void run(async () => {
+              if (!query.trim()) {
+                await load()
+                return
+              }
+              const result = await api<{ memories: Memory[], mode: string }>(
+                'search',
+                { method: 'POST', body: JSON.stringify({ query, project }) },
+              )
+              setMemories(result.memories)
+              setSearchMode(result.mode)
+            })
+          }}
+        >
+          <div className="search-input">
+            <Search size={18} />
             <Input
-              className="project-input"
-              aria-label={t.project}
-              value={project}
-              onChange={(event) => {
-                setProject(event.target.value)
-                setOffset(0)
-              }}
-              maxLength={64}
+              aria-label={t.search}
+              placeholder={t.searchHint}
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              maxLength={300}
             />
-            <Button
-              variant="secondary"
-              disabled={busy || authState !== 'ready'}
-            >
-              {t.search}
-            </Button>
-          </form>
-          <div className="list-meta">
-            <span>{t.scopeNote}</span>
-            {searchMode && (
-              <Badge variant="secondary">
-                {searchMode === 'hybrid' ? t.hybrid : t.keyword}
-              </Badge>
-            )}
           </div>
-          {editing !== null && (
-            <MemoryEditor
-              key={editing === 'new' ? 'new' : editing.id}
-              t={t}
-              memory={editing}
-              project={project}
-              busy={busy}
-              onCancel={() => setEditing(null)}
-              onSave={input =>
-                void run(async () => {
-                  const data
-                    = editing === 'new'
-                      ? { ...input, idempotencyKey: crypto.randomUUID() }
-                      : { ...input, expectedVersion: editing.version }
-                  await api(
-                    editing === 'new' ? 'memories' : `memories/${editing.id}`,
-                    {
-                      method: editing === 'new' ? 'POST' : 'PATCH',
-                      body: JSON.stringify(data),
-                    },
-                  )
-                  setEditing(null)
-                  await load()
-                  toast.success(t.saved)
-                })}
-            />
+          <Input
+            className="project-input"
+            aria-label={t.project}
+            value={project}
+            onChange={(event) => {
+              setProject(event.target.value)
+              setOffset(0)
+            }}
+            maxLength={64}
+          />
+          <Button
+            variant="secondary"
+            disabled={busy || authState !== 'ready'}
+          >
+            {t.search}
+          </Button>
+        </form>
+        <div className="list-meta">
+          <span>{t.scopeNote}</span>
+          {searchMode && (
+            <Badge variant="secondary">
+              {searchMode === 'hybrid' ? t.hybrid : t.keyword}
+            </Badge>
           )}
-          {loading && memories.length === 0 && <MemoryGridSkeleton />}
-          {!loading && memories.length === 0 && editing === null && (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <BookOpen size={34} strokeWidth={1.3} />
-              </div>
-              <h2>{t.empty}</h2>
-              <p>{t.emptyBody}</p>
-              <Button
-                variant="outline"
-                disabled={authState !== 'ready'}
-                onClick={() => setEditing('new')}
-              >
-                <Plus size={16} />
-                {t.newMemory}
-              </Button>
+        </div>
+        {editing !== null && (
+          <MemoryEditor
+            key={editing === 'new' ? 'new' : editing.id}
+            t={t}
+            memory={editing}
+            project={project}
+            busy={busy}
+            onCancel={() => setEditing(null)}
+            onSave={input =>
+              void run(async () => {
+                const data
+                  = editing === 'new'
+                    ? { ...input, idempotencyKey: crypto.randomUUID() }
+                    : { ...input, expectedVersion: editing.version }
+                await api(
+                  editing === 'new' ? 'memories' : `memories/${editing.id}`,
+                  {
+                    method: editing === 'new' ? 'POST' : 'PATCH',
+                    body: JSON.stringify(data),
+                  },
+                )
+                setEditing(null)
+                await load()
+                toast.success(t.saved)
+              })}
+          />
+        )}
+        {loading && memories.length === 0 && <MemoryGridSkeleton />}
+        {!loading && memories.length === 0 && editing === null && (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <BookOpen size={34} strokeWidth={1.3} />
             </div>
-          )}
-          {memories.length > 0 && (
-            <div className="memory-grid">
-              {memories.map(memory => (
-                <article key={memory.id} className="memory-card">
-                  <div className="card-meta">
-                    <Badge variant="secondary">{t[memory.kind]}</Badge>
-                    <span className="card-version">
-                      v
-                      {memory.version}
-                    </span>
+            <h2>{t.empty}</h2>
+            <p>{t.emptyBody}</p>
+            <Button
+              variant="outline"
+              disabled={authState !== 'ready'}
+              onClick={() => setEditing('new')}
+            >
+              <Plus size={16} />
+              {t.newMemory}
+            </Button>
+          </div>
+        )}
+        {memories.length > 0 && (
+          <div className="memory-grid">
+            {memories.map(memory => (
+              <article key={memory.id} className="memory-card">
+                <div className="card-meta">
+                  <Badge variant="secondary">{t[memory.kind]}</Badge>
+                  <span className="card-version">
+                    v
+                    {memory.version}
+                  </span>
+                </div>
+                <h2 className="memory-card-title">
+                  <Link
+                    className="memory-title-link"
+                    href={`/memories/${memory.id}`}
+                  >
+                    {memory.title}
+                  </Link>
+                </h2>
+                <p className="memory-content memory-clamp">{memory.content}</p>
+                {memory.tags.length > 0 && (
+                  <div className="tags">
+                    {memory.tags.map(tag => (
+                      <span key={tag}>
+                        #
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                  <h2 className="memory-card-title">
-                    <Link
-                      className="memory-title-link"
-                      href={`/memories/${memory.id}`}
+                )}
+                <details>
+                  <summary>{t.source}</summary>
+                  <p className="source-text">{memory.source}</p>
+                </details>
+                <footer className="memory-card-footer">
+                  <time dateTime={memory.updatedAt}>
+                    {formatDate(locale, memory.updatedAt)}
+                  </time>
+                  <div className="card-actions">
+                    <Button asChild size="xs" variant="ghost">
+                      <Link href={`/memories/${memory.id}`}>
+                        {t.viewDetails}
+                      </Link>
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setEditing(memory)}
                     >
-                      {memory.title}
-                    </Link>
-                  </h2>
-                  <p className="memory-content memory-clamp">{memory.content}</p>
-                  {memory.tags.length > 0 && (
-                    <div className="tags">
-                      {memory.tags.map(tag => (
-                        <span key={tag}>
-                          #
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <details>
-                    <summary>{t.source}</summary>
-                    <p className="source-text">{memory.source}</p>
-                  </details>
-                  <footer className="memory-card-footer">
-                    <time dateTime={memory.updatedAt}>
-                      {formatDate(locale, memory.updatedAt)}
-                    </time>
-                    <div className="card-actions">
-                      <Button asChild size="xs" variant="ghost">
-                        <Link href={`/memories/${memory.id}`}>
-                          {t.viewDetails}
-                        </Link>
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => setEditing(memory)}
-                      >
-                        {t.edit}
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(async () => {
-                            const result = await api<{ revisions: MemoryRevision[] }>(
-                              `memories/${memory.id}/history`,
-                            )
-                            setRevisions(result.revisions)
-                          })}
-                      >
-                        {t.history}
-                      </Button>
-                      <ConfirmAction
-                        label={t.forget}
-                        description={t.forgetConfirm}
-                        cancel={t.cancel}
-                        disabled={busy}
-                        size="xs"
-                        onConfirm={() => void run(async () => {
-                          await api(`memories/${memory.id}`, { method: 'DELETE', body: JSON.stringify({ expectedVersion: memory.version }) })
-                          await load()
-                          toast.success(t.deleted)
+                      {t.edit}
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const result = await api<{ revisions: MemoryRevision[] }>(
+                            `memories/${memory.id}/history`,
+                          )
+                          setRevisions(result.revisions)
                         })}
-                      />
-                    </div>
-                  </footer>
-                </article>
-              ))}
-            </div>
-          )}
-          {!searchMode && !loading && (
-            <div className="pagination">
+                    >
+                      {t.history}
+                    </Button>
+                    <ConfirmAction
+                      label={t.forget}
+                      description={t.forgetConfirm}
+                      cancel={t.cancel}
+                      disabled={busy}
+                      size="xs"
+                      onConfirm={() => void run(async () => {
+                        await api(`memories/${memory.id}`, { method: 'DELETE', body: JSON.stringify({ expectedVersion: memory.version }) })
+                        await load()
+                        toast.success(t.deleted)
+                      })}
+                    />
+                  </div>
+                </footer>
+              </article>
+            ))}
+          </div>
+        )}
+        {!searchMode && !loading && (
+          <div className="pagination">
+            <Button
+              variant="ghost"
+              disabled={offset === 0 || busy}
+              onClick={() => setOffset(Math.max(0, offset - 30))}
+            >
+              {t.previous}
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={memories.length < 30 || busy}
+              onClick={() => setOffset(offset + 30)}
+            >
+              {t.next}
+              <ArrowUpRight size={14} />
+            </Button>
+          </div>
+        )}
+        {revisions !== null && (
+          <section className="detail-history">
+            <div className="section-heading">
+              <h2>{t.revisions}</h2>
               <Button
                 variant="ghost"
-                disabled={offset === 0 || busy}
-                onClick={() => setOffset(Math.max(0, offset - 30))}
+                onClick={() => setRevisions(null)}
+                aria-label={t.close}
               >
-                {t.previous}
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={memories.length < 30 || busy}
-                onClick={() => setOffset(offset + 30)}
-              >
-                {t.next}
-                <ArrowUpRight size={14} />
+                <X size={18} />
               </Button>
             </div>
-          )}
-          {revisions !== null && (
-            <section className="detail-history">
-              <div className="section-heading">
-                <h2>{t.revisions}</h2>
-                <Button
-                  variant="ghost"
-                  onClick={() => setRevisions(null)}
-                  aria-label={t.close}
-                >
-                  <X size={18} />
-                </Button>
-              </div>
-              {revisions.length === 0
-                ? (
-                    <p className="muted">{t.noRevisions}</p>
-                  )
-                : (
-                    <RevisionList revisions={revisions} t={t} locale={locale} />
-                  )}
-            </section>
-          )}
-        </>
-      )}
-      {tab === 'catalog' && (
-        <CatalogPanel t={t} api={api} ready={authState === 'ready'} />
-      )}
-      {tab === 'tokens' && (
-        <TokenPanel t={t} api={api} ready={authState === 'ready'} />
-      )}
-      {tab === 'usage' && (
-        <UsagePanel t={t} api={api} ready={authState === 'ready'} />
-      )}
-      {tab === 'connect' && <ConnectPanel t={t} />}
+            {revisions.length === 0
+              ? (
+                  <p className="muted">{t.noRevisions}</p>
+                )
+              : (
+                  <RevisionList revisions={revisions} t={t} locale={locale} />
+                )}
+          </section>
+        )}
+      </>
     </main>
   )
 }

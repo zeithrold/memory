@@ -18,6 +18,36 @@
   "vars": {
     "APP_ORIGIN": "https://memory.ztd.me"
   },
+  "secrets": {
+    "required": [
+      "CLOUDFLARE_ACCOUNT_ID",
+      "ANALYTICS_READ_TOKEN"
+    ]
+  },
+  "analytics_engine_datasets": [
+    {
+      "binding": "USAGE_ANALYTICS",
+      "dataset": "memory_usage"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "7243101",
+      "simple": {
+        "limit": 300,
+        "period": 60
+      }
+    },
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "7243102",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

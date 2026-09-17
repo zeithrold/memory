@@ -1,7 +1,7 @@
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { api } from '../lib/server/api'
 import { digest, randomToken } from '../lib/server/crypto'
+import { api } from './api'
 import { database } from './database'
 
 // `authenticate` resolves a browser session through Clerk; the service layer is
@@ -389,9 +389,9 @@ describe('connection probe', () => {
     expect(status).toBe(200)
     expect(body).toMatchObject({ reachable: false, detail: 'No model endpoint is configured.' })
   })
-  it('rejects an unknown catalog route', async () => {
-    const { status, body } = await call('/api/v1/catalog/nonsense')
-    expect(status).toBe(404)
-    expect(body).toMatchObject({ code: 'NOT_FOUND' })
+  it('rejects an unsupported method on an explicit catalog route', async () => {
+    const { status, body } = await call('/api/v1/catalog/settings', 'PATCH', {})
+    expect(status).toBe(405)
+    expect(body).toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
   })
 })

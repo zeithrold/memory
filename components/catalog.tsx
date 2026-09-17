@@ -1,6 +1,6 @@
 'use client'
 
-import type { Api } from './dashboard'
+import type { Api } from './workspace-shell'
 import type { Messages } from '@/lib/i18n/messages'
 import { FolderTree, Play, RotateCcw, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'

@@ -251,6 +251,10 @@ describe('catalog schema', () => {
   it('allows at most one primary category per memory', async () => {
     await insertCategory({ id: 'cat-a', slug: 'one' })
     await insertCategory({ id: 'cat-b', slug: 'two' })
+    await env.DB.prepare(
+      `INSERT INTO memories(id, owner_id, project, title, content, kind, tags, source, fingerprint, idempotency_key, search_text, created_at, updated_at)
+       VALUES ('mem-1', 'alice', 'global', 'Test', 'Test', 'fact', '[]', 'Test', 'fp-1', 'key-1', 'test', '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z')`,
+    ).run()
     const assign = async (categoryId: string, isPrimary: number) =>
       env.DB.prepare(
         `INSERT INTO memory_categories(owner_id, memory_id, category_id, is_primary, confidence, assigned_by, catalog_version, created_at, updated_at)
