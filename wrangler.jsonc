@@ -94,5 +94,11 @@
       "index_name": "shared-memory",
       "remote": true
     }
+  ],
+  "routes": [
+    {
+      "pattern": "memory.ztd.me",
+      "custom_domain": true
+    }
   ]
 }
