@@ -178,7 +178,86 @@ describe('the catalog view and run timeline', () => {
     const categories = body?.categories as { slug: string, parentId: string | null, depth: number }[]
     expect(categories.map(entry => [entry.slug, entry.depth])).toEqual([['backend', 1], ['databases', 2]])
     expect(categories[1]?.parentId).toBe(root)
-    expect(body).toMatchObject({ orphans: 0, pendingProposals: 0 })
+    expect(body).toMatchObject({ orphans: 0, pendingProposals: 0, pendingAdvice: null })
+    expect(categories[0]).toMatchObject({
+      axisHint: null,
+      boundary: 'NOT here: anything else.',
+      description: 'Related entries.',
+    })
+  })
+  it('pages category members and lists direct children', async () => {
+    const root = await category('backend', 'Backend')
+    const childId = crypto.randomUUID()
+    await env.DB.prepare(
+      `INSERT INTO categories(id, owner_id, parent_id, slug, label, description, boundary, depth, member_count, state, created_by, created_at, updated_at)
+       VALUES (?, 'alice', ?, 'databases', 'Databases', 'Database choices.', 'NOT here: application code.', 2, 0, 'active', 'agent', '2026-09-16T00:00:00.000Z', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(childId, root)
+      .run()
+    const first = await memory('Primary memory')
+    const second = await memory('Secondary memory')
+    await assign(first.id, root)
+    await assign(second.id, root, 0)
+    await assign(second.id, childId)
+
+    const page = await call(`/api/v1/catalog/categories/${root}?offset=0`)
+    expect(page.status).toBe(200)
+    expect(page.body).toMatchObject({
+      category: { id: root, label: 'Backend' },
+      total: 2,
+      offset: 0,
+    })
+    const children = page.body?.children as { id: string }[]
+    expect(children.map(child => child.id)).toEqual([childId])
+    const memories = page.body?.memories as { id: string, isPrimary: boolean }[]
+    expect(memories.map(entry => entry.id)).toEqual([first.id, second.id])
+    expect(memories[0]?.isPrimary).toBe(true)
+
+    const childPage = await call(`/api/v1/catalog/categories/${childId}`)
+    expect((childPage.body?.memories as { id: string }[]).map(entry => entry.id)).toEqual([second.id])
+  })
+  it('pages runs and run steps, and keeps operator prompts off the Workflow params', async () => {
+    await configure()
+    await env.DB.prepare(
+      `INSERT INTO catalog_state(owner_id, version, pending_advice) VALUES ('alice', 1, 'Prefer fewer top-level categories.')
+       ON CONFLICT(owner_id) DO UPDATE SET pending_advice = excluded.pending_advice`,
+    ).run()
+    const { status, body } = await call('/api/v1/catalog/runs', 'POST', {
+      prompt: 'Focus on backend memories.',
+    })
+    expect(status).toBe(202)
+    const params = createRun.mock.calls[0]?.[0] as { params: Record<string, unknown> }
+    expect(params.params).not.toHaveProperty('prompt')
+    expect(params.params).not.toHaveProperty('operatorPrompt')
+    const runId = body?.runId as string
+    const stored = await env.DB.prepare(
+      'SELECT operator_prompt FROM catalog_runs WHERE id = ?',
+    )
+      .bind(runId)
+      .first<{ operator_prompt: string }>()
+    expect(stored?.operator_prompt).toContain('Focus on backend memories.')
+    expect(stored?.operator_prompt).toContain('Prefer fewer top-level categories.')
+    expect(
+      await env.DB.prepare('SELECT pending_advice FROM catalog_state WHERE owner_id = \'alice\'')
+        .first('pending_advice'),
+    ).toBeNull()
+
+    const listed = await call('/api/v1/catalog/runs?limit=1&offset=0')
+    expect(listed.body).toMatchObject({ total: 1, offset: 0, limit: 1 })
+    expect((listed.body?.runs as unknown[]).length).toBe(1)
+
+    await env.DB.prepare(
+      `INSERT INTO catalog_actions(run_id, owner_id, batch, turn, call_index, tool, kind, effect, arguments_json, decision, created_at)
+       VALUES (?, 'alice', 0, 0, 0, 'finish', 'finish', 'control', '{}', 'applied', '2026-09-16T00:00:00.000Z')`,
+    )
+      .bind(runId)
+      .run()
+    const detail = await call(`/api/v1/catalog/runs/${runId}?limit=1&offset=0`)
+    expect(detail.status).toBe(200)
+    expect(detail.body?.totalActions).toBe(1)
+    expect(detail.body?.offset).toBe(0)
+    expect(detail.body?.limit).toBe(1)
+    expect(String(detail.body?.operatorPrompt)).toContain('Focus on backend memories.')
   })
   it('replays a run turn by turn with the decision for each call', async () => {
     const runId = await openRun()
@@ -341,6 +420,64 @@ describe('deciding a proposal', () => {
     const decision = await env.DB.prepare('SELECT decision FROM catalog_actions WHERE batch = -3')
       .first<{ decision: string }>()
     expect(decision?.decision).toBe('rejected_by_user')
+  })
+  it('accepts a package in create-then-merge order and stores reject advice', async () => {
+    const root = await category('backend', 'Backend')
+    const createId = await seedProposal('create_category', {
+      parentId: root,
+      slug: 'caches',
+      label: 'Caches',
+      description: 'Cache decisions.',
+      boundary: 'NOT here: databases.',
+      axisHint: null,
+    })
+    const tiny = await category('tiny', 'Tiny')
+    await env.DB.prepare('UPDATE categories SET parent_id = ?, depth = 2 WHERE id = ?')
+      .bind(root, tiny)
+      .run()
+    const mergeId = await seedProposal(
+      'merge_category',
+      { fromId: tiny, intoId: root },
+      { categoryId: tiny, targetCategoryId: root },
+    )
+
+    const approved = await call('/api/v1/catalog/proposals', 'POST', {
+      decision: 'approve',
+      ids: [mergeId, createId],
+    })
+    expect(approved.status).toBe(200)
+    expect(approved.body).toMatchObject({ decided: 2, failed: [] })
+    expect(
+      await env.DB.prepare(
+        'SELECT count(*) AS n FROM categories WHERE slug = \'caches\' AND parent_id = ?',
+      ).bind(root).first('n'),
+    ).toBe(1)
+    expect(
+      await env.DB.prepare('SELECT state FROM categories WHERE id = ?').bind(tiny).first('state'),
+    ).toBe('retired')
+
+    const leftover = await seedProposal('create_category', {
+      parentId: null,
+      slug: 'travel',
+      label: 'Travel',
+      description: 'Trips.',
+      boundary: 'NOT here: work.',
+      axisHint: null,
+    })
+    const rejected = await call('/api/v1/catalog/proposals', 'POST', {
+      decision: 'reject',
+      advice: 'Keep travel under life admin instead.',
+    })
+    expect(rejected.body).toMatchObject({ decided: 1, failed: [] })
+    expect(
+      await env.DB.prepare('SELECT status FROM catalog_proposals WHERE id = ?')
+        .bind(leftover)
+        .first('status'),
+    ).toBe('rejected')
+    expect(
+      await env.DB.prepare('SELECT pending_advice FROM catalog_state WHERE owner_id = \'alice\'')
+        .first('pending_advice'),
+    ).toBe('Keep travel under life admin instead.')
   })
   it('applies an approved new category and lists pending proposals', async () => {
     const proposalId = await seedProposal('create_category', {

@@ -116,7 +116,9 @@ export default function WorkspaceShell({ children, initialLocale, accessTeamDoma
         <p className="nav-caption">{t.overview}</p>
         <nav aria-label={t.workspace}>
           {nav.map(({ id, href, icon: Icon }) => {
-            const active = pathname === href || (id === 'memories' && pathname.startsWith('/memories/'))
+            const active = pathname === href
+              || (id === 'memories' && pathname.startsWith('/memories/'))
+              || (id === 'catalog' && pathname.startsWith('/catalog/'))
             return (
               <Link key={id} href={href} prefetch={false} className={`nav-item ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined}>
                 <Icon size={18} />

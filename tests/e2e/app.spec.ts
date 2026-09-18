@@ -48,10 +48,11 @@ test('the catalog tab explains itself before a provider is configured', async ({
   await expect(page.getByRole('heading', { name: 'Keep the library organised.' })).toBeVisible()
   await expect(page.getByText('No categories yet.')).toBeVisible()
   await expect(page.getByText('No runs yet.')).toBeVisible()
-  // The unsigned preview has no session, so every action stays disabled rather
-  // than firing a request that would fail.
-  await expect(page.getByRole('button', { name: 'Run now' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Dry run' })).toBeDisabled()
+  // Opening the run dialog is allowed; starting without a configured provider is not.
+  await page.getByRole('button', { name: 'Run now' }).click()
+  await expect(page.getByRole('heading', { name: 'Start a catalog run' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Cancel' }).click()
   // The settings card is present and collapsed, since there is no session to
   // configure it with.
   await expect(page.getByText('Catalog settings')).toBeVisible()

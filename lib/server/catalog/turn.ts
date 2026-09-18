@@ -139,7 +139,16 @@ export async function thinkTurn(input: TurnInput): Promise<ThinkResult> {
     )
   }
   const snapshot = await loadTurnContext(input)
-  const systemPrompt = buildSystemPrompt(snapshot.categories, input.includeContent)
+  const runRow = await input.env.DB.prepare(
+    'SELECT operator_prompt FROM catalog_runs WHERE id = ? AND owner_id = ?',
+  )
+    .bind(input.runId, input.ownerId)
+    .first<{ operator_prompt: string | null }>()
+  const systemPrompt = buildSystemPrompt(
+    snapshot.categories,
+    input.includeContent,
+    runRow?.operator_prompt,
+  )
   const batchMessage = buildBatchMessage(snapshot.memories)
   const messages: ModelMessage[] = rebuildMessages(
     systemPrompt,

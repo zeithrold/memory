@@ -190,12 +190,17 @@ export async function dueOwners(env: Env, limit: number): Promise<DueOwner[]> {
  * Claims a run row for one account. A run already in flight is reused rather
  * than duplicated, which is what serializes an account's runs: two agents must
  * not reorganize the same catalog at the same time.
+ *
+ * Operator notes (a manual prompt plus any pending rejection advice) are
+ * written onto the run row and cleared from catalog_state here, so Workflow
+ * step state never carries the user's text.
  */
 export async function claimRun(
   env: Env,
   ownerId: string,
   trigger: 'schedule' | 'manual',
   dryRun: boolean,
+  manualPrompt?: string,
 ): Promise<{ runId: string, reused: boolean, dryRun: boolean, budgetWarning: boolean }> {
   const settings = await loadSettingsRow(env, ownerId)
   if (settings === null || settings.enabled !== 1 || settings.provider === 'none') {
@@ -229,16 +234,37 @@ export async function claimRun(
     .run()
   void stale
 
+  const state = await env.DB.prepare(
+    'SELECT pending_advice FROM catalog_state WHERE owner_id = ?',
+  )
+    .bind(ownerId)
+    .first<{ pending_advice: string | null }>()
+  const parts: string[] = []
+  if (manualPrompt !== undefined && manualPrompt.trim().length > 0)
+    parts.push(manualPrompt.trim())
+  if (state?.pending_advice !== null && state?.pending_advice !== undefined && state.pending_advice.trim().length > 0)
+    parts.push(state.pending_advice.trim())
+  const operatorPrompt = parts.length > 0 ? parts.join('\n\n') : null
+
   // The dry-run default is what makes a first run safe: the account sees what
   // the agent would do before anything changes.
   const mode = dryRun ? 'dry_run' : 'live'
   const runId = crypto.randomUUID()
   await env.DB.prepare(
-    `INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, provider, model, started_at)
-     VALUES (?, ?, ?, ?, 'running', ?, ?, ?)`,
+    `INSERT INTO catalog_runs(id, owner_id, trigger, mode, status, provider, model, started_at, operator_prompt)
+     VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?)`,
   )
-    .bind(runId, ownerId, trigger, mode, settings.provider, settings.model, isoNow())
+    .bind(runId, ownerId, trigger, mode, settings.provider, settings.model, isoNow(), operatorPrompt)
     .run()
+  if (operatorPrompt !== null) {
+    await env.DB.prepare(
+      `INSERT INTO catalog_state(owner_id, version, pending_advice)
+       VALUES (?, 1, NULL)
+       ON CONFLICT(owner_id) DO UPDATE SET pending_advice = NULL`,
+    )
+      .bind(ownerId)
+      .run()
+  }
   if (trigger === 'schedule' && dryRun) {
     await env.DB.prepare(
       `INSERT INTO catalog_state(owner_id, version, awaiting_review)

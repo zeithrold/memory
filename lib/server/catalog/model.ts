@@ -263,6 +263,7 @@ export interface CatalogStateRow {
   enabled: number
   awaiting_review: number
   failure_streak: number
+  pending_advice: string | null
 }
 
 export async function loadState(env: Env, ownerId: string): Promise<CatalogStateRow | null> {

@@ -6,7 +6,9 @@ import { AppError } from '../errors'
 import { probeProvider } from '../llm'
 import {
   decideProposal,
+  decideProposals,
   getCatalogView,
+  getCategoryDetail,
   getMetrics,
   getRunDetail,
   listProposals,
@@ -42,11 +44,24 @@ const runInputSchema = z
   .object({
     /** A dry run records what would happen and changes nothing. */
     dryRun: z.boolean().default(false),
+    /** Trusted operator notes for this run only. */
+    prompt: z.string().trim().max(2000).optional(),
   })
   .strict()
 
 const proposalDecisionSchema = z
-  .object({ decision: z.enum(['approve', 'reject']) })
+  .object({
+    decision: z.enum(['approve', 'reject']),
+    advice: z.string().trim().max(2000).optional(),
+  })
+  .strict()
+
+const bulkProposalSchema = z
+  .object({
+    decision: z.enum(['approve', 'reject']),
+    ids: z.array(z.string().uuid()).max(100).optional(),
+    advice: z.string().trim().max(2000).optional(),
+  })
   .strict()
 
 async function providerFromInput(
@@ -107,13 +122,30 @@ export async function readCatalog(env: Env, ownerId: string): Promise<Response> 
   return Response.json(await getCatalogView(env, ownerId))
 }
 
+export async function readCategory(
+  env: Env,
+  ownerId: string,
+  rawId: unknown,
+  rawOffset: string | null,
+): Promise<Response> {
+  const id = z.string().uuid().parse(rawId)
+  const offset = z.coerce.number().int().min(0).max(100000).parse(rawOffset ?? 0)
+  return Response.json(await getCategoryDetail(env, ownerId, id, offset))
+}
+
 export async function readCatalogMetrics(env: Env, ownerId: string): Promise<Response> {
   return Response.json(await getMetrics(env, ownerId))
 }
 
-export async function readCatalogRuns(env: Env, ownerId: string, rawLimit: string | null): Promise<Response> {
+export async function readCatalogRuns(
+  env: Env,
+  ownerId: string,
+  rawLimit: string | null,
+  rawOffset: string | null,
+): Promise<Response> {
   const limit = z.coerce.number().int().min(1).max(50).parse(rawLimit ?? 20)
-  return Response.json({ runs: await listRuns(env, ownerId, limit) })
+  const offset = z.coerce.number().int().min(0).max(100000).parse(rawOffset ?? 0)
+  return Response.json(await listRuns(env, ownerId, limit, offset))
 }
 
 export async function startCatalogRun(env: Env, ownerId: string, raw: unknown): Promise<Response> {
@@ -126,7 +158,8 @@ export async function startCatalogRun(env: Env, ownerId: string, raw: unknown): 
   }
   // The row is claimed first so the response can carry an identifier the
   // caller can poll, and so a second click cannot start a parallel run.
-  const claim = await claimRun(env, ownerId, 'manual', body.dryRun)
+  // Operator prompt stays on the run row; Workflow params never carry it.
+  const claim = await claimRun(env, ownerId, 'manual', body.dryRun, body.prompt)
   try {
     await env.CATALOG_WORKFLOW.create({
       id: claim.runId,
@@ -154,8 +187,18 @@ export async function startCatalogRun(env: Env, ownerId: string, raw: unknown): 
   )
 }
 
-export async function readCatalogRun(env: Env, ownerId: string, rawId: unknown): Promise<Response> {
-  return Response.json(await getRunDetail(env, ownerId, z.string().uuid().parse(rawId)))
+export async function readCatalogRun(
+  env: Env,
+  ownerId: string,
+  rawId: unknown,
+  rawOffset: string | null,
+  rawLimit: string | null,
+): Promise<Response> {
+  const offset = z.coerce.number().int().min(0).max(100000).parse(rawOffset ?? 0)
+  const limit = z.coerce.number().int().min(1).max(100).parse(rawLimit ?? 40)
+  return Response.json(
+    await getRunDetail(env, ownerId, z.string().uuid().parse(rawId), offset, limit),
+  )
 }
 
 export async function undoCatalogRun(env: Env, ownerId: string, rawId: unknown): Promise<Response> {
@@ -167,6 +210,27 @@ export async function readCatalogProposals(env: Env, ownerId: string, rawStatus:
   return Response.json({ proposals: await listProposals(env, ownerId, status) })
 }
 
+export async function decideCatalogProposals(
+  env: Env,
+  principal: Principal,
+  raw: unknown,
+): Promise<Response> {
+  const body = bulkProposalSchema.parse(raw)
+  if (body.decision === 'approve' && body.advice !== undefined) {
+    throw new AppError('INVALID_INPUT', 'Advice is only accepted when rejecting proposals.')
+  }
+  return Response.json(
+    await decideProposals(
+      env,
+      principal,
+      principal.ownerId,
+      body.decision === 'approve',
+      body.ids,
+      body.advice,
+    ),
+  )
+}
+
 export async function decideCatalogProposal(
   env: Env,
   principal: Principal,
@@ -175,7 +239,17 @@ export async function decideCatalogProposal(
 ): Promise<Response> {
   const proposalId = z.string().uuid().parse(rawId)
   const body = proposalDecisionSchema.parse(raw)
+  if (body.decision === 'approve' && body.advice !== undefined) {
+    throw new AppError('INVALID_INPUT', 'Advice is only accepted when rejecting a proposal.')
+  }
   return Response.json(
-    await decideProposal(env, principal, principal.ownerId, proposalId, body.decision === 'approve'),
+    await decideProposal(
+      env,
+      principal,
+      principal.ownerId,
+      proposalId,
+      body.decision === 'approve',
+      body.advice,
+    ),
   )
 }

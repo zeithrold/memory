@@ -129,6 +129,7 @@ export const catalogCategorySchema = z.object({
   label: z.string(),
   description: z.string(),
   boundary: z.string(),
+  axisHint: z.string().nullable(),
   memberCount: z.number().int(),
   state: z.string(),
   createdBy: z.string(),
@@ -142,6 +143,7 @@ export const catalogSchema = z.object({
   orphans: z.number().int(),
   skipped: z.number().int(),
   pendingProposals: z.number().int(),
+  pendingAdvice: z.string().nullable(),
 })
 export const deleteResultSchema = z.object({ deleted: z.boolean() })
 export type Scope = z.infer<typeof scopeSchema>

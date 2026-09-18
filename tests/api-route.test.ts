@@ -1,5 +1,6 @@
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as category from '../app/api/v1/catalog/categories/[id]/route'
 import * as catalogMetrics from '../app/api/v1/catalog/metrics/route'
 import * as proposal from '../app/api/v1/catalog/proposals/[id]/route'
 import * as proposals from '../app/api/v1/catalog/proposals/route'
@@ -47,10 +48,11 @@ const routes = [
   ['/api/v1/catalog/settings', settings, ['GET', 'PUT']],
   ['/api/v1/catalog/settings/test', settingsTest, ['POST']],
   ['/api/v1/catalog/metrics', catalogMetrics, ['GET']],
+  ['/api/v1/catalog/categories/00000000-0000-4000-8000-000000000000', category, ['GET']],
   ['/api/v1/catalog/runs', runs, ['GET', 'POST']],
   ['/api/v1/catalog/runs/00000000-0000-4000-8000-000000000000', run, ['GET']],
   ['/api/v1/catalog/runs/00000000-0000-4000-8000-000000000000/revert', revert, ['POST']],
-  ['/api/v1/catalog/proposals', proposals, ['GET']],
+  ['/api/v1/catalog/proposals', proposals, ['GET', 'POST']],
   ['/api/v1/catalog/proposals/00000000-0000-4000-8000-000000000000', proposal, ['POST']],
 ] as const
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const

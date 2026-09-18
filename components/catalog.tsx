@@ -3,6 +3,7 @@
 import type { Api } from './workspace-shell'
 import type { Messages } from '@/lib/i18n/messages'
 import { FolderTree, Play, RotateCcw, ShieldAlert } from 'lucide-react'
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ConfirmAction } from './confirm-action'
@@ -10,12 +11,21 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Separator } from './ui/separator'
 import { Switch } from './ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
+import { Textarea } from './ui/textarea'
 
 /**
  * The catalog tab.
@@ -64,6 +74,7 @@ interface CategoryView {
   label: string
   description: string
   boundary: string
+  axisHint: string | null
   memberCount: number
   state: string
   createdBy: string
@@ -76,6 +87,7 @@ interface CatalogView {
   orphans: number
   skipped: number
   pendingProposals: number
+  pendingAdvice: string | null
 }
 interface RunSummary {
   id: string
@@ -117,12 +129,17 @@ interface TimelineAction {
 interface RunDetail {
   run: RunSummary
   timeline: { batch: number, turn: number, content: string | null, actions: TimelineAction[] }[]
+  totalActions: number
+  offset: number
+  limit: number
+  operatorPrompt: string | null
 }
 interface Proposal {
   id: string
   kind: string
   status: string
   evidenceRuns: number
+  lastRunId: string
   rationale: string | null
   targetProject: string | null
 }
@@ -154,6 +171,8 @@ interface FormState {
 
 const ACTIVE_RUN_STATES = new Set(['queued', 'running'])
 const REFUSED_DECISIONS = new Set(['rejected_by_policy', 'rejected_by_user'])
+const RUNS_PAGE = 20
+const STEPS_PAGE = 40
 
 function formFrom(settings: CatalogSettings): FormState {
   return {
@@ -185,7 +204,10 @@ export function CatalogPanel({
   const [settings, setSettings] = useState<CatalogSettings | null>(null)
   const [catalog, setCatalog] = useState<CatalogView | null>(null)
   const [runs, setRuns] = useState<RunSummary[]>([])
+  const [runsTotal, setRunsTotal] = useState(0)
+  const [runsOffset, setRunsOffset] = useState(0)
   const [proposals, setProposals] = useState<Proposal[]>([])
+  const [proposalsSplit, setProposalsSplit] = useState(false)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [detail, setDetail] = useState<RunDetail | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
@@ -194,22 +216,30 @@ export function CatalogPanel({
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(ready)
   const [busy, setBusy] = useState(false)
+  const [runDialog, setRunDialog] = useState<{ dryRun: boolean } | null>(null)
+  const [runPrompt, setRunPrompt] = useState('')
+  const [adviceDialog, setAdviceDialog] = useState(false)
+  const [adviceText, setAdviceText] = useState('')
   const hydratedRef = useRef(false)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (nextRunsOffset: number) => {
     if (!ready)
       return
     try {
       const [nextSettings, nextCatalog, nextRuns, nextProposals, nextMetrics] = await Promise.all([
         api<CatalogSettings>('catalog/settings'),
         api<CatalogView>('catalog'),
-        api<{ runs: RunSummary[] }>('catalog/runs'),
+        api<{ runs: RunSummary[], total: number, offset: number, limit: number }>(
+          `catalog/runs?limit=${RUNS_PAGE}&offset=${nextRunsOffset}`,
+        ),
         api<{ proposals: Proposal[] }>('catalog/proposals'),
         api<Metrics>('catalog/metrics'),
       ])
       setSettings(nextSettings)
       setCatalog(nextCatalog)
       setRuns(nextRuns.runs)
+      setRunsTotal(nextRuns.total)
+      setRunsOffset(nextRuns.offset)
       setProposals(nextProposals.proposals)
       setMetrics(nextMetrics)
       setError('')
@@ -230,7 +260,7 @@ export function CatalogPanel({
   }, [api, ready, t.loadError])
 
   useEffect(() => {
-    void load()
+    void load(0)
   }, [load])
 
   // Poll only while something is actually moving.
@@ -245,7 +275,7 @@ export function CatalogPanel({
       return
     }
     pollRef.current = setInterval(() => {
-      void load()
+      void load(runsOffset)
     }, 3000)
     return () => {
       if (pollRef.current !== null) {
@@ -253,7 +283,7 @@ export function CatalogPanel({
         pollRef.current = null
       }
     }
-  }, [active, load])
+  }, [active, load, runsOffset])
 
   async function run(action: () => Promise<void>, done?: string) {
     setBusy(true)
@@ -310,7 +340,7 @@ export function CatalogPanel({
       setSettings(saved)
       // Re-sync from the server, which also clears the key field.
       setForm(formFrom(saved))
-      await load()
+      await load(runsOffset)
     }, t.settingsSaved)
   }
 
@@ -321,20 +351,52 @@ export function CatalogPanel({
         method: 'POST',
         body: JSON.stringify({}),
       }))
-      await load()
+      await load(runsOffset)
     })
   }
 
-  async function startRun(dryRun: boolean) {
+  async function confirmStartRun() {
+    if (runDialog === null)
+      return
+    const dryRun = runDialog.dryRun
+    const prompt = runPrompt.trim()
+    setRunDialog(null)
+    setRunPrompt('')
     await run(async () => {
       const started = await api<{ budgetWarning: boolean }>('catalog/runs', {
         method: 'POST',
-        body: JSON.stringify({ dryRun }),
+        body: JSON.stringify({
+          dryRun,
+          ...(prompt.length > 0 ? { prompt } : {}),
+        }),
       })
       if (started.budgetWarning)
         toast.warning(t.manualBudgetWarning)
-      await load()
+      await load(0)
     }, t.runStarted)
+  }
+
+  async function openRunDetail(runId: string, offset = 0) {
+    await run(async () => {
+      setDetail(await api<RunDetail>(
+        `catalog/runs/${runId}?offset=${offset}&limit=${STEPS_PAGE}`,
+      ))
+    })
+  }
+
+  async function decideBulk(decision: 'approve' | 'reject', advice?: string) {
+    await run(async () => {
+      await api('catalog/proposals', {
+        method: 'POST',
+        body: JSON.stringify({
+          decision,
+          ...(advice !== undefined && advice.trim().length > 0 ? { advice: advice.trim() } : {}),
+        }),
+      })
+      setAdviceDialog(false)
+      setAdviceText('')
+      await load(runsOffset)
+    }, t.proposalDone)
   }
 
   // A skeleton is only honest while a request is actually outstanding. Without
@@ -394,6 +456,13 @@ export function CatalogPanel({
             {`${settings.todayTokens.toLocaleString()} / ${settings.dailyTokenBudget.toLocaleString()} ${t.modelTokens}`}
             {!settings.tokenUsageComplete && ` · ${t.usageIncomplete}`}
           </AlertDescription>
+        </Alert>
+      )}
+      {catalog?.pendingAdvice !== null && catalog?.pendingAdvice !== undefined && catalog.pendingAdvice.length > 0 && (
+        <Alert>
+          <ShieldAlert />
+          <AlertTitle>{t.pendingAdviceHint}</AlertTitle>
+          <AlertDescription>{catalog.pendingAdvice}</AlertDescription>
         </Alert>
       )}
 
@@ -580,14 +649,14 @@ export function CatalogPanel({
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={busy || !configured} onClick={() => void startRun(false)}>
+        <Button disabled={busy} onClick={() => setRunDialog({ dryRun: false })}>
           <Play size={16} />
           {t.runNow}
         </Button>
-        <Button variant="secondary" disabled={busy || !configured} onClick={() => void startRun(true)}>
+        <Button variant="secondary" disabled={busy} onClick={() => setRunDialog({ dryRun: true })}>
           {t.dryRun}
         </Button>
-        <Button variant="ghost" onClick={() => void load()}>
+        <Button variant="ghost" onClick={() => void load(runsOffset)}>
           {t.refresh}
         </Button>
       </div>
@@ -622,29 +691,40 @@ export function CatalogPanel({
                 </div>
               )
             : (
-                <ul className="catalog-tree">
+                <div className="catalog-card-grid">
                   {roots.map(root => (
-                    <li key={root.id} className="catalog-node">
+                    <Link
+                      key={root.id}
+                      href={`/catalog/${root.id}`}
+                      prefetch={false}
+                      className="catalog-category-card"
+                    >
                       <div className="catalog-node-head">
                         <strong>{root.label}</strong>
                         <Badge variant="secondary">{root.memberCount}</Badge>
                         {root.state !== 'active' && <Badge variant="outline">{root.state}</Badge>}
                       </div>
                       <p className="muted">{root.description}</p>
-                      <p className="muted">{root.boundary}</p>
-                      {childrenOf(root.id).length > 0 && (
-                        <ul className="catalog-children">
-                          {childrenOf(root.id).map(child => (
-                            <li key={child.id}>
-                              <span>{child.label}</span>
-                              <Badge variant="secondary">{child.memberCount}</Badge>
-                            </li>
-                          ))}
-                        </ul>
+                      <p className="muted">
+                        <strong>{t.categoryBoundary}</strong>
+                        {': '}
+                        {root.boundary}
+                      </p>
+                      {root.axisHint !== null && root.axisHint.length > 0 && (
+                        <p className="muted">
+                          <strong>{t.categoryAxis}</strong>
+                          {': '}
+                          {root.axisHint}
+                        </p>
                       )}
-                    </li>
+                      <p className="muted">
+                        {t.childCategories}
+                        {': '}
+                        {childrenOf(root.id).length}
+                      </p>
+                    </Link>
                   ))}
-                </ul>
+                </div>
               )}
         </CardContent>
       </Card>
@@ -652,55 +732,84 @@ export function CatalogPanel({
       <Card>
         <CardHeader>
           <CardTitle>{t.proposals}</CardTitle>
+          <CardDescription>{t.packageHint}</CardDescription>
+          {proposals.length > 0 && (
+            <CardAction>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setProposalsSplit(value => !value)}
+              >
+                {proposalsSplit ? t.joinProposals : t.splitProposals}
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           {proposals.length === 0
             ? <p className="muted">{t.noProposals}</p>
             : (
-                <ul className="run-list">
-                  {proposals.map(proposal => (
-                    <li key={proposal.id}>
-                      <div className="card-meta">
-                        <Badge variant="outline">{proposal.kind}</Badge>
-                        <span className="muted">
-                          {t.evidence}
-                          {': '}
-                          {proposal.evidenceRuns}
-                        </span>
-                      </div>
-                      {proposal.rationale !== null && <p>{proposal.rationale}</p>}
-                      <div className="card-actions">
-                        <Button
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void run(async () => {
-                            await api(`catalog/proposals/${proposal.id}`, {
-                              method: 'POST',
-                              body: JSON.stringify({ decision: 'approve' }),
-                            })
-                            await load()
-                          }, t.proposalDone)}
-                        >
-                          {t.approve}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => void run(async () => {
-                            await api(`catalog/proposals/${proposal.id}`, {
-                              method: 'POST',
-                              body: JSON.stringify({ decision: 'reject' }),
-                            })
-                            await load()
-                          }, t.proposalDone)}
-                        >
-                          {t.reject}
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {!proposalsSplit && (
+                    <div className="card-actions">
+                      <Button size="sm" disabled={busy} onClick={() => void decideBulk('approve')}>
+                        {t.acceptPackage}
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => void decideBulk('reject')}>
+                        {t.rejectPackage}
+                      </Button>
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAdviceDialog(true)}>
+                        {t.rejectWithAdvice}
+                      </Button>
+                    </div>
+                  )}
+                  <ul className="run-list">
+                    {proposals.map(proposal => (
+                      <li key={proposal.id}>
+                        <div className="card-meta">
+                          <Badge variant="outline">{proposal.kind}</Badge>
+                          <span className="muted">
+                            {t.evidence}
+                            {': '}
+                            {proposal.evidenceRuns}
+                          </span>
+                        </div>
+                        {proposal.rationale !== null && <p>{proposal.rationale}</p>}
+                        {proposalsSplit && (
+                          <div className="card-actions">
+                            <Button
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => void run(async () => {
+                                await api(`catalog/proposals/${proposal.id}`, {
+                                  method: 'POST',
+                                  body: JSON.stringify({ decision: 'approve' }),
+                                })
+                                await load(runsOffset)
+                              }, t.proposalDone)}
+                            >
+                              {t.approve}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() => void run(async () => {
+                                await api(`catalog/proposals/${proposal.id}`, {
+                                  method: 'POST',
+                                  body: JSON.stringify({ decision: 'reject' }),
+                                })
+                                await load(runsOffset)
+                              }, t.proposalDone)}
+                            >
+                              {t.reject}
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
         </CardContent>
       </Card>
@@ -708,8 +817,13 @@ export function CatalogPanel({
       <Card>
         <CardHeader>
           <CardTitle>{t.runs}</CardTitle>
+          <CardAction>
+            <Button size="sm" variant="ghost" onClick={() => void load(runsOffset)}>
+              {t.refresh}
+            </Button>
+          </CardAction>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           {runs.length === 0
             ? <p className="muted">{t.noRuns}</p>
             : (
@@ -733,9 +847,7 @@ export function CatalogPanel({
                           <button
                             type="button"
                             className="text-button"
-                            onClick={() => void run(async () => {
-                              setDetail(await api<RunDetail>(`catalog/runs/${row.id}`))
-                            })}
+                            onClick={() => void openRunDetail(row.id)}
                           >
                             {new Date(row.startedAt).toLocaleString()}
                           </button>
@@ -761,67 +873,26 @@ export function CatalogPanel({
                   </TableBody>
                 </Table>
               )}
+          {(runsOffset > 0 || runsOffset + runs.length < runsTotal) && (
+            <div className="pagination">
+              <Button
+                variant="ghost"
+                disabled={runsOffset === 0 || busy}
+                onClick={() => void load(Math.max(0, runsOffset - RUNS_PAGE))}
+              >
+                {t.previous}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={runsOffset + runs.length >= runsTotal || busy}
+                onClick={() => void load(runsOffset + RUNS_PAGE)}
+              >
+                {t.next}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {detail !== null && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.timeline}</CardTitle>
-            <CardDescription>{new Date(detail.run.startedAt).toLocaleString()}</CardDescription>
-            <CardAction>
-              <Button size="sm" variant="ghost" onClick={() => setDetail(null)}>
-                {t.close}
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {detail.run.status !== 'running' && detail.run.mode === 'live' && detail.run.actionsApplied > 0 && (
-              <ConfirmAction
-                label={t.revertRun}
-                description={t.revertConfirm}
-                cancel={t.cancel}
-                disabled={busy}
-                onConfirm={() => void run(async () => {
-                  await api(`catalog/runs/${detail.run.id}/revert`, { method: 'POST' })
-                  setDetail(null)
-                  await load()
-                }, t.revertDone)}
-              />
-            )}
-            <ol className="timeline">
-              {detail.timeline.map(turn => (
-                <li key={`${detail.run.id}:${turn.batch}:${turn.turn}`} className="timeline-turn">
-                  {turn.content !== null && turn.content.length > 0 && <p>{turn.content}</p>}
-                  {turn.actions.map(action => (
-                    <div
-                      key={action.id}
-                      className={`timeline-call${REFUSED_DECISIONS.has(action.decision) ? ' call-rejected' : ''}`}
-                    >
-                      <div className="card-meta">
-                        <code>{action.tool}</code>
-                        <Badge variant="outline">{action.decision}</Badge>
-                        {action.memoryTitle !== null && <span>{action.memoryTitle}</span>}
-                        {action.categoryLabel !== null && <span>{`-> ${action.categoryLabel}`}</span>}
-                        {action.targetCategoryLabel !== null && <span>{`-> ${action.targetCategoryLabel}`}</span>}
-                        {action.targetProject !== null && <span>{`-> ${action.targetProject}`}</span>}
-                      </div>
-                      {action.rationale !== null && <p className="muted">{action.rationale}</p>}
-                      {action.policyReason !== null && (
-                        <p className="muted">
-                          <ShieldAlert size={14} />
-                          {' '}
-                          {action.policyReason}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      )}
 
       {metrics !== null && metrics.daily.length > 0 && (
         <Card>
@@ -860,6 +931,144 @@ export function CatalogPanel({
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={runDialog !== null}
+        onOpenChange={(open) => {
+          if (!open)
+            setRunDialog(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.runPromptTitle}</DialogTitle>
+            <DialogDescription>{t.runPromptHint}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="catalog-run-prompt">{t.runPromptTitle}</Label>
+            <Textarea
+              id="catalog-run-prompt"
+              value={runPrompt}
+              placeholder={t.runPromptPlaceholder}
+              onChange={event => setRunPrompt(event.target.value)}
+              maxLength={2000}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRunDialog(null)}>{t.cancel}</Button>
+            <Button disabled={busy || !configured} onClick={() => void confirmStartRun()}>
+              {runDialog?.dryRun === true ? t.dryRun : t.startRun}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={adviceDialog} onOpenChange={setAdviceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.rejectWithAdvice}</DialogTitle>
+            <DialogDescription>{t.adviceLabel}</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={adviceText}
+            placeholder={t.advicePlaceholder}
+            onChange={event => setAdviceText(event.target.value)}
+            maxLength={2000}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAdviceDialog(false)}>{t.cancel}</Button>
+            <Button
+              disabled={busy || adviceText.trim().length === 0}
+              onClick={() => void decideBulk('reject', adviceText)}
+            >
+              {t.rejectWithAdvice}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={detail !== null}
+        onOpenChange={(open) => {
+          if (!open)
+            setDetail(null)
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          {detail !== null && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t.timeline}</DialogTitle>
+                <DialogDescription>{new Date(detail.run.startedAt).toLocaleString()}</DialogDescription>
+              </DialogHeader>
+              {detail.operatorPrompt !== null && detail.operatorPrompt.length > 0 && (
+                <p className="muted">{detail.operatorPrompt}</p>
+              )}
+              {detail.run.status !== 'running' && detail.run.mode === 'live' && detail.run.actionsApplied > 0 && (
+                <ConfirmAction
+                  label={t.revertRun}
+                  description={t.revertConfirm}
+                  cancel={t.cancel}
+                  disabled={busy}
+                  onConfirm={() => void run(async () => {
+                    await api(`catalog/runs/${detail.run.id}/revert`, { method: 'POST' })
+                    setDetail(null)
+                    await load(runsOffset)
+                  }, t.revertDone)}
+                />
+              )}
+              <ol className="timeline">
+                {detail.timeline.map(turn => (
+                  <li key={`${detail.run.id}:${turn.batch}:${turn.turn}`} className="timeline-turn">
+                    {turn.content !== null && turn.content.length > 0 && <p>{turn.content}</p>}
+                    {turn.actions.map(action => (
+                      <div
+                        key={action.id}
+                        className={`timeline-call${REFUSED_DECISIONS.has(action.decision) ? ' call-rejected' : ''}`}
+                      >
+                        <div className="card-meta">
+                          <code>{action.tool}</code>
+                          <Badge variant="outline">{action.decision}</Badge>
+                          {action.memoryTitle !== null && <span>{action.memoryTitle}</span>}
+                          {action.categoryLabel !== null && <span>{`-> ${action.categoryLabel}`}</span>}
+                          {action.targetCategoryLabel !== null && <span>{`-> ${action.targetCategoryLabel}`}</span>}
+                          {action.targetProject !== null && <span>{`-> ${action.targetProject}`}</span>}
+                        </div>
+                        {action.rationale !== null && <p className="muted">{action.rationale}</p>}
+                        {action.policyReason !== null && (
+                          <p className="muted">
+                            <ShieldAlert size={14} />
+                            {' '}
+                            {action.policyReason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </li>
+                ))}
+              </ol>
+              {(detail.offset > 0 || detail.offset + detail.timeline.reduce((sum, turn) => sum + turn.actions.length, 0) < detail.totalActions) && (
+                <div className="pagination">
+                  <Button
+                    variant="ghost"
+                    disabled={detail.offset === 0 || busy}
+                    onClick={() => void openRunDetail(detail.run.id, Math.max(0, detail.offset - STEPS_PAGE))}
+                  >
+                    {t.previous}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={detail.offset + detail.timeline.reduce((sum, turn) => sum + turn.actions.length, 0) >= detail.totalActions || busy}
+                    onClick={() => void openRunDetail(detail.run.id, detail.offset + STEPS_PAGE)}
+                  >
+                    {t.next}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

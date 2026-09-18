@@ -1,5 +1,6 @@
 import { defineApiRoute } from '@/lib/server/api-route'
-import { readCatalogProposals } from '@/lib/server/catalog/api'
+import { decideCatalogProposals, readCatalogProposals } from '@/lib/server/catalog/api'
+import { readJson } from '@/lib/server/http'
 
 export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
@@ -8,5 +9,7 @@ const route = defineApiRoute('catalog', {
     principal.ownerId,
     new URL(request.url).searchParams.get('status'),
   ),
+  POST: async ({ request, env, principal }) =>
+    decideCatalogProposals(env, principal, await readJson(request)),
 }, { sessionOnly: true })
 export const { GET, POST, PUT, PATCH, DELETE } = route

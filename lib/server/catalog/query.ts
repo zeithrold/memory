@@ -30,6 +30,7 @@ export interface CategoryView {
   label: string
   description: string
   boundary: string
+  axisHint: string | null
   memberCount: number
   state: string
   createdBy: string
@@ -44,6 +45,37 @@ export interface CatalogView {
   orphans: number
   skipped: number
   pendingProposals: number
+  pendingAdvice: string | null
+}
+
+function serializeCategory(category: {
+  id: string
+  parent_id: string | null
+  depth: number
+  slug: string
+  label: string
+  description: string
+  boundary: string
+  axis_hint: string | null
+  member_count: number
+  state: string
+  created_by: string
+  updated_at: string
+}): CategoryView {
+  return {
+    id: category.id,
+    parentId: category.parent_id,
+    depth: category.depth,
+    slug: category.slug,
+    label: category.label,
+    description: category.description,
+    boundary: category.boundary,
+    axisHint: category.axis_hint,
+    memberCount: category.member_count,
+    state: category.state,
+    createdBy: category.created_by,
+    updatedAt: category.updated_at,
+  }
 }
 
 export async function getCatalogView(env: Env, ownerId: string): Promise<CatalogView> {
@@ -59,23 +91,120 @@ export async function getCatalogView(env: Env, ownerId: string): Promise<Catalog
   return {
     version: state?.version ?? 1,
     updatedAt: state?.last_run_at ?? null,
-    categories: categories.map(category => ({
-      id: category.id,
-      parentId: category.parent_id,
-      depth: category.depth,
-      slug: category.slug,
-      label: category.label,
-      description: category.description,
-      boundary: category.boundary,
-      memberCount: category.member_count,
-      state: category.state,
-      createdBy: category.created_by,
-      updatedAt: category.updated_at,
-    })),
+    categories: categories.map(serializeCategory),
     assigned: state?.assigned_count ?? 0,
     orphans: state?.orphan_count ?? 0,
     skipped: state?.skipped_count ?? 0,
     pendingProposals: pending?.n ?? 0,
+    pendingAdvice: state?.pending_advice ?? null,
+  }
+}
+
+const CATEGORY_PAGE_SIZE = 30
+
+export interface CategoryDetailView {
+  category: CategoryView
+  children: CategoryView[]
+  memories: {
+    id: string
+    title: string
+    kind: string
+    project: string
+    isPrimary: boolean
+    updatedAt: string
+  }[]
+  total: number
+  offset: number
+}
+
+/** One category with its direct children and a page of directly assigned memories. */
+export async function getCategoryDetail(
+  env: Env,
+  ownerId: string,
+  categoryId: string,
+  offset: number,
+): Promise<CategoryDetailView> {
+  const category = await env.DB.prepare(
+    'SELECT * FROM categories WHERE id = ? AND owner_id = ? AND state != \'retired\'',
+  )
+    .bind(categoryId, ownerId)
+    .first<{
+    id: string
+    parent_id: string | null
+    depth: number
+    slug: string
+    label: string
+    description: string
+    boundary: string
+    axis_hint: string | null
+    member_count: number
+    state: string
+    created_by: string
+    updated_at: string
+  }>()
+  if (category === null)
+    throw new AppError('NOT_FOUND', 'That category does not exist.')
+
+  const [children, totalRow, memories] = await Promise.all([
+    env.DB.prepare(
+      `SELECT * FROM categories
+       WHERE owner_id = ? AND parent_id = ? AND state != 'retired'
+       ORDER BY slug`,
+    )
+      .bind(ownerId, categoryId)
+      .all<{
+      id: string
+      parent_id: string | null
+      depth: number
+      slug: string
+      label: string
+      description: string
+      boundary: string
+      axis_hint: string | null
+      member_count: number
+      state: string
+      created_by: string
+      updated_at: string
+    }>(),
+    env.DB.prepare(
+      `SELECT count(*) AS n FROM memory_categories mc
+       JOIN memories m ON m.id = mc.memory_id
+       WHERE mc.owner_id = ? AND mc.category_id = ? AND m.deleted = 0`,
+    )
+      .bind(ownerId, categoryId)
+      .first<{ n: number }>(),
+    env.DB.prepare(
+      `SELECT m.id, m.title, m.kind, m.project, mc.is_primary, m.updated_at
+       FROM memory_categories mc
+       JOIN memories m ON m.id = mc.memory_id
+       WHERE mc.owner_id = ? AND mc.category_id = ? AND m.deleted = 0
+       ORDER BY mc.is_primary DESC, m.updated_at DESC, m.id
+       LIMIT ? OFFSET ?`,
+    )
+      .bind(ownerId, categoryId, CATEGORY_PAGE_SIZE, offset)
+      .all<{
+      id: string
+      title: string
+      kind: string
+      project: string
+      is_primary: number
+      updated_at: string
+    }>(),
+  ])
+
+  return {
+    category: serializeCategory(category),
+    children: children.results.map(serializeCategory),
+    memories: memories.results.map(row => ({
+      id: row.id,
+      title: row.title,
+      kind: row.kind,
+      project: row.project,
+      isPrimary: row.is_primary === 1,
+      updatedAt: row.updated_at,
+    })),
+    total: totalRow?.n ?? 0,
+    offset,
   }
 }
 
@@ -157,13 +286,30 @@ function serializeRun(row: RunRow): RunSummary {
   }
 }
 
-export async function listRuns(env: Env, ownerId: string, limit: number): Promise<RunSummary[]> {
-  const rows = await env.DB.prepare(
-    `SELECT ${RUN_COLUMNS} FROM catalog_runs WHERE owner_id = ? ORDER BY started_at DESC LIMIT ?`,
-  )
-    .bind(ownerId, limit)
-    .all<RunRow>()
-  return rows.results.map(serializeRun)
+export async function listRuns(
+  env: Env,
+  ownerId: string,
+  limit: number,
+  offset = 0,
+): Promise<{ runs: RunSummary[], total: number, offset: number, limit: number }> {
+  const [rows, totalRow] = await Promise.all([
+    env.DB.prepare(
+      `SELECT ${RUN_COLUMNS} FROM catalog_runs WHERE owner_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`,
+    )
+      .bind(ownerId, limit, offset)
+      .all<RunRow>(),
+    env.DB.prepare(
+      'SELECT count(*) AS n FROM catalog_runs WHERE owner_id = ?',
+    )
+      .bind(ownerId)
+      .first<{ n: number }>(),
+  ])
+  return {
+    runs: rows.results.map(serializeRun),
+    total: totalRow?.n ?? 0,
+    offset,
+    limit,
+  }
 }
 
 export interface TimelineEntry {
@@ -194,39 +340,41 @@ export interface TimelineEntry {
 export interface RunDetail {
   run: RunSummary
   timeline: TimelineEntry[]
+  totalActions: number
+  offset: number
+  limit: number
+  operatorPrompt: string | null
 }
 
+const ACTION_PAGE_SIZE = 40
+
 /**
- * The full replay of a run, ordered by turn, with memory titles resolved at read
- * time. The audit tables deliberately store identifiers rather than a copy of
- * the memory, so forgetting a memory also removes it from old run timelines.
+ * A page of the run replay, ordered by turn, with memory titles resolved at
+ * read time. The audit tables deliberately store identifiers rather than a
+ * copy of the memory, so forgetting a memory also removes it from old run
+ * timelines.
  */
 export async function getRunDetail(
   env: Env,
   ownerId: string,
   runId: string,
+  offset = 0,
+  limit = ACTION_PAGE_SIZE,
 ): Promise<RunDetail> {
   const run = await env.DB.prepare(
-    `SELECT ${RUN_COLUMNS} FROM catalog_runs WHERE id = ? AND owner_id = ?`,
+    `SELECT ${RUN_COLUMNS}, operator_prompt FROM catalog_runs WHERE id = ? AND owner_id = ?`,
   )
     .bind(runId, ownerId)
-    .first<RunRow>()
+    .first<RunRow & { operator_prompt: string | null }>()
   if (run === null)
     throw new AppError('RUN_NOT_FOUND', 'No catalog run exists with that identifier.')
-  const [turns, actions] = await Promise.all([
+
+  const [totalRow, actionPage] = await Promise.all([
     env.DB.prepare(
-      `SELECT batch, turn, content, prompt_tokens, completion_tokens, latency_ms
-       FROM catalog_turns WHERE run_id = ? AND owner_id = ? ORDER BY batch, turn`,
+      'SELECT count(*) AS n FROM catalog_actions WHERE run_id = ? AND owner_id = ?',
     )
       .bind(runId, ownerId)
-      .all<{
-      batch: number
-      turn: number
-      content: string | null
-      prompt_tokens: number | null
-      completion_tokens: number | null
-      latency_ms: number | null
-    }>(),
+      .first<{ n: number }>(),
     env.DB.prepare(
       `SELECT a.id, a.batch, a.turn, a.tool, a.kind, a.effect, a.decision, a.policy_reason, a.rationale,
               a.memory_id, m.title AS memory_title, a.category_id, c.label AS category_label,
@@ -236,9 +384,10 @@ export async function getRunDetail(
        LEFT JOIN categories c ON c.id = a.category_id
        LEFT JOIN categories tc ON tc.id = a.target_category_id
        WHERE a.run_id = ? AND a.owner_id = ?
-       ORDER BY a.batch, a.turn, a.call_index`,
+       ORDER BY a.batch, a.turn, a.call_index
+       LIMIT ? OFFSET ?`,
     )
-      .bind(runId, ownerId)
+      .bind(runId, ownerId, limit, offset)
       .all<{
       id: number
       batch: number
@@ -259,9 +408,31 @@ export async function getRunDetail(
     }>(),
   ])
 
+  const turnKeys = new Set(actionPage.results.map(action => `${action.batch}:${action.turn}`))
+  interface TurnMeta {
+    batch: number
+    turn: number
+    content: string | null
+    prompt_tokens: number | null
+    completion_tokens: number | null
+    latency_ms: number | null
+  }
+  const turnRows = turnKeys.size === 0
+    ? { results: [] as TurnMeta[] }
+    : await env.DB.prepare(
+        `SELECT batch, turn, content, prompt_tokens, completion_tokens, latency_ms
+         FROM catalog_turns WHERE run_id = ? AND owner_id = ?
+         ORDER BY batch, turn`,
+      )
+        .bind(runId, ownerId)
+        .all<TurnMeta>()
+
   const timeline = new Map<string, TimelineEntry>()
-  for (const turn of turns.results) {
-    timeline.set(`${turn.batch}:${turn.turn}`, {
+  for (const turn of turnRows.results) {
+    const key = `${turn.batch}:${turn.turn}`
+    if (!turnKeys.has(key))
+      continue
+    timeline.set(key, {
       batch: turn.batch,
       turn: turn.turn,
       content: turn.content,
@@ -271,11 +442,21 @@ export async function getRunDetail(
       actions: [],
     })
   }
-  for (const action of actions.results) {
+  for (const action of actionPage.results) {
     const key = `${action.batch}:${action.turn}`
-    const entry = timeline.get(key)
-    if (entry === undefined)
-      continue
+    let entry = timeline.get(key)
+    if (entry === undefined) {
+      entry = {
+        batch: action.batch,
+        turn: action.turn,
+        content: null,
+        promptTokens: null,
+        completionTokens: null,
+        latencyMs: null,
+        actions: [],
+      }
+      timeline.set(key, entry)
+    }
     entry.actions.push({
       id: action.id,
       tool: action.tool,
@@ -293,7 +474,16 @@ export async function getRunDetail(
       targetProject: action.target_project,
     })
   }
-  return { run: serializeRun(run), timeline: [...timeline.values()] }
+  return {
+    run: serializeRun(run),
+    timeline: [...timeline.values()].sort((left, right) =>
+      left.batch - right.batch || left.turn - right.turn,
+    ),
+    totalActions: totalRow?.n ?? 0,
+    offset,
+    limit,
+    operatorPrompt: run.operator_prompt,
+  }
 }
 
 /** Re-classifications this run applied, for the churn metric. */
@@ -496,6 +686,7 @@ export interface ProposalView {
   targetCategoryId: string | null
   memoryId: string | null
   targetProject: string | null
+  lastRunId: string
   rationale: string | null
   payload: unknown
   createdAt: string
@@ -507,7 +698,8 @@ export async function listProposals(
   status = 'pending',
 ): Promise<ProposalView[]> {
   const rows = await env.DB.prepare(
-    `SELECT id, kind, status, evidence_runs, category_id, target_category_id, memory_id, target_project, rationale, payload_json, created_at
+    `SELECT id, kind, status, evidence_runs, category_id, target_category_id, memory_id, target_project,
+            last_run_id, rationale, payload_json, created_at
      FROM catalog_proposals WHERE owner_id = ? AND status = ? ORDER BY created_at DESC LIMIT 100`,
   )
     .bind(ownerId, status)
@@ -520,6 +712,7 @@ export async function listProposals(
     target_category_id: string | null
     memory_id: string | null
     target_project: string | null
+    last_run_id: string
     rationale: string | null
     payload_json: string
     created_at: string
@@ -533,10 +726,29 @@ export async function listProposals(
     targetCategoryId: row.target_category_id,
     memoryId: row.memory_id,
     targetProject: row.target_project,
+    lastRunId: row.last_run_id,
     rationale: row.rationale,
     payload: JSON.parse(row.payload_json) as unknown,
     createdAt: row.created_at,
   }))
+}
+
+const APPROVE_ORDER = ['create_category', 'project_move', 'merge_category', 'retire_category'] as const
+
+async function appendPendingAdvice(env: Env, ownerId: string, advice: string): Promise<void> {
+  const trimmed = advice.trim()
+  if (trimmed.length === 0)
+    return
+  const state = await loadState(env, ownerId)
+  const existing = state?.pending_advice?.trim() ?? ''
+  const next = existing.length === 0 ? trimmed : `${existing}\n\n${trimmed}`
+  await env.DB.prepare(
+    `INSERT INTO catalog_state(owner_id, version, pending_advice)
+     VALUES (?, 1, ?)
+     ON CONFLICT(owner_id) DO UPDATE SET pending_advice = excluded.pending_advice`,
+  )
+    .bind(ownerId, next)
+    .run()
 }
 
 /**
@@ -550,6 +762,7 @@ export async function decideProposal(
   ownerId: string,
   proposalId: string,
   approve: boolean,
+  advice?: string | null,
 ): Promise<ProposalView> {
   const proposal = await env.DB.prepare(
     'SELECT * FROM catalog_proposals WHERE id = ? AND owner_id = ?',
@@ -629,6 +842,8 @@ export async function decideProposal(
   )
     .bind(approve ? 'approved' : 'rejected', isoNow(), proposalId)
     .run()
+  if (!approve && advice !== undefined && advice !== null)
+    await appendPendingAdvice(env, ownerId, advice)
   if (categoryCreated)
     await clearImplicitSkips(env, ownerId)
   if (catalogChanged)
@@ -654,6 +869,56 @@ export async function decideProposal(
   if (refreshed === undefined)
     throw new AppError('INTERNAL_ERROR', 'The proposal could not be re-read after the decision.')
   return refreshed
+}
+
+export interface BulkDecisionResult {
+  decided: number
+  failed: { id: string, code: string, detail: string }[]
+}
+
+/**
+ * Decides many pending proposals in one request. Approve runs create → move →
+ * merge → retire so a package that both creates and folds stays coherent.
+ */
+export async function decideProposals(
+  env: Env,
+  principal: Principal,
+  ownerId: string,
+  approve: boolean,
+  ids: string[] | undefined,
+  advice?: string | null,
+): Promise<BulkDecisionResult> {
+  const pending = await listProposals(env, ownerId, 'pending')
+  const selected = ids === undefined || ids.length === 0
+    ? pending
+    : pending.filter(proposal => ids.includes(proposal.id))
+  const ordered = approve
+    ? [...selected].sort((left, right) =>
+        APPROVE_ORDER.indexOf(left.kind as typeof APPROVE_ORDER[number])
+        - APPROVE_ORDER.indexOf(right.kind as typeof APPROVE_ORDER[number])
+        || left.createdAt.localeCompare(right.createdAt),
+      )
+    : selected
+
+  const failed: BulkDecisionResult['failed'] = []
+  let decided = 0
+  for (const proposal of ordered) {
+    try {
+      // Advice is stored once after the whole batch, not per proposal.
+      await decideProposal(env, principal, ownerId, proposal.id, approve, null)
+      decided += 1
+    }
+    catch (error) {
+      if (error instanceof AppError && (error.code === 'CONFLICT' || error.code === 'NOT_FOUND')) {
+        failed.push({ id: proposal.id, code: error.code, detail: error.message })
+        continue
+      }
+      throw error
+    }
+  }
+  if (!approve && advice !== undefined && advice !== null && decided > 0)
+    await appendPendingAdvice(env, ownerId, advice)
+  return { decided, failed }
 }
 
 async function approveCategory(

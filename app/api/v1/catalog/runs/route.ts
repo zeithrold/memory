@@ -4,8 +4,15 @@ import { readJson } from '@/lib/server/http'
 
 export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
-  GET: async ({ request, env, principal }) =>
-    readCatalogRuns(env, principal.ownerId, new URL(request.url).searchParams.get('limit')),
+  GET: async ({ request, env, principal }) => {
+    const query = new URL(request.url).searchParams
+    return readCatalogRuns(
+      env,
+      principal.ownerId,
+      query.get('limit'),
+      query.get('offset'),
+    )
+  },
   POST: async ({ request, env, principal }) =>
     startCatalogRun(env, principal.ownerId, await readJson(request)),
 }, { sessionOnly: true })

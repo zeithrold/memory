@@ -1,4 +1,5 @@
 import type { Env } from '../lib/server/env'
+import * as category from '../app/api/v1/catalog/categories/[id]/route'
 import * as catalogMetrics from '../app/api/v1/catalog/metrics/route'
 import * as proposal from '../app/api/v1/catalog/proposals/[id]/route'
 import * as proposals from '../app/api/v1/catalog/proposals/route'
@@ -52,6 +53,8 @@ export async function api(request: Request, env: Env): Promise<Response> {
     route = settings
   else if (resource === 'catalog' && id === 'metrics')
     route = catalogMetrics
+  else if (resource === 'catalog' && id === 'categories' && action !== undefined)
+    [route, params] = [category, { id: action }]
   else if (resource === 'catalog' && id === 'runs' && action !== undefined && segments[3] === 'revert')
     [route, params] = [revert, { id: action }]
   else if (resource === 'catalog' && id === 'runs' && action !== undefined)
