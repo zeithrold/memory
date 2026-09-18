@@ -9,11 +9,16 @@ import { createMemory, moveMemoryProject } from '../lib/server/memories'
 import { api } from './api'
 import { database } from './database'
 
-const { verifyToken } = vi.hoisted(() => ({ verifyToken: vi.fn() }))
-vi.mock('@clerk/backend', () => ({
-  verifyToken,
-  createClerkClient: () => ({ authenticateRequest: vi.fn() }),
-}))
+const { jwtVerify } = vi.hoisted(() => ({ jwtVerify: vi.fn() }))
+vi.mock('jose', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('jose')>()
+  return {
+    ...actual,
+    // eslint-disable-next-line ts/promise-function-async -- vi.fn already returns a Promise
+    jwtVerify: (...args: unknown[]) => jwtVerify(...args) as ReturnType<typeof actual.jwtVerify>,
+    createRemoteJWKSet: () => (() => {}) as ReturnType<typeof actual.createRemoteJWKSet>,
+  }
+})
 
 const MASTER_KEY = 'e'.repeat(64)
 const session: Principal = {
@@ -33,11 +38,12 @@ beforeEach(() => {
     DB: store.db,
     APP_ORIGIN: 'https://memory.example',
     AGENT_SETTINGS_KEY: MASTER_KEY,
-    CLERK_SECRET_KEY: 'sk_test_placeholder',
+    ACCESS_TEAM_DOMAIN: 'https://example.cloudflareaccess.com',
+    ACCESS_AUD: 'access-aud-tag',
     CATALOG_WORKFLOW: { create: createRun } as unknown as Workflow<unknown>,
   }
-  verifyToken.mockReset()
-  verifyToken.mockResolvedValue({ sub: 'alice' })
+  jwtVerify.mockReset()
+  jwtVerify.mockResolvedValue({ payload: { sub: 'alice' } })
 })
 afterEach(() => {
   store.sqlite.close()
@@ -49,7 +55,7 @@ async function call(path: string, method = 'GET', body?: unknown) {
     new Request(`https://memory.example${path}`, {
       method,
       headers: {
-        'Authorization': 'Bearer session-jwt',
+        'Cf-Access-Jwt-Assertion': 'access.jwt',
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
@@ -136,7 +142,7 @@ describe('starting a run', () => {
     const response = await api(
       new Request('https://memory.example/api/v1/catalog/runs', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer session-jwt', 'Content-Type': 'application/json' },
+        headers: { 'Cf-Access-Jwt-Assertion': 'access.jwt', 'Content-Type': 'application/json' },
         body: '{}',
       }),
       bare,
@@ -208,7 +214,7 @@ describe('the catalog view and run timeline', () => {
     const runId = await openRun()
     const { status, body } = await call(`/api/v1/catalog/runs/${runId}`)
     expect(status).toBe(200)
-    verifyToken.mockResolvedValue({ sub: 'bob' })
+    jwtVerify.mockResolvedValue({ payload: { sub: 'bob' } })
     const other = await call(`/api/v1/catalog/runs/${runId}`)
     expect(other.status).toBe(404)
     expect(other.body).toMatchObject({ code: 'RUN_NOT_FOUND' })

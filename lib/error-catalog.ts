@@ -236,10 +236,10 @@ export const ERROR_DEFINITIONS = {
     status: 503,
     title: 'Authorization not configured',
     summary:
-      'This deployment has no Clerk secret key, so no credential can be verified and no OAuth discovery document can be published. Private endpoints fail closed rather than serving unauthenticated data.',
+      'This deployment has no Cloudflare Access team domain or application audience, so no credential can be verified and no OAuth discovery document can be published. Private endpoints fail closed rather than serving unauthenticated data.',
     remediation: [
-      'Set the `CLERK_SECRET_KEY` secret for the Worker and redeploy.',
-      'Public previews without credentials are expected to return this on every private endpoint.',
+      'Set `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` for the Worker and redeploy.',
+      'Public previews without credentials are expected to return this on discovery and when an Access token is presented without configuration.',
     ],
     retryable: false,
   },

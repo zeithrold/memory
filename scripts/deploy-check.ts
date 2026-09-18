@@ -49,6 +49,9 @@ if (config.vars.APP_ORIGIN.startsWith('http:') || config.vars.APP_ORIGIN.include
 }
 if (existsSync('.env.local'))
   process.loadEnvFile('.env.local')
-if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')) {
-  throw new Error('Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY before building. See docs/SETUP.md.')
+const accessTeam = process.env.NEXT_PUBLIC_ACCESS_TEAM_DOMAIN?.trim() ?? ''
+if (!/^https:\/\/[\w.-]+\.cloudflareaccess\.com\/?$/.test(accessTeam)) {
+  throw new Error(
+    'Set NEXT_PUBLIC_ACCESS_TEAM_DOMAIN to https://<team>.cloudflareaccess.com before building. See docs/SETUP.md.',
+  )
 }

@@ -4,13 +4,18 @@ import { digest, randomToken } from '../lib/server/crypto'
 import { api } from './api'
 import { database } from './database'
 
-// `authenticate` resolves a browser session through Clerk; the service layer is
-// exercised for real behind it.
-const { verifyToken } = vi.hoisted(() => ({ verifyToken: vi.fn() }))
-vi.mock('@clerk/backend', () => ({
-  verifyToken,
-  createClerkClient: () => ({ authenticateRequest: vi.fn() }),
-}))
+// `authenticate` resolves a browser session through Cloudflare Access; the
+// service layer is exercised for real behind it.
+const { jwtVerify } = vi.hoisted(() => ({ jwtVerify: vi.fn() }))
+vi.mock('jose', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('jose')>()
+  return {
+    ...actual,
+    // eslint-disable-next-line ts/promise-function-async -- vi.fn already returns a Promise
+    jwtVerify: (...args: unknown[]) => jwtVerify(...args) as ReturnType<typeof actual.jwtVerify>,
+    createRemoteJWKSet: () => (() => {}) as ReturnType<typeof actual.createRemoteJWKSet>,
+  }
+})
 
 const MASTER_KEY = 'c'.repeat(64)
 let env: Env
@@ -23,11 +28,11 @@ beforeEach(async () => {
     DB: store.db,
     APP_ORIGIN: 'https://memory.example',
     AGENT_SETTINGS_KEY: MASTER_KEY,
-    // A session credential is only attempted when Clerk is configured.
-    CLERK_SECRET_KEY: 'sk_test_placeholder',
+    ACCESS_TEAM_DOMAIN: 'https://example.cloudflareaccess.com',
+    ACCESS_AUD: 'access-aud-tag',
   }
-  verifyToken.mockReset()
-  verifyToken.mockResolvedValue({ sub: 'alice' })
+  jwtVerify.mockReset()
+  jwtVerify.mockResolvedValue({ payload: { sub: 'alice' } })
   token = randomToken()
   await env.DB.prepare(
     'INSERT INTO api_tokens(id, owner_id, name, digest, prefix, scopes, project, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -56,13 +61,17 @@ function request(
   body?: unknown,
   credential = 'session',
 ): Request {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  }
+  if (credential === 'session')
+    headers['Cf-Access-Jwt-Assertion'] = 'access.jwt'
+  else
+    headers.Authorization = `Bearer ${token}`
   return new Request(`https://memory.example${path}`, {
     method,
-    headers: {
-      'Authorization': `Bearer ${credential === 'session' ? 'session-jwt' : token}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
+    headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
 }
@@ -162,7 +171,7 @@ describe('catalog settings validation', () => {
     expect(query.status).toBe(400)
   })
   it('fails closed when the deployment cannot encrypt a credential', async () => {
-    // Clerk stays configured, so the failure is the missing master key rather
+    // Access stays configured, so the failure is the missing master key rather
     // than an unauthenticated request.
     const bare: Env = { ...env, AGENT_SETTINGS_KEY: undefined }
     const response = await api(
@@ -269,7 +278,7 @@ describe('catalog settings storage', () => {
       provider: 'workers-ai',
       model: '@cf/qwen/qwen3-30b-a3b-fp8',
     })
-    verifyToken.mockResolvedValue({ sub: 'bob' })
+    jwtVerify.mockResolvedValue({ payload: { sub: 'bob' } })
     const bob = await call('/api/v1/catalog/settings')
     expect(bob.body).toMatchObject({ provider: 'none', model: null })
   })

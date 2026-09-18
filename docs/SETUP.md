@@ -12,19 +12,38 @@ pnpm db:migrate:local
 pnpm dev
 ```
 
-Open http://localhost:3000. Without Clerk configuration, the UI shows setup instructions and cannot access private data. There is no development authentication bypass. D1 migrations here are **local only**.
+Open http://localhost:3000. Without Cloudflare Access configuration, the UI shows setup instructions and cannot access private data. There is no development authentication bypass. D1 migrations here are **local only**.
 
-## 2. Configure a Clerk development application — first credential checkpoint
+## 2. Configure Cloudflare Access — first credential checkpoint
 
-1. Create an application in the [Clerk Dashboard](https://dashboard.clerk.com/). Enable your preferred sign-in methods; email is enough for this MVP.
-2. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` to the application's `pk_test_…` value.
-3. Copy `.dev.vars.example` to `.dev.vars`. Set `CLERK_SECRET_KEY` to the matching `sk_test_…` value. Leave `APP_ORIGIN=http://localhost:3000`.
-4. Restart `pnpm dev` and open that exact origin. Using `127.0.0.1` or a different port requires changing `APP_ORIGIN` too.
-5. Sign in. Save a memory, create a token, and try a read with it. Use a second account to verify independent libraries.
+Production and any realistic login use [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/). Local `pnpm dev` stays unsigned until you set the public team domain (and still cannot complete a real Access login without Access in front of the hostname or `cloudflared`).
 
-`.env.local` is used to inline the public browser key. `.dev.vars` supplies Worker secrets. Neither is committed. The app uses `@clerk/react` in the browser and `@clerk/backend` to verify session JWTs, avoiding reliance on Next.js-specific Clerk middleware.
+1. In Zero Trust, create a self-hosted (or MCP server) Access application on your Worker custom domain.
+2. Add an Allow policy for your email (One-time PIN is enough for a single user).
+3. Enable **Managed OAuth** under Advanced settings. Prefer a short access-token lifetime (5–15 minutes) and a longer grant session (1–2 weeks). Allow localhost/loopback clients for Codex/Cursor. Allowlist `https://chatgpt.com/connector_platform_oauth_redirect`.
+4. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN` to `https://<team>.cloudflareaccess.com`.
+5. Copy `.dev.vars.example` to `.dev.vars`. Set `ACCESS_TEAM_DOMAIN` to the same value and `ACCESS_AUD` to the application Audience tag. Leave `APP_ORIGIN=http://localhost:3000`.
+6. Restart `pnpm dev`. Against localhost the UI leaves setup mode when the public team domain is set, but API calls still need an Access JWT (or a personal `mem_*` token) until Access protects the deployed origin.
 
-Clerk production instance, custom-domain/DNS setup, sign-in redirects, and real account behavior must be verified before production deployment. Disabling a Clerk account does not automatically revoke this application's independent personal tokens; use the token revocation controls before offboarding. Automatic offboarding/webhooks are not part of this MVP.
+`.env.local` inlines the public team domain for the browser. `.dev.vars` supplies Worker configuration. Neither is committed. The Worker verifies `Cf-Access-Jwt-Assertion` (or the `CF_Authorization` cookie) with the team JWKS; there is no Access secret key.
+
+Disabling an Access user does not automatically revoke this application's independent personal tokens; use the token revocation controls before offboarding. Automatic offboarding/webhooks are not part of this MVP.
+
+### Migrating from Clerk (one-time)
+
+Schema does not change: `owner_id` stays opaque text. Remap production rows from the Clerk `user_…` id to the Access `sub` with [`scripts/remap-owner-id.sql`](../scripts/remap-owner-id.sql). **Do not put this file under `migrations/`** (CI does not auto-apply D1; local tests and `migrations apply` would still run numbered files).
+
+1. Deploy Access-aware code and configure Access on the hostname.
+2. Sign in once through Access; decode `sub` from `Cf-Access-Jwt-Assertion`.
+3. Read the old id: `wrangler d1 execute DB --remote --command "SELECT DISTINCT owner_id FROM memories"`.
+4. Edit the two literals at the top of the SQL file locally (do not commit real IDs), then:
+
+```sh
+pnpm exec wrangler d1 execute DB --remote --file=scripts/remap-owner-id.sql
+pnpm db:check-tenants:remote
+```
+
+5. Wait for the indexer Cron (or trigger scheduled processing) so Vectorize namespaces match the new `owner_id`.
 
 ## 3. Provision Cloudflare — second credential checkpoint
 
@@ -58,20 +77,21 @@ curl --fail http://localhost:3000/cdn-cgi/local/scheduled
 
 Check the Usage page for pending jobs. Vector visibility is eventually consistent even after the queue drains. This local-only development endpoint is provided by Cloudflare tooling, not by the application's public API. See [Cloudflare binding support](https://developers.cloudflare.com/workers/local-development/bindings-per-env/).
 
-Set `vars.APP_ORIGIN` to the exact HTTPS application origin. Choose the final Worker/custom domain first, and configure the matching Clerk production instance. Use development resources for staging; do not reuse production D1/Vectorize between environments.
+Set `vars.APP_ORIGIN` to the exact HTTPS application origin. Choose the final Worker/custom domain first, and configure the matching Access application on that hostname. Use development resources for staging; do not reuse production D1/Vectorize between environments.
 
 ## 4. Configure production secrets and deploy
 
 This step changes remote resources. Run it only when ready to deploy the chosen environment.
 
 ```sh
-pnpm exec wrangler secret put CLERK_SECRET_KEY
 pnpm exec wrangler secret put CLOUDFLARE_ACCOUNT_ID
 # Create an API token with only Account Analytics Read.
 pnpm exec wrangler secret put ANALYTICS_READ_TOKEN
+# Access team domain and AUD are ordinary vars (not secrets); set them in
+# wrangler.jsonc / the dashboard, matching NEXT_PUBLIC_ACCESS_TEAM_DOMAIN.
 # Run checks before deploying.
 pnpm check
-# Use the production Clerk publishable key in .env.local or the build environment.
+# Use the production Access team domain in .env.local or the build environment.
 pnpm build
 pnpm db:check-tenants:remote
 pnpm exec wrangler d1 migrations apply DB --remote
@@ -79,7 +99,7 @@ pnpm db:check-tenants:remote
 pnpm exec wrangler deploy --config dist/server/wrangler.json
 ```
 
-Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_…` in the build environment or the ignored local env file **before building**. Never put `CLERK_SECRET_KEY` in a `NEXT_PUBLIC_*` variable. Runtime secret values are entered through Wrangler, not committed in `wrangler.jsonc`.
+Set `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com` in the build environment or the ignored local env file **before building**. Set Worker `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` to match. Runtime secret values are entered through Wrangler, not committed in `wrangler.jsonc`.
 
 The tenant check is read-only and prints only relationship names, counts and shortened identifiers. Any finding blocks the release: inspect and repair it manually before applying `0007_tenant_integrity.sql`; the migration never guesses an owner, moves a row, or deletes data.
 
@@ -188,77 +208,58 @@ Skill activation is model-driven, so it provides portable best-effort capture ra
 
 ### ChatGPT
 
-ChatGPT signs the user in through the authorization server; this application publishes only the resource half of the MCP authorization contract. Clerk is the authorization server. OpenAI accepts any of CIMD, dynamic client registration, or a predefined client, so CIMD is a convenience rather than a requirement.
+ChatGPT signs the user in through the authorization server; this application publishes only the resource half of the MCP authorization contract. Cloudflare Access Managed OAuth is the authorization server. Access issues opaque OAuth tokens to the client; the edge resolves them and forwards a `Cf-Access-Jwt-Assertion` that the Worker verifies.
 
-`pnpm oauth:check` fetches the instance metadata and lists what is still missing. Run it after each change below.
+`pnpm oauth:check` fetches Access authorization-server metadata and lists what is still missing. Run it after enabling Managed OAuth.
 
-1. Open **OAuth applications → Settings**. Under **Client onboarding**, enable **Publish DCR support**. DCR is the self-serve path and the one this project assumes; **Publish CIMD support** is a tidier alternative only when Clerk has enabled it for your account, since CIMD is in beta and gated behind support. Leave CIMD off if it is unavailable: ChatGPT then registers one client per MCP connection through DCR and reuses it, so expect one extra row per connection on the **Applications** tab.
-2. Set **Default scopes for dynamic clients** to `openid profile email offline_access memory:read memory:write`. ChatGPT may omit the `scope` parameter, so these defaults decide what a new link can do. Leave `memory:delete` out until you want a host to be able to forget memories.
-3. On the **Scopes** tab, create the custom scopes `memory:read`, `memory:write`, and `memory:delete`, and advertise them.
-4. Keep the OAuth consent screen enabled; Clerk enforces it automatically once DCR is published, and PKCE is required by default.
-5. Under **Access token format**, prefer **opaque access tokens**: personal tokens are revocable immediately, and opaque OAuth tokens behave the same way. JWT access tokens stay valid until they expire (up to one day).
-6. Confirm the result:
+1. Protect the Worker hostname with an Access application and turn on **Managed OAuth**.
+2. Allowlist `https://chatgpt.com/connector_platform_oauth_redirect` under allowed redirect URIs for dynamic clients.
+3. Confirm DCR and PKCE S256:
 
 ```sh
 pnpm oauth:check
 ```
 
-It must report a client registration method, `PKCE methods: S256`, and the memory scopes. `CLERK_ISSUER` is optional: the publishable key already encodes the frontend API host and `/.well-known/oauth-protected-resource` decodes it. Set the variable only when the issuer must not follow that key.
-
-#### When neither CIMD nor DCR can be enabled
-
-- **Predefined OAuth client.** Create an OAuth application, mark it **Public**, require PKCE, assign the memory scopes, and allowlist the redirect URI. This instance advertises RFC 9207 issuer identification, so ChatGPT uses the stable callback `https://chatgpt.com/connector_platform_oauth_redirect` instead of a per-connection URL. Enter that client ID in the connector dialog if it offers one; Codex accepts it explicitly with `codex mcp add shared_memory --url https://YOUR_ORIGIN/mcp --oauth-client-id YOUR_CLIENT_ID`.
-- **Another authorization server.** `/.well-known/oauth-protected-resource` publishes whatever `CLERK_ISSUER` names, so a provider that supports CIMD (Auth0, Stytch, WorkOS) can be named instead. Its user IDs then have to be mapped onto Clerk accounts before this application serves the right library, which is why this is a fallback rather than the default.
-- **An authorization-server shim in this Worker.** The Worker could publish its own authorization-server metadata and proxy `/oauth/authorize`, `/oauth/token`, and `/oauth/register` to Clerk. That needs a client registry, authorization-code storage, and token signing; it is deliberately not implemented.
+It must report a client registration method and `PKCE methods: S256`. Access Managed OAuth requires the RFC 8707 `resource` parameter; ChatGPT's connector generally sends it. Access does **not** advertise custom `memory:*` scopes — a linked agent receives the same full memory access as a browser session (including forget).
 
 Then connect:
 
 1. In ChatGPT, open **Settings → Security and login** and turn on **Developer mode**.
 2. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select the plus button, and enter `https://YOUR_ORIGIN/mcp`.
-3. ChatGPT reads the protected-resource metadata and opens the Clerk consent screen. Approve the scopes. Nothing is copied by hand.
-4. Confirm the tools appear, then ask ChatGPT to search a memory you saved on this site. The Usage tab attributes those calls to a connected app.
+3. ChatGPT reads the protected-resource metadata and opens the Access login. Approve. Nothing is copied by hand.
+4. Confirm the tools appear, then ask ChatGPT to search a memory you saved on this site.
 
-If no consent screen appears, check that `curl -s https://YOUR_ORIGIN/.well-known/oauth-protected-resource` returns JSON, that the 401 from `/mcp` carries a `resource_metadata` challenge, and that Clerk lists the connection under **OAuth applications → Applications**.
-
-If the callback comes back with `error=invalid_scope` and a description like *The OAuth 2.0 Client is not allowed to request scope 'openid'*, the dynamic client is missing a scope ChatGPT asks for on its own. ChatGPT requests every OIDC scope the authorization server advertises, and Clerk advertises `openid`, `profile`, `email`, and `offline_access`, so those must be in the client's allowed scopes even though this server never asks for them. Fix it in this order:
-
-1. **OAuth applications → Settings → Client onboarding → Default scopes for dynamic clients**: include `openid profile email offline_access` alongside `memory:read memory:write`.
-2. **Re-register the existing client.** Changing the defaults does not widen a client that already exists. Under **OAuth applications → Applications**, either edit that client's scopes to add the OIDC scopes, or delete it, then reconnect in ChatGPT so a fresh client is registered. `npx clerk@latest api oauth_applications` lists each application with the scopes it may request.
-3. Re-run `pnpm oauth:check`, which prints the advertised OIDC scopes and the same warning.
+If no consent screen appears, check that `curl -s https://YOUR_ORIGIN/.well-known/oauth-protected-resource` returns JSON pointing at your Access team domain, that Managed OAuth is enabled, and that the ChatGPT redirect URI is allowlisted.
 
 ChatGPT currently announces MCP revision `2026-07-28` and opens with `server/discover`, a method that revision makes mandatory. The pinned MCP SDK implements revisions up to `2025-11-25`, so `lib/server/mcp.ts` accepts an unknown `MCP-Protocol-Version` by serving the request with the revision this server implements rather than answering `400`, and `server/discover` is answered with `Method not found` so the client falls back to `initialize` (which negotiates down to `2025-11-25`). That compatibility shim keeps 2025-era clients working; adopting `@modelcontextprotocol/server` 2.x is the durable fix if a client ever requires the newer revision outright.
 
-Two Clerk behaviours are worth knowing. Its metadata advertises RFC 9207 issuer identification, which is what lets ChatGPT reuse the stable `https://chatgpt.com/connector_platform_oauth_redirect` callback; if an instance ever stops advertising it, ChatGPT falls back to a connection-specific redirect URI and registers a separate OAuth client per connection, and nothing here needs to change. Clerk also does not bind tokens to an audience, so this server verifies issuer, expiry, and scope, but not the `resource` parameter.
-
 ### Codex
 
-Set `MEMORY_API_TOKEN` in the environment available to the Codex process (directly or by launching it through the helper above), then add:
+Prefer Access OAuth on the production MCP URL (same as ChatGPT). Personal `mem_*` tokens remain for local or direct REST when Access is not in front:
 
-```toml
-[mcp_servers.shared_memory]
-url = "https://YOUR_ORIGIN/mcp"
-bearer_token_env_var = "MEMORY_API_TOKEN"
+```sh
+codex mcp add shared_memory --url https://YOUR_ORIGIN/mcp
 ```
 
-Alternatively: `codex mcp add shared_memory --url https://YOUR_ORIGIN/mcp --bearer-token-env-var MEMORY_API_TOKEN`.
+For a local/token fallback only: set `MEMORY_API_TOKEN` and use `--bearer-token-env-var MEMORY_API_TOKEN`. Behind Access, a bare Bearer `mem_*` never reaches the Worker.
 
 Install the skill with `npx skills add zeithrold/memory --agent codex --skill shared-memory -g -y`, or copy `skills/shared-memory` into the client's discoverable skills directory. Installing a skill does not override host approval settings or guarantee every conversation will use it.
 
 ### Cursor
 
-Configure a remote server in the supported global or project `mcp.json`:
+Configure a remote server in the supported global or project `mcp.json` for Access OAuth:
 
 ```json
 {
   "mcpServers": {
     "shared_memory": {
-      "url": "https://YOUR_ORIGIN/mcp",
-      "headers": { "Authorization": "Bearer ${env:MEMORY_API_TOKEN}" }
+      "url": "https://YOUR_ORIGIN/mcp"
     }
   }
 }
 ```
 
+A `headers.Authorization` Bearer `mem_*` entry is only for local/direct REST when Access does not protect the hostname.
 Make the environment variable available to Cursor and install the same skill with `npx skills add zeithrold/memory --agent cursor --skill shared-memory -g -y`. Never commit a literal token in project configuration. GUI applications may not inherit your shell's environment; validate that in the actual client.
 
 ### DeepSeek
@@ -300,15 +301,15 @@ pnpm exec wrangler secret put SENTRY_DSN
 - **Two environments, one project**: local runs are `stage`, every deployment is `production`. The environment comes from `SENTRY_ENVIRONMENT` when set, otherwise from `APP_ORIGIN` (an `http` or localhost origin means `stage`). Scope alerts to `environment:production` so local noise never pages you.
 - **Sampling**: traces are sampled at 1 on stage and 0.5 in production. `SENTRY_TRACES_SAMPLE_RATE` overrides both if quota becomes a concern. Errors are always sent.
 - **What is captured**: request transactions (fetch), the Cron span plus a Sentry Crons heartbeat, D1 query spans, Workers AI spans, and MCP tool spans. Failures are reported only when the response is 5xx; 4xx is normal traffic.
-- **What never leaves the deployment**: memory titles and content, search queries, request bodies, `Authorization`/`Cookie` headers, IP addresses and email addresses, and genAI inputs or outputs. The SDK runs with `sendDefaultPii: false`, and `lib/server/observability.ts` additionally strips those fields before sending. Error reports identify the account only by its opaque Clerk id.
+- **What never leaves the deployment**: memory titles and content, search queries, request bodies, `Authorization`/`Cookie` headers, IP addresses and email addresses, and genAI inputs or outputs. The SDK runs with `sendDefaultPii: false`, and `lib/server/observability.ts` additionally strips those fields before sending. Error reports identify the account only by its opaque Access `sub`.
 - **Project settings**: enable **Prevent Storing of IP Addresses** and leave request-body storage off as defence in depth.
 - **Source maps**: with `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` present at build time, `vite build` uploads source maps and deletes the client copies afterwards. Set `SENTRY_RELEASE` (CI uses the commit SHA) so the Worker and the uploaded artifacts agree; otherwise stack traces stay minified. `wrangler.jsonc` also enables Cloudflare's own `upload_source_maps`, which keeps stack traces readable in the Cloudflare dashboard.
 
 ## 9. Deployment acceptance
 
-The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Clerk secrets. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production publishable key. These tests do not need a Cloudflare API token.
+The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Access configuration. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production Access team domain. These tests do not need a Cloudflare API token.
 
-- Sign in/out with real Clerk sessions; verify invalid/expired sessions and unapproved origins are rejected.
+- Sign in/out with real Access sessions; verify invalid/expired JWTs and unapproved origins are rejected.
 - Two users cannot read, search, edit, delete, or inspect each other's history. A project-restricted token cannot read other projects, including `global`.
 - Codex and Cursor initialize, list tools and perform real tool calls. Validate their actual supported protocol revisions against the pinned MCP SDK.
 - Save a Chinese memory, wait for indexing, and retrieve it with an English/Chinese paraphrase. Score a small real-world retrieval set; local mock-vector tests cannot establish semantic quality.

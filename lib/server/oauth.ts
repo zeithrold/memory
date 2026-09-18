@@ -1,12 +1,12 @@
 import type { Principal, Scope } from '../contracts'
 import type { Env } from './env'
-import { createClerkClient } from '@clerk/backend'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { AppError } from './errors'
 
-// The MCP authorization contract expects an OAuth 2.1 authorization server. Clerk
-// is that server; this module only implements the resource-server half: discovery
-// metadata, the WWW-Authenticate challenge, and mapping a verified OAuth token
-// onto the same Principal the personal-token path produces.
+// The MCP authorization contract expects an OAuth 2.1 authorization server.
+// Cloudflare Access Managed OAuth is that server; this module implements the
+// resource-server half: discovery metadata, the WWW-Authenticate challenge when
+// Access is not in front, and mapping a verified Access JWT onto a Principal.
 export const OAUTH_SCOPES = [
   'memory:read',
   'memory:write',
@@ -29,42 +29,38 @@ export type ToolSecurityScheme
 function trimOrigin(origin: string): string {
   return origin.replace(/\/+$/, '')
 }
-/**
- * The publishable key is `pk_(test|live)_<base64(frontendApi + '$')>`.
- * The same expression is already inlined for the server component in `app/page.tsx`.
- */
-export function issuerFromPublishableKey(key: string): string | null {
-  const encoded = /^pk_(?:test|live)_(.+)$/.exec(key.trim())?.[1]
-  if (encoded === undefined)
-    return null
-  try {
-    const decoded = atob(encoded)
-    const host = decoded.endsWith('$') ? decoded.slice(0, -1) : decoded
-    if (!/^[\w.-]+$/.test(host) || !host.includes('.'))
-      return null
-    return `https://${host}`
-  }
-  catch {
-    return null
-  }
-}
-/** Only the explicit override and the publishable key matter here. */
-export function clerkIssuer(env: Pick<Env, 'CLERK_ISSUER'>): string | null {
-  const explicit = env.CLERK_ISSUER?.trim()
+
+/** Team domain from Worker env or the public build-time value. */
+export function accessIssuer(
+  env: Pick<Env, 'ACCESS_TEAM_DOMAIN'> = {},
+): string | null {
+  const explicit = env.ACCESS_TEAM_DOMAIN?.trim()
   if (explicit !== undefined && explicit.length > 0)
     return trimOrigin(explicit)
   // Vite replaces the global expression; importing node:process prevents it.
   // eslint-disable-next-line node/prefer-global/process
-  return issuerFromPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '')
+  const fromPublic = process.env.NEXT_PUBLIC_ACCESS_TEAM_DOMAIN?.trim()
+  if (fromPublic !== undefined && fromPublic.length > 0)
+    return trimOrigin(fromPublic)
+  return null
 }
+
+export function accessAudience(env: Pick<Env, 'ACCESS_AUD'>): string | null {
+  const aud = env.ACCESS_AUD?.trim()
+  if (aud === undefined || aud.length === 0)
+    return null
+  return aud
+}
+
 export function resourceMetadataUrl(env: Env): string {
   return `${trimOrigin(env.APP_ORIGIN)}${PROTECTED_RESOURCE_PATH}`
 }
+
 export function protectedResourceMetadata(
   env: Env,
   resource: string,
 ): ProtectedResourceMetadata | null {
-  const issuer = clerkIssuer(env)
+  const issuer = accessIssuer(env)
   if (issuer === null)
     return null
   return {
@@ -74,6 +70,7 @@ export function protectedResourceMetadata(
     bearer_methods_supported: ['header'],
   }
 }
+
 /** RFC 9728 challenge that lets an unauthenticated client discover the metadata. */
 export function challenge(
   env: Env,
@@ -94,110 +91,99 @@ export function challenge(
     parts.push(`error_description="${clean(options.description)}"`)
   return parts.join(', ')
 }
+
 /** Every tool requires at least one scope, so every scheme is `oauth2`. */
 export function securitySchemesFor(scope: Scope): ToolSecurityScheme[] {
   return [{ type: 'oauth2', scopes: [scope] }]
 }
-export function mapOauthScopes(scopes: readonly string[]): Scope[] {
-  return OAUTH_SCOPES.filter(scope => scopes.includes(scope))
-}
-export function oauthPrincipal(identity: {
-  userId: string | null
-  clientId: string | null
-  scopes: readonly string[]
-}): Principal {
-  const scopes = mapOauthScopes(identity.scopes)
-  if (identity.userId === null || scopes.length === 0) {
-    throw new AppError('INSUFFICIENT_SCOPE', 'This connection is not authorized for any memory scope.')
-  }
+
+export function accessPrincipal(ownerId: string): Principal {
   return {
-    ownerId: identity.userId,
+    ownerId,
     tokenId: null,
-    scopes,
+    scopes: [...OAUTH_SCOPES],
     project: null,
-    ...(identity.clientId === null ? {} : { clientId: identity.clientId }),
   }
 }
-let cached: {
-  secretKey: string
-  publishableKey: string
-  client: ReturnType<typeof createClerkClient>
-} | null = null
-/**
- * Clerk verifies OAuth access tokens through the instance's frontend API, which
- * it derives from the publishable key. A client built from the secret key alone
- * throws `Publishable key is missing` on every machine-token verification.
- */
-export function clerkPublishableKey(env: Pick<Env, 'CLERK_PUBLISHABLE_KEY'>): string {
-  const explicit = env.CLERK_PUBLISHABLE_KEY?.trim()
-  if (explicit !== undefined && explicit.length > 0)
-    return explicit
-  // Vite replaces the global expression; importing node:process prevents it.
-  // eslint-disable-next-line node/prefer-global/process
-  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? ''
+
+function cookieValue(request: Request, name: string): string | null {
+  const header = request.headers.get('cookie')
+  if (header === null || header.length === 0)
+    return null
+  for (const part of header.split(';')) {
+    const trimmed = part.trim()
+    const eq = trimmed.indexOf('=')
+    if (eq <= 0)
+      continue
+    if (trimmed.slice(0, eq) !== name)
+      continue
+    return decodeURIComponent(trimmed.slice(eq + 1))
+  }
+  return null
 }
-function clerkClient(
-  secretKey: string,
-  publishableKey: string,
-): ReturnType<typeof createClerkClient> {
-  if (cached?.secretKey !== secretKey || cached.publishableKey !== publishableKey) {
-    cached = {
-      secretKey,
-      publishableKey,
-      client: createClerkClient({ secretKey, publishableKey }),
+
+let cachedJwks: {
+  teamDomain: string
+  jwks: ReturnType<typeof createRemoteJWKSet>
+} | null = null
+
+function accessJwks(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
+  if (cachedJwks?.teamDomain !== teamDomain) {
+    cachedJwks = {
+      teamDomain,
+      jwks: createRemoteJWKSet(new URL(`${teamDomain}/cdn-cgi/access/certs`)),
     }
   }
-  return cached.client
+  return cachedJwks.jwks
 }
-export function resetOauthCache(): void {
-  cached = null
+
+export function resetAccessJwksCache(): void {
+  cachedJwks = null
 }
+
 /**
- * Verifies a Clerk OAuth access token. `authorizedParties` is deliberately not
- * passed: the token's authorized party is the OAuth client (the agent host), not
- * this application's origin.
+ * Verifies a Cloudflare Access application JWT from the edge assertion header
+ * or the CF_Authorization cookie. Returns null when no token is present so the
+ * caller can fall through to another credential kind.
  */
-export async function verifyOAuthRequest(
+export async function verifyAccessJwt(
   request: Request,
   env: Env,
 ): Promise<Principal | null> {
-  if (env.CLERK_SECRET_KEY === undefined || env.CLERK_SECRET_KEY.length === 0) {
-    throw new AppError('AUTH_NOT_CONFIGURED', 'Clerk is not configured yet.')
-  }
-  const publishableKey = clerkPublishableKey(env)
-  if (publishableKey.length === 0) {
-    throw new AppError(
-      'AUTH_NOT_CONFIGURED',
-      'Clerk OAuth verification needs the publishable key of the instance.',
-    )
+  const token = request.headers.get('cf-access-jwt-assertion')
+    ?? cookieValue(request, 'CF_Authorization')
+  if (token === null || token.length === 0)
+    return null
+  const teamDomain = accessIssuer(env)
+  const audience = accessAudience(env)
+  if (teamDomain === null || audience === null) {
+    throw new AppError('AUTH_NOT_CONFIGURED', 'Cloudflare Access is not configured yet.')
   }
   try {
-    const state = await clerkClient(env.CLERK_SECRET_KEY, publishableKey)
-      .authenticateRequest(request, { acceptsToken: 'oauth_token' })
-    if (!state.isAuthenticated)
-      return null
-    const auth = state.toAuth()
-    return oauthPrincipal({
-      userId: auth.userId,
-      clientId: auth.clientId,
-      // An opaque token whose response omits scopes must fail as insufficient
-      // scope, not as a type error.
-      scopes: Array.isArray(auth.scopes) ? auth.scopes : [],
+    const { payload } = await jwtVerify(token, accessJwks(teamDomain), {
+      issuer: teamDomain,
+      audience,
     })
+    const sub = typeof payload.sub === 'string' ? payload.sub.trim() : ''
+    // Service-token assertions carry an empty sub; this app needs a user identity.
+    if (sub.length === 0) {
+      throw new AppError(
+        'UNAUTHORIZED',
+        'This Access credential does not identify a user.',
+      )
+    }
+    return accessPrincipal(sub)
   }
   catch (error) {
-    // Insufficient scope is a step-up signal, not a verification failure.
     if (error instanceof AppError)
       throw error
-    // A token that cannot be verified is an authentication failure, never a
-    // server error: the challenge must send the host back through OAuth.
-    console.error('OAuth token verification failed', {
+    console.error('Access JWT verification failed', {
       type: error instanceof Error ? error.name : 'UnknownError',
       message: error instanceof Error ? error.message.slice(0, 200) : '',
     })
     throw new AppError(
       'UNAUTHORIZED',
-      'The OAuth access token could not be verified.',
+      'Your session has expired. Sign in again.',
     )
   }
 }

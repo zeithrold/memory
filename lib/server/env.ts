@@ -14,11 +14,10 @@ export interface Env {
    * without it the service refuses to store one rather than keeping plaintext.
    */
   AGENT_SETTINGS_KEY?: string
-  CLERK_SECRET_KEY?: string
-  /** Optional explicit Clerk issuer. Derived from the publishable key when unset. */
-  CLERK_ISSUER?: string
-  /** Optional publishable key override; otherwise the built-in public key is used. */
-  CLERK_PUBLISHABLE_KEY?: string
+  /** Zero Trust team domain, e.g. `https://example.cloudflareaccess.com`. */
+  ACCESS_TEAM_DOMAIN?: string
+  /** Access application audience (AUD) tag. */
+  ACCESS_AUD?: string
   /** Absent in local development and the e2e preview, which disables Sentry. */
   SENTRY_DSN?: string
   SENTRY_RELEASE?: string

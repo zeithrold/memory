@@ -45,7 +45,7 @@ export function protectedResourceResponse(
       errorResponse(
         new AppError(
           'AUTH_NOT_CONFIGURED',
-          'OAuth discovery needs a configured Clerk instance.',
+          'OAuth discovery needs a configured Cloudflare Access team domain.',
         ),
         context,
       ),

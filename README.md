@@ -1,8 +1,8 @@
 # Shared Memory
 
-A private memory library shared across your AI agents. Built with vinext, Clerk, Cloudflare Workers/D1/Vectorize, Workers AI, and shadcn/ui.
+A private memory library shared across your AI agents. Built with vinext, Cloudflare Access, Cloudflare Workers/D1/Vectorize, Workers AI, and shadcn/ui.
 
-English-first interface and documentation, with typed Simplified Chinese translations. Each user owns an isolated library. ChatGPT links over OAuth and Codex, Cursor, or any MCP host connects with a personal token; the skill and the MCP server ship together as one installable plugin.
+English-first interface and documentation, with typed Simplified Chinese translations. Each user owns an isolated library. ChatGPT, Codex, Cursor, and other MCP hosts link through Cloudflare Access Managed OAuth; personal `mem_*` tokens remain for local development and direct REST. The skill and the MCP server ship together as one installable plugin.
 
 ## Local development
 
@@ -26,7 +26,7 @@ A running instance documents every machine error at `/errors`, one page per code
 
 ## Plugin package
 
-`pnpm plugin:build` assembles the skill and the MCP server into one installable plugin under `dist/plugin`, with the MCP URL read from `wrangler.jsonc`. `pnpm oauth:check` reports whether the configured Clerk instance can register an MCP client (CIMD, DCR, or a predefined client) and whether the memory scopes are advertised. See [connect clients](docs/SETUP.md) for the ChatGPT OAuth setup and local marketplace installation.
+`pnpm plugin:build` assembles the skill and the MCP server into one installable plugin under `dist/plugin`, with the MCP URL read from `wrangler.jsonc`. `pnpm oauth:check` reports whether the configured Cloudflare Access team advertises Managed OAuth (DCR, PKCE S256, RFC 8707). See [connect clients](docs/SETUP.md) for Access OAuth setup and local marketplace installation.
 
 For non-plugin hosts, install the portable Agent Skill globally into every compatible local agent detected by the Skills CLI:
 
@@ -45,10 +45,10 @@ pnpm check:bundle
 pnpm test:e2e
 ```
 
-`pnpm test:e2e` runs `pnpm e2e:build` first, which rebuilds the preview with no Clerk or Sentry credentials, so the browser checks never depend on your local `.env.local` or a real identity provider.
+`pnpm test:e2e` runs `pnpm e2e:build` first, which rebuilds the preview with no Access or Sentry credentials, so the browser checks never depend on your local `.env.local` or a real identity provider.
 
 `pnpm check:bundle` asserts against the built artifact that every Workflow class the Wrangler configuration binds is still a named export of the entry module. `pnpm deploy` runs it between the build and the upload, because a Workflow that lost its export would deploy without error and then never run.
 
-The test suite executes the real migrations against SQLite and tests authorization, OAuth scope mapping and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, plugin packaging, credential sealing, the catalog policy gateway, the tool loop's idempotency and dry-run behaviour, run reversion and proposal decisions. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Clerk authentication or OAuth linking, remote D1/Vectorize, a scheduled Workflow firing, a live model endpoint, or client acceptance testing.
+The test suite executes the real migrations against SQLite and tests authorization, Access JWT verification and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, plugin packaging, credential sealing, the catalog policy gateway, the tool loop's idempotency and dry-run behaviour, run reversion and proposal decisions. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Cloudflare Access authentication or Managed OAuth linking, remote D1/Vectorize, a scheduled Workflow firing, a live model endpoint, or client acceptance testing.
 
 `pnpm lint` uses strict, type-aware antfu ESLint and allows no warnings. TypeScript strictness includes unchecked indexed access. Dependency versions are pinned by `pnpm-lock.yaml`.

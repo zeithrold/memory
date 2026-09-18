@@ -28,15 +28,13 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
-    "@clerk/backend": "^3.18.1",
-    "@clerk/localizations": "^4.17.1",
-    "@clerk/react": "^6.16.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@sentry/cloudflare": "10.74.0",
     "@sentry/react": "10.74.0",
     "@vinext/cloudflare": "1.0.0-beta.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jose": "^6.2.12",
     "lucide-react": "^1.46.0",
     "radix-ui": "^1.6.7",
     "react": "latest",

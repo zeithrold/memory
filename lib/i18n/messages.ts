@@ -41,12 +41,13 @@ export const en = {
   working: 'Working…',
   setup: 'Connect your identity provider',
   setupBody:
-    'The app is running. Configure Clerk to sign in and start saving private memories.',
+    'The app is running. Configure Cloudflare Access to sign in and start saving private memories.',
   setupHelp:
     'See docs/SETUP.md for the environment variables and setup instructions.',
   signIn: 'Sign in',
+  signOut: 'Sign out',
   signInBody:
-    'Your memories belong to you. Sign in to access them across your agents.',
+    'Your memories belong to you. Sign in through Cloudflare Access to use them across your agents.',
   loadError: 'Something went wrong. Please try again.',
   tokensHeading: 'A key for each connection.',
   tokensIntro:
@@ -90,18 +91,20 @@ export const en = {
   endpoint: 'MCP endpoint',
   chatgpt: 'ChatGPT',
   chatgptBody:
-    'Turn on developer mode under Settings → Security and login, then add this MCP endpoint at chatgpt.com/plugins. ChatGPT opens a Clerk consent screen and links the account over OAuth, so no token is copied. The same account shares one library with this page.',
+    'Turn on developer mode under Settings → Security and login, then add this MCP endpoint at chatgpt.com/plugins. ChatGPT completes Cloudflare Access Managed OAuth; no token is copied. The same account shares one library with this page.',
+  oauthConnectBody:
+    'Add this MCP URL in the client and complete the Cloudflare Access login when prompted. Production MCP uses Access OAuth, not a pasted personal token.',
   plugin: 'Plugin package',
   pluginBody:
-    'The one-install path for ChatGPT and Codex bundles this skill with the remote MCP server and authenticates over OAuth. Run pnpm plugin:build for local testing, then publish the same package through the Plugins Directory.',
+    'The one-install path for ChatGPT and Codex bundles this skill with the remote MCP server and authenticates over Access OAuth. Run pnpm plugin:build for local testing, then publish the same package through the Plugins Directory.',
   skill: 'Companion skill',
   skillBody:
-    'Install it globally for every detected compatible agent, then run the bundled configure.mjs once to validate and store the endpoint and token. The MCP connection still supplies the actual read and write tools.',
+    'Install it globally for every detected compatible agent. Remote MCP still authenticates through Access OAuth; configure.mjs can store a personal mem_* token only for local or direct REST use.',
   deepseek: 'DeepSeek / HTTP',
   deepseekBody:
     'Use an MCP-capable host or the API adapter in examples/deepseek.py. The model requests tools; your application executes them.',
   tokenSafety:
-    'Store the token in your local environment. Do not commit it or paste it into a conversation.',
+    'Personal mem_* tokens remain for local development and direct REST. Production MCP behind Access uses OAuth instead. Do not commit tokens or paste them into a conversation.',
   keyword: 'Keyword search · semantic indexing unavailable',
   hybrid: 'Hybrid search',
   previous: 'Previous',
@@ -253,10 +256,11 @@ export const zh: Messages = {
   deleted: '记忆已遗忘。',
   working: '处理中…',
   setup: '连接身份认证服务',
-  setupBody: '应用已运行。配置 Clerk 后即可登录并保存个人记忆。',
+  setupBody: '应用已运行。配置 Cloudflare Access 后即可登录并保存个人记忆。',
   setupHelp: '环境变量和配置步骤见 docs/SETUP.md。',
   signIn: '登录',
-  signInBody: '记忆属于你。登录后即可在不同 Agent 中使用。',
+  signOut: '退出登录',
+  signInBody: '记忆属于你。通过 Cloudflare Access 登录后即可在不同 Agent 中使用。',
   loadError: '操作失败，请重试。',
   tokensHeading: '每个连接，一把独立的钥匙。',
   tokensIntro: '为每个 Agent 分配独立令牌，设置权限，随时撤销访问。',
@@ -297,17 +301,20 @@ export const zh: Messages = {
   endpoint: 'MCP 接口地址',
   chatgpt: 'ChatGPT',
   chatgptBody:
-    '在「设置 → 安全与登录」中开启开发者模式，然后在 chatgpt.com/plugins 添加此 MCP 地址。ChatGPT 会打开 Clerk 授权页并以 OAuth 关联账号，无需复制令牌。同一账号与本站共享同一份记忆库。',
+    '在「设置 → 安全与登录」中开启开发者模式，然后在 chatgpt.com/plugins 添加此 MCP 地址。ChatGPT 会完成 Cloudflare Access Managed OAuth，无需复制令牌。同一账号与本站共享同一份记忆库。',
+  oauthConnectBody:
+    '在客户端添加此 MCP 地址，并在提示时完成 Cloudflare Access 登录。生产环境的 MCP 使用 Access OAuth，而不是粘贴个人令牌。',
   plugin: '插件包',
   pluginBody:
-    'ChatGPT 和 Codex 的一站式方案会把 Skill 与远程 MCP 打进同一个插件，并通过 OAuth 授权。pnpm plugin:build 用于本地测试，验证后将同一插件发布到 Plugins Directory。',
+    'ChatGPT 和 Codex 的一站式方案会把 Skill 与远程 MCP 打进同一个插件，并通过 Access OAuth 授权。pnpm plugin:build 用于本地测试，验证后将同一插件发布到 Plugins Directory。',
   skill: '配套 Skill',
   skillBody:
-    '为所有检测到的兼容 Agent 全局安装后，运行 Skill 自带的 configure.mjs 一次，验证并保存 endpoint 与 token。实际读写仍由 MCP 连接提供。',
+    '为所有检测到的兼容 Agent 全局安装。远程 MCP 仍通过 Access OAuth 鉴权；configure.mjs 仅可把 mem_* 个人令牌用于本地或直接 REST。',
   deepseek: 'DeepSeek / HTTP',
   deepseekBody:
     '使用支持 MCP 的宿主，或 examples/deepseek.py 中的 API 适配器。模型发起工具调用，由应用执行。',
-  tokenSafety: '将令牌保存在本地环境变量中。不要提交到仓库或粘贴到对话中。',
+  tokenSafety:
+    '个人 mem_* 令牌仍可用于本地开发和直接 REST。Access 保护下的生产 MCP 改用 OAuth。不要把令牌提交到仓库或粘贴到对话中。',
   keyword: '关键词检索 · 语义索引暂不可用',
   hybrid: '混合检索',
   previous: '上一页',

@@ -3,16 +3,13 @@
 /* eslint-disable react-refresh/only-export-components, react/no-context-provider, react/no-use-context */
 
 import type { Locale, Messages } from '@/lib/i18n/messages'
-import { enUS, zhCN } from '@clerk/localizations'
-import { ClerkProvider, SignInButton, useAuth, UserButton } from '@clerk/react'
-import { BookOpen, Brain, Cable, ChartNoAxesCombined, FolderTree, KeyRound, Languages, LockKeyhole } from 'lucide-react'
+import { BookOpen, Brain, Cable, ChartNoAxesCombined, FolderTree, KeyRound, Languages, LockKeyhole, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { messages } from '@/lib/i18n/messages'
 import { BrowserObservability } from './observability'
-import { PageSkeleton } from './skeletons'
 import { Button } from './ui/button'
 import { Toaster } from './ui/sonner'
 
@@ -40,20 +37,19 @@ export function useWorkspace(): WorkspaceValue {
   return value
 }
 
-function Content({ children, t, locale, authState, getToken }: {
+function Content({ children, t, locale, authState }: {
   children: React.ReactNode
   t: Messages
   locale: Locale
   authState: WorkspaceValue['authState']
-  getToken?: () => Promise<string | null>
 }) {
   const api = useCallback<Api>(async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const token = await getToken?.()
-    if (token === null || token === undefined || token.length === 0)
+    if (authState === 'unconfigured')
       throw new Error(t.signIn)
     const response = await fetch(`/api/v1/${path}`, {
       ...init,
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...init?.headers },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
     })
     if (!response.ok) {
       const parsed = problemSchema.safeParse(await response.json())
@@ -62,40 +58,27 @@ function Content({ children, t, locale, authState, getToken }: {
       throw new Error(t.loadError)
     }
     return (response.status === 204 ? undefined : await response.json()) as T
-  }, [getToken, t])
+  }, [authState, t])
   const value = useMemo(() => ({ t, locale, authState, api }), [api, authState, locale, t])
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }
 
-function Authenticated({ children, t, locale }: { children: React.ReactNode, t: Messages, locale: Locale }) {
-  const { isLoaded, isSignedIn, getToken } = useAuth()
-  if (!isLoaded)
-    return <main className="page"><PageSkeleton /></main>
-  if (!isSignedIn) {
-    return (
-      <main className="page">
-        <div className="welcome">
-          <span className="eyebrow">SHARED MEMORY</span>
-          <h1>{t.heading}</h1>
-          <p>{t.signInBody}</p>
-          <SignInButton mode="modal"><Button>{t.signIn}</Button></SignInButton>
-        </div>
-      </main>
-    )
-  }
-  return <Content t={t} locale={locale} authState="ready" getToken={getToken}>{children}</Content>
+function accessLogoutUrl(teamDomain: string): string {
+  const returnTo = typeof window === 'undefined' ? '/' : window.location.origin
+  return `${teamDomain.replace(/\/+$/, '')}/cdn-cgi/access/logout?returnTo=${encodeURIComponent(returnTo)}`
 }
 
-export default function WorkspaceShell({ children, initialLocale, publishableKey, sentryDsn = '', sentryRelease = '' }: {
+export default function WorkspaceShell({ children, initialLocale, accessTeamDomain, sentryDsn = '', sentryRelease = '' }: {
   children: React.ReactNode
   initialLocale: Locale
-  publishableKey: string
+  accessTeamDomain: string
   sentryDsn?: string
   sentryRelease?: string
 }) {
   const [locale, setLocale] = useState(initialLocale)
   const pathname = usePathname()
   const t = messages(locale)
+  const configured = accessTeamDomain.length > 0
   const nav = [
     { id: 'memories', href: '/memories', icon: BookOpen },
     { id: 'catalog', href: '/catalog', icon: FolderTree },
@@ -103,7 +86,22 @@ export default function WorkspaceShell({ children, initialLocale, publishableKey
     { id: 'usage', href: '/usage', icon: ChartNoAxesCombined },
     { id: 'connect', href: '/connect', icon: Cable },
   ] as const
-  const shell = (content: React.ReactNode, account?: React.ReactNode) => (
+  const account = configured
+    ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={() => {
+            window.location.href = accessLogoutUrl(accessTeamDomain)
+          }}
+        >
+          <LogOut size={16} />
+          {t.signOut}
+        </Button>
+      )
+    : null
+  const shell = (content: React.ReactNode, accountControl?: React.ReactNode) => (
     <div className="app-shell">
       <BrowserObservability dsn={sentryDsn} release={sentryRelease} />
       <Toaster containerAriaLabel={t.notifications} />
@@ -151,19 +149,16 @@ export default function WorkspaceShell({ children, initialLocale, publishableKey
               <Languages size={16} />
               {locale === 'en' ? '中文' : 'English'}
             </Button>
-            {account}
+            {accountControl}
           </div>
         </header>
         {content}
       </div>
     </div>
   )
-  if (!publishableKey)
-    return shell(<Content t={t} locale={locale} authState="unconfigured">{children}</Content>)
-  return (
-    <ClerkProvider publishableKey={publishableKey} localization={locale === 'zh-CN' ? zhCN : enUS}>
-      {shell(<Authenticated t={t} locale={locale}>{children}</Authenticated>, <UserButton />)}
-    </ClerkProvider>
+  return shell(
+    <Content t={t} locale={locale} authState={configured ? 'ready' : 'unconfigured'}>{children}</Content>,
+    account,
   )
 }
 

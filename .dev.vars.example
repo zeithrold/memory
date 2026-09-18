@@ -1,8 +1,9 @@
-CLERK_SECRET_KEY=
+# Cloudflare Access application audience (AUD) tag from Zero Trust → Applications.
+ACCESS_AUD=
+# Same team domain as NEXT_PUBLIC_ACCESS_TEAM_DOMAIN (Worker override when needed).
+ACCESS_TEAM_DOMAIN=
 CLOUDFLARE_ACCOUNT_ID=
 ANALYTICS_READ_TOKEN=
-# Optional. Defaults to the frontend API host encoded in the publishable key.
-CLERK_ISSUER=
 # Exact origin, including port during development.
 APP_ORIGIN=http://localhost:3000
 # Required to store a per-account model credential for the catalog agent.

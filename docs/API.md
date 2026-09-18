@@ -1,6 +1,6 @@
 # API v1
 
-All endpoints require `Authorization: Bearer <credential>`. Browser calls use a Clerk session JWT; agents use personal `mem_…` tokens. Those are the normal `/api/v1` credentials. The read-only `/api/v1/status` preflight also accepts a Clerk OAuth access token, but an OAuth link still cannot reach token or account management. Request/response JSON field names and machine error codes are English and stable across UI locales. Use HTTPS remotely. Failures are RFC 9457 problem documents; see [Error handling](#error-handling).
+All endpoints require a verified credential. Browser calls rely on Cloudflare Access (`Cf-Access-Jwt-Assertion` or the `CF_Authorization` cookie) with `credentials: 'include'`. Agents on production MCP use Access Managed OAuth (the Worker sees the Access JWT). Personal `mem_…` Bearer tokens remain for local development and direct REST when Access is not in front. The read-only `/api/v1/status` preflight also accepts an Access JWT under the OAuth credential kind, but an Access-linked agent still cannot reach token or account management. Request/response JSON field names and machine error codes are English and stable across UI locales. Use HTTPS remotely. Failures are RFC 9457 problem documents; see [Error handling](#error-handling).
 
 | Method | Path | Access | Result |
 | --- | --- | --- | --- |
@@ -162,7 +162,7 @@ Reuse a creation idempotency key only with its original payload. Do not blindly 
 
 ## MCP
 
-`POST /mcp` uses JSON-RPC over Streamable HTTP. Send `Accept: application/json, text/event-stream`. Credentials are either a personal API token or a Clerk OAuth access token; a browser session is not accepted. The SDK handles initialize, discovery and tool schema validation. Tools are advertised according to the credential's scopes, and every tool call is authorized again by the shared service. Tool failures use MCP `isError` with the API error envelope. GET/DELETE transport methods return 405; this server has no protocol session to resume or delete.
+`POST /mcp` uses JSON-RPC over Streamable HTTP. Send `Accept: application/json, text/event-stream`. Credentials are either a personal API token or an Access JWT (via Managed OAuth); a raw browser cookie is not the supported MCP path when Access is not in front. The SDK handles initialize, discovery and tool schema validation. Tools are advertised according to the credential's scopes, and every tool call is authorized again by the shared service. Tool failures use MCP `isError` with the API error envelope. GET/DELETE transport methods return 405; this server has no protocol session to resume or delete.
 
 Every tool advertises an `outputSchema` and every successful call returns the matching `structuredContent`, so a host can read fields such as `id` and `version` without parsing text. The serialized JSON is still returned in a `TextContent` block because the MCP specification asks tools that return structured content to keep it for clients that predate `structuredContent`. A declared output schema is strict: a result that does not match it becomes an `isError` tool result rather than silently reaching the model.
 
@@ -170,7 +170,7 @@ Every tool advertises an `outputSchema` and every successful call returns the ma
 
 ## OAuth discovery
 
-Clerk issues the tokens; this application publishes only the resource-server half of the MCP authorization contract.
+Cloudflare Access Managed OAuth issues the client tokens; this application publishes only the resource-server half of the MCP authorization contract.
 
 | Method | Path | Result |
 | --- | --- | --- |
@@ -178,6 +178,6 @@ Clerk issues the tokens; this application publishes only the resource-server hal
 | GET | `/.well-known/oauth-protected-resource/mcp` | Same document with `resource` set to the `/mcp` URL |
 | OPTIONS | Either path | CORS preflight; both are public and cacheable for 5 minutes |
 
-Both documents list the Clerk instance derived from `CLERK_ISSUER` or the publishable key in `authorization_servers`, and advertise `memory:read`, `memory:write`, `memory:delete` in `scopes_supported`. Without a configured Clerk instance they return 503 `AUTH_NOT_CONFIGURED`.
+Both documents list the Access team domain derived from `ACCESS_TEAM_DOMAIN` or `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN` in `authorization_servers`, and advertise `memory:read`, `memory:write`, `memory:delete` in `scopes_supported`. Without a configured Access team domain they return 503 `AUTH_NOT_CONFIGURED`. Access itself does not issue those custom scopes; the Worker grants the full set to verified Access identities.
 
 `GET`/`POST /mcp` without a valid credential returns 401 with `WWW-Authenticate: Bearer resource_metadata="…", scope="memory:read memory:write"`, which is what lets an MCP host start the OAuth flow. A verified OAuth token whose scopes do not cover the requested tool returns MCP `isError` with `_meta["mcp/www_authenticate"]` carrying `error="insufficient_scope"` and the scope that is missing, so the host can ask for a re-link instead of silently failing. Each advertised tool carries `securitySchemes` describing the scope it needs.
