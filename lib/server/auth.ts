@@ -11,8 +11,9 @@ import { verifyOAuthRequest } from './oauth'
 
 /**
  * Credential kinds an entry point accepts. `/mcp` accepts personal tokens and
- * Clerk OAuth access tokens; `/api/v1` accepts sessions and personal tokens, so
- * an OAuth link can never reach token management.
+ * Clerk OAuth access tokens; `/api/v1` normally accepts sessions and personal
+ * tokens. The status preflight also accepts OAuth, without exposing management
+ * operations.
  */
 export type CredentialKind = 'session' | 'personal' | 'oauth'
 const DEFAULT_KINDS: CredentialKind[] = ['session', 'personal']

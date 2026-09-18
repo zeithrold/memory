@@ -1,5 +1,6 @@
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as status from '../app/api/v1/status/route'
 import { authenticate } from '../lib/server/auth'
 import { digest, randomToken } from '../lib/server/crypto'
 import { protectedResourceResponse } from '../lib/server/discovery'
@@ -313,6 +314,24 @@ describe('oauth credentials', () => {
       ownerId: 'alice',
       tokenId: null,
       scopes: ['memory:read', 'memory:write'],
+    })
+  })
+  it('accepts an OAuth token for credential preflight only', async () => {
+    oauthToken(['openid', 'memory:read', 'memory:write'])
+    const response = await status.GET(
+      request('/api/v1/status', 'oauth-access-token'),
+      { env, params: Promise.resolve({}) },
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      endpoint: 'https://memory.example',
+      mcpUrl: 'https://memory.example/mcp',
+      credential: {
+        ready: true,
+        scopes: ['memory:read', 'memory:write'],
+        missingScopes: [],
+        project: null,
+      },
     })
   })
   it('never accepts an OAuth token on the REST credential kinds', async () => {

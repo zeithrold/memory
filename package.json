@@ -14,6 +14,7 @@
     "check:bundle": "tsx scripts/check-bundle.ts",
     "deploy": "tsx scripts/deploy-check.ts && pnpm build && pnpm check:bundle && wrangler deploy --config dist/server/wrangler.json",
     "plugin:build": "tsx scripts/build-plugin.ts",
+    "skill:configure": "node skills/shared-memory/scripts/configure.mjs",
     "oauth:check": "tsx scripts/oauth-check.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",

@@ -14,6 +14,20 @@ test('English-first preview, navigation and persisted Chinese locale', async ({ 
   await expect(page.getByRole('link', { name: 'Connect', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('heading', { name: 'One memory. Every agent.' })).toBeVisible()
   await expect(page.getByText('bearer_token_env_var', { exact: false })).toBeVisible()
+  await expect(page.getByText('npx skills add zeithrold/memory --skill shared-memory -g')).toBeVisible()
+  if (testInfo.project.name === 'desktop') {
+    const cardRows = await page.locator('.connection-card').evaluateAll((cards) => {
+      const rows = new Map<number, number[]>()
+      for (const card of cards) {
+        const box = card.getBoundingClientRect()
+        const top = Math.round(box.top)
+        rows.set(top, [...(rows.get(top) ?? []), Math.round(box.height)])
+      }
+      return [...rows.values()]
+    })
+    for (const row of cardRows)
+      expect(new Set(row).size).toBe(1)
+  }
   await page.getByRole('button', { name: 'Language' }).click()
   await expect(page.getByRole('heading', { name: '一份记忆，连接不同 Agent。' })).toBeVisible()
   await page.reload()

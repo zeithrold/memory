@@ -1,6 +1,6 @@
 # API v1
 
-All endpoints require `Authorization: Bearer <credential>`. Browser calls use a Clerk session JWT; agents use personal `mem_…` tokens. `/api/v1` accepts only those two, so an OAuth link cannot manage tokens. Request/response JSON field names and machine error codes are English and stable across UI locales. Use HTTPS remotely. Failures are RFC 9457 problem documents; see [Error handling](#error-handling).
+All endpoints require `Authorization: Bearer <credential>`. Browser calls use a Clerk session JWT; agents use personal `mem_…` tokens. Those are the normal `/api/v1` credentials. The read-only `/api/v1/status` preflight also accepts a Clerk OAuth access token, but an OAuth link still cannot reach token or account management. Request/response JSON field names and machine error codes are English and stable across UI locales. Use HTTPS remotely. Failures are RFC 9457 problem documents; see [Error handling](#error-handling).
 
 | Method | Path | Access | Result |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ All endpoints require `Authorization: Bearer <credential>`. Browser calls use a 
 | GET/POST | `/api/v1/tokens` | session only | Token list / one-time token secret |
 | DELETE | `/api/v1/tokens/{id}` | session only | Revocation, HTTP 204 |
 | GET | `/api/v1/usage` | session only | `{usage, degraded}`: daily operation/token/client aggregates, last 30 days, max 500 groups |
-| GET | `/api/v1/status` | session only | Semantic configuration and per-user pending/retrying index jobs |
+| GET | `/api/v1/status` | authenticated | Canonical endpoint, MCP URL, granted scopes, readiness and project-scoped index status |
 | GET | `/api/v1/catalog` | session only | Account-wide two-level catalog: categories, counts, pending proposals |
 | POST | `/api/v1/catalog/search` | read | Project-filtered matching categories and visible member counts |
 | GET/PUT | `/api/v1/catalog/settings` | session only | Model endpoint, budgets and privacy settings; the credential is write-only |
@@ -26,6 +26,32 @@ All endpoints require `Authorization: Bearer <credential>`. Browser calls use a 
 | GET | `/api/v1/catalog/proposals?status=pending` | session only | Structural suggestions awaiting a decision |
 | POST | `/api/v1/catalog/proposals/{id}` | session only | `{decision: "approve" \| "reject"}` |
 | GET | `/api/v1/catalog/metrics` | session only | Daily rollups plus lifetime totals |
+
+## Credential preflight
+
+Installers and agents can validate an endpoint and credential without making a memory call:
+
+```sh
+curl -sS https://memory.ztd.me/api/v1/status \
+  -H "Authorization: Bearer $MEMORY_API_TOKEN"
+```
+
+A `200` response proves that the endpoint accepted the credential. `credential.ready` is `true` only when both `memory:read` and `memory:write` are granted; otherwise `credential.missingScopes` lists what the automatic retrieval/capture workflow still needs. `credential.project` reports a personal token's project restriction, and the index counts are filtered to that project. The response never returns the owner identifier, token identifier, credential secret, or memory content.
+
+```json
+{
+  "endpoint": "https://memory.ztd.me",
+  "mcpUrl": "https://memory.ztd.me/mcp",
+  "credential": {
+    "ready": true,
+    "scopes": ["memory:read", "memory:write"],
+    "missingScopes": [],
+    "project": null
+  },
+  "semanticEnabled": true,
+  "index": { "pending": 0, "retrying": 0 }
+}
+```
 
 ## Create / update
 

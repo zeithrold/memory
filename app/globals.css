@@ -109,8 +109,10 @@ summary { cursor: pointer; }
 .memory-card-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
 .card-actions { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
 .editor, .connection-card { border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--card); padding: var(--pad-panel); margin-bottom: var(--space-6); }
-.connect-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-4); align-items: start; }
-.connect-grid .connection-card { margin-bottom: 0; }
+.connect-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-4); align-items: stretch; }
+.connect-grid .connection-card { display: flex; flex-direction: column; min-width: 0; height: 100%; margin-bottom: 0; }
+.connection-card > h2 { margin: 0 0 var(--space-5); }
+.connection-card > :last-child { margin-bottom: 0; }
 .section-heading { display: flex; justify-content: space-between; gap: var(--space-4); align-items: center; margin-bottom: var(--space-5); }
 .section-heading h2 { margin: 0; }
 .field { display: grid; gap: var(--space-2); margin-bottom: var(--space-5); }

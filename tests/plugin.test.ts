@@ -51,6 +51,12 @@ describe('plugin package', () => {
     expect(
       existsSync(path.join(built.directory, 'skills/shared-memory/references/api.md')),
     ).toBe(true)
+    expect(
+      existsSync(path.join(built.directory, 'skills/shared-memory/scripts/configure.mjs')),
+    ).toBe(true)
+    expect(
+      readFileSync(path.join(built.directory, 'skills/shared-memory/SKILL.md'), 'utf8'),
+    ).toContain('Run the automatic capture pass')
     const marketplace = z
       .object({
         plugins: z.array(

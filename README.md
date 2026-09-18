@@ -28,6 +28,14 @@ A running instance documents every machine error at `/errors`, one page per code
 
 `pnpm plugin:build` assembles the skill and the MCP server into one installable plugin under `dist/plugin`, with the MCP URL read from `wrangler.jsonc`. `pnpm oauth:check` reports whether the configured Clerk instance can register an MCP client (CIMD, DCR, or a predefined client) and whether the memory scopes are advertised. See [connect clients](docs/SETUP.md) for the ChatGPT OAuth setup and local marketplace installation.
 
+For non-plugin hosts, install the portable Agent Skill globally into every compatible local agent detected by the Skills CLI:
+
+```sh
+npx skills add zeithrold/memory --skill shared-memory -g
+```
+
+The skill supplies the retrieval and bounded automatic-capture policy. Its `scripts/configure.mjs` helper securely prompts for endpoint plus token and validates them through `/api/v1/status`; run it from the installed Skill directory. The helper does not edit a host's MCP configuration, so connect the remote server separately in hosts that do not install the combined plugin.
+
 ## Checks
 
 ```sh

@@ -27,6 +27,7 @@ export function ConnectPanel({ t }: { t: Messages }) {
   const origin = useSyncExternalStore(() => () => undefined, () => window.location.origin, () => 'https://your-memory.example')
   const codex = `[mcp_servers.shared_memory]\nurl = "${origin}/mcp"\nbearer_token_env_var = "MEMORY_API_TOKEN"`
   const cursor = JSON.stringify({ mcpServers: { shared_memory: { url: `${origin}/mcp`, headers: { Authorization: `Bearer $${'{env:MEMORY_API_TOKEN}'}` } } } }, null, 2)
+  const skillInstall = `npx skills add zeithrold/memory --skill shared-memory -g`
   return (
     <div className="connect-grid">
       <section className="connection-card">
@@ -58,8 +59,12 @@ export function ConnectPanel({ t }: { t: Messages }) {
         </section>
       ))}
       <section className="connection-card">
-        <h2>{t.skill}</h2>
+        <div className="section-heading">
+          <h2>{t.skill}</h2>
+          <CopyButton value={skillInstall} t={t} />
+        </div>
         <p>{t.skillBody}</p>
+        <pre>{skillInstall}</pre>
       </section>
       <section className="connection-card">
         <h2>{t.plugin}</h2>

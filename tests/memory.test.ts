@@ -376,6 +376,35 @@ describe('hTTP, credentials and MCP', () => {
     expect(await env.DB.prepare('SELECT count(*) AS n FROM usage_events').first('n')).toBe(0)
     expect(await env.DB.prepare('SELECT count(*) AS n FROM rate_limits').first('n')).toBe(0)
   })
+  it('preflights personal credentials and scopes status to their project', async () => {
+    await create()
+    await createMemory(env, alice, {
+      ...input,
+      project: 'private',
+      idempotencyKey: crypto.randomUUID(),
+    })
+    const key = await token('alice', ['memory:read', 'memory:write'], 'global')
+    const response = await api(request('/api/v1/status', key.secret), env)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      endpoint: 'https://memory.example',
+      mcpUrl: 'https://memory.example/mcp',
+      credential: {
+        ready: true,
+        scopes: ['memory:read', 'memory:write'],
+        missingScopes: [],
+        project: 'global',
+      },
+      semanticEnabled: false,
+      index: { pending: 1, retrying: 0 },
+    })
+
+    const readOnly = await token('alice', ['memory:read'])
+    const incomplete = await api(request('/api/v1/status', readOnly.secret), env)
+    expect(await incomplete.json()).toMatchObject({
+      credential: { ready: false, missingScopes: ['memory:write'] },
+    })
+  })
   it('exposes project-filtered catalog search to read credentials', async () => {
     const key = await token('alice', ['memory:read'], 'global')
     const allowed = await api(

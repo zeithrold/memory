@@ -42,9 +42,31 @@ export async function revokeToken(env: Env, ownerId: string, id: string): Promis
   return new Response(null, { status: 204 })
 }
 
-export async function getStatus(env: Env, ownerId: string): Promise<Response> {
-  const result = await env.DB.prepare(
-    'SELECT count(*) AS pending, sum(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retrying FROM index_jobs JOIN memories ON memories.id = index_jobs.memory_id WHERE memories.owner_id = ?',
-  ).bind(ownerId).first()
-  return Response.json({ semanticEnabled: Boolean(env.AI && env.VECTORIZE), index: result })
+export async function getStatus(env: Env, principal: Principal): Promise<Response> {
+  const projectFilter = principal.project === null ? '' : ' AND memories.project = ?'
+  const statement = env.DB.prepare(
+    `SELECT count(*) AS pending, sum(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retrying FROM index_jobs JOIN memories ON memories.id = index_jobs.memory_id WHERE memories.owner_id = ?${projectFilter}`,
+  )
+  const result = await (principal.project === null
+    ? statement.bind(principal.ownerId)
+    : statement.bind(principal.ownerId, principal.project)
+  ).first<{ pending: number, retrying: number | null }>()
+  const requiredScopes = ['memory:read', 'memory:write'] as const
+  const missingScopes = requiredScopes.filter(scope => !principal.scopes.includes(scope))
+  const endpoint = env.APP_ORIGIN.replace(/\/+$/, '')
+  return Response.json({
+    endpoint,
+    mcpUrl: `${endpoint}/mcp`,
+    credential: {
+      ready: missingScopes.length === 0,
+      scopes: principal.scopes,
+      missingScopes,
+      project: principal.project,
+    },
+    semanticEnabled: Boolean(env.AI && env.VECTORIZE),
+    index: {
+      pending: Number(result?.pending ?? 0),
+      retrying: Number(result?.retrying ?? 0),
+    },
+  })
 }

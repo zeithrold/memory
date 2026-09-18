@@ -159,6 +159,33 @@ a redirect is refused so the credential is never forwarded to another host.
 
 Create a separate token for each client, normally with `memory:read` and `memory:write`. Add `memory:delete` only if the client should fulfill explicit forgetting requests. Tokens expire after 90 days by default and can be restricted to one project. ChatGPT and other hosted agents link with OAuth instead of a copied token.
 
+There are two distribution layers, and they solve different problems:
+
+- The Agent Skill is the portable behaviour layer. It tells compatible agents when to retrieve context and when to run a bounded automatic capture pass. Run `npx skills add zeithrold/memory --skill shared-memory -g`, then select every detected compatible agent for a global install.
+- The MCP server is the authenticated capability layer. It performs the actual reads and writes. A skill cannot create this trust relationship by itself.
+- On ChatGPT and Codex, the combined plugin is the preferred distribution unit because one installation can carry both layers and start OAuth. On other hosts, install the skill and configure the MCP connection separately.
+
+Credential helpers should collect the endpoint and token together, default the endpoint to `https://memory.ztd.me`, and keep the token in the host's credential store or environment rather than in the Skill text. Before enabling automatic retrieval/capture, send the credential to `GET <endpoint>/api/v1/status`. A `200` validates both values; require `credential.ready: true`, and show `credential.missingScopes` when read/write access is incomplete. Do not echo the token in commands, logs, prompts, or the status response.
+
+The standalone Skill includes that helper. From the installed `shared-memory` directory, run:
+
+```sh
+node scripts/configure.mjs
+node scripts/configure.mjs --check --json
+```
+
+The first command prompts for the endpoint and a hidden token, validates them, then atomically writes an owner-only plaintext JSON credential file under the platform config directory with mode `0600`. Environment values override the file. A token is deliberately not accepted as a command-line argument. The second command is the non-interactive preflight agents run before memory work; its output contains only endpoint, scopes and project restriction.
+
+The helper cannot modify a running parent's environment. A local host whose MCP configuration reads `MEMORY_API_TOKEN` can be started with the saved credential without putting it in a command line:
+
+```sh
+node scripts/configure.mjs --run -- codex
+```
+
+This validates again and injects `MEMORY_API_ENDPOINT`, `MEMORY_BASE_URL`, and `MEMORY_API_TOKEN` only into the child process. It does not edit a host's MCP configuration; the Codex/Cursor snippets below still establish that connection.
+
+Skill activation is model-driven, so it provides portable best-effort capture rather than a transactional guarantee. A host that requires every completed turn to be considered must run its own after-turn integration and call the same MCP or HTTP API; do not hide that stronger guarantee inside skill wording.
+
 ### ChatGPT
 
 ChatGPT signs the user in through the authorization server; this application publishes only the resource half of the MCP authorization contract. Clerk is the authorization server. OpenAI accepts any of CIMD, dynamic client registration, or a predefined client, so CIMD is a convenience rather than a requirement.
@@ -205,7 +232,7 @@ Two Clerk behaviours are worth knowing. Its metadata advertises RFC 9207 issuer 
 
 ### Codex
 
-Set `MEMORY_API_TOKEN` in the environment available to the Codex process, then add:
+Set `MEMORY_API_TOKEN` in the environment available to the Codex process (directly or by launching it through the helper above), then add:
 
 ```toml
 [mcp_servers.shared_memory]
@@ -215,7 +242,7 @@ bearer_token_env_var = "MEMORY_API_TOKEN"
 
 Alternatively: `codex mcp add shared_memory --url https://YOUR_ORIGIN/mcp --bearer-token-env-var MEMORY_API_TOKEN`.
 
-Copy `skills/shared-memory` into the client's discoverable skills directory (for example `~/.agents/skills/shared-memory` for Codex). Installing a skill does not override host approval settings or guarantee every conversation will use it.
+Install the skill with `npx skills add zeithrold/memory --agent codex --skill shared-memory -g -y`, or copy `skills/shared-memory` into the client's discoverable skills directory. Installing a skill does not override host approval settings or guarantee every conversation will use it.
 
 ### Cursor
 
@@ -232,7 +259,7 @@ Configure a remote server in the supported global or project `mcp.json`:
 }
 ```
 
-Make the environment variable available to Cursor and install the same skill in its supported skills directory. Never commit a literal token in project configuration. GUI applications may not inherit your shell's environment; validate that in the actual client.
+Make the environment variable available to Cursor and install the same skill with `npx skills add zeithrold/memory --agent cursor --skill shared-memory -g -y`. Never commit a literal token in project configuration. GUI applications may not inherit your shell's environment; validate that in the actual client.
 
 ### DeepSeek
 
@@ -240,7 +267,7 @@ Use an MCP-capable agent host, or the Python tool-loop example in `examples/deep
 
 ## 7. Package the plugin
 
-The skill and the MCP server ship as one installable plugin. The generator reads the MCP URL from `wrangler.jsonc`, so the package cannot drift from the deployed origin:
+The skill and the MCP server ship as one installable plugin. This is the primary ChatGPT/Codex distribution artifact; the standalone skill command above remains the cross-agent fallback. The generator reads the MCP URL from `wrangler.jsonc`, so the package cannot drift from the deployed origin:
 
 ```sh
 pnpm plugin:build
@@ -257,6 +284,8 @@ cp dist/plugin/marketplace.json ~/.agents/plugins/marketplace.json
 ```
 
 Merge the plugin entry into an existing `marketplace.json` rather than overwriting it. To bind the plugin to the MCP connection you already registered in ChatGPT, run OpenAI's `@plugin-creator` with that connection's `plugin_asdk_app…` id; it writes the `.app.json` mapping, which this generator deliberately does not invent.
+
+Local marketplaces are for development and private distribution. For the lowest-friction public installation, submit the production HTTPS MCP endpoint and bundled skill as one plugin to the universal Plugins Directory after the credentialed acceptance checks pass. Do not advertise one-click installation before that listing is actually approved and visible.
 
 ## 8. Error monitoring (optional)
 

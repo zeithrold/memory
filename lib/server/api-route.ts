@@ -1,4 +1,5 @@
 import type { Principal } from '../contracts'
+import type { CredentialKind } from './auth'
 import type { Env } from './env'
 import { authenticate, preAuthRateLimit, rateLimit, requireSession } from './auth'
 import { errorResponse, problemDocument, problemResponse } from './errors'
@@ -22,7 +23,7 @@ interface NextContext {
 export function defineApiRoute(
   operation: string,
   handlers: Partial<Record<ApiMethod, ApiHandler>>,
-  options: { sessionOnly?: boolean } = {},
+  options: { sessionOnly?: boolean, credentialKinds?: CredentialKind[] } = {},
 ): Record<ApiMethod, (request: Request, context?: NextContext) => Promise<Response>> {
   const allow = (Object.keys(handlers) as ApiMethod[]).join(', ')
   const make = (method: ApiMethod) => async (request: Request, context?: NextContext) => {
@@ -45,7 +46,7 @@ export function defineApiRoute(
         )
       }
       else {
-        principal = await authenticate(request, env)
+        principal = await authenticate(request, env, options.credentialKinds)
         await rateLimit(env, principal)
         if (options.sessionOnly)
           requireSession(principal)
