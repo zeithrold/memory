@@ -69,7 +69,12 @@ export async function clearImplicitSkips(env: Env, ownerId: string): Promise<voi
 
 /** Refreshes the materialized counters without changing scheduling metadata. */
 export async function refreshCatalogCounts(env: Env, ownerId: string): Promise<void> {
-  await env.DB.prepare(
+  await catalogCountsStatement(env, ownerId).run()
+}
+
+/** Can join a structural edit's transaction so its counters commit together. */
+export function catalogCountsStatement(env: Env, ownerId: string): D1PreparedStatement {
+  return env.DB.prepare(
     `INSERT INTO catalog_state(owner_id, version, category_count, assigned_count, orphan_count, skipped_count)
      VALUES (?, 1,
              (SELECT count(*) FROM categories WHERE owner_id = ? AND state != 'retired'),
@@ -84,7 +89,6 @@ export async function refreshCatalogCounts(env: Env, ownerId: string): Promise<v
        skipped_count = excluded.skipped_count`,
   )
     .bind(ownerId, ownerId, ownerId, ownerId, ownerId)
-    .run()
 }
 
 export async function loadCategories(env: Env, ownerId: string): Promise<CategoryRow[]> {

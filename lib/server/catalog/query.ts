@@ -4,6 +4,7 @@ import type { ActionRecord } from './tools'
 import { AppError } from '../errors'
 import { moveMemoryProject } from '../memories'
 import {
+  catalogCountsStatement,
   clearImplicitSkips,
   loadCategories,
   loadState,
@@ -788,8 +789,19 @@ export async function decideProposal(
   if (proposal.status !== 'pending')
     throw new AppError('CONFLICT', 'That proposal has already been decided.')
 
+  const action: ActionRecord = {
+    kind: proposal.kind,
+    effect: 'proposal',
+    decision: approve ? 'applied' : 'rejected_by_user',
+    memoryId: proposal.memory_id ?? undefined,
+    categoryId: proposal.category_id ?? undefined,
+    targetCategoryId: proposal.target_category_id ?? undefined,
+    targetProject: proposal.target_project ?? undefined,
+    rationale: proposal.rationale ?? undefined,
+  }
   let catalogChanged = false
   let categoryCreated = false
+  let mergeDecided = false
   if (approve) {
     if (proposal.kind === 'project_move') {
       const payload = JSON.parse(proposal.payload_json) as { memoryId: string, to: string }
@@ -810,22 +822,8 @@ export async function decideProposal(
     else if (proposal.kind === 'merge_category') {
       if (proposal.category_id === null || proposal.target_category_id === null)
         throw new AppError('CONFLICT', 'That proposal is missing its categories.')
-      await env.DB.prepare(
-        'UPDATE memory_categories SET category_id = ?, updated_at = ? WHERE category_id = ? AND owner_id = ?',
-      )
-        .bind(proposal.target_category_id, isoNow(), proposal.category_id, ownerId)
-        .run()
-      await env.DB.prepare(
-        'UPDATE categories SET state = \'retired\', member_count = 0, updated_at = ? WHERE id = ? AND owner_id = ?',
-      )
-        .bind(isoNow(), proposal.category_id, ownerId)
-        .run()
-      await env.DB.prepare(
-        'UPDATE categories SET member_count = (SELECT count(*) FROM memory_categories WHERE category_id = categories.id), updated_at = ? WHERE id = ?',
-      )
-        .bind(isoNow(), proposal.target_category_id)
-        .run()
-      catalogChanged = true
+      await approveMerge(env, ownerId, proposal.id, proposal.last_run_id, action, proposal.category_id, proposal.target_category_id)
+      mergeDecided = true
     }
     else if (proposal.kind === 'retire_category') {
       await env.DB.prepare(
@@ -837,30 +835,22 @@ export async function decideProposal(
     }
   }
 
-  await env.DB.prepare(
-    'UPDATE catalog_proposals SET status = ?, resolved_at = ? WHERE id = ?',
-  )
-    .bind(approve ? 'approved' : 'rejected', isoNow(), proposalId)
-    .run()
-  if (!approve && advice !== undefined && advice !== null)
-    await appendPendingAdvice(env, ownerId, advice)
-  if (categoryCreated)
-    await clearImplicitSkips(env, ownerId)
-  if (catalogChanged)
-    await refreshCatalogCounts(env, ownerId)
-  const action: ActionRecord = {
-    kind: proposal.kind,
-    effect: 'proposal',
-    decision: approve ? 'applied' : 'rejected_by_user',
-    memoryId: proposal.memory_id ?? undefined,
-    categoryId: proposal.category_id ?? undefined,
-    targetCategoryId: proposal.target_category_id ?? undefined,
-    targetProject: proposal.target_project ?? undefined,
-    rationale: proposal.rationale ?? undefined,
+  if (!mergeDecided) {
+    await env.DB.prepare(
+      'UPDATE catalog_proposals SET status = ?, resolved_at = ? WHERE id = ?',
+    )
+      .bind(approve ? 'approved' : 'rejected', isoNow(), proposalId)
+      .run()
+    if (!approve && advice !== undefined && advice !== null)
+      await appendPendingAdvice(env, ownerId, advice)
+    if (categoryCreated)
+      await clearImplicitSkips(env, ownerId)
+    if (catalogChanged)
+      await refreshCatalogCounts(env, ownerId)
+    // The decision is filed against the run that raised the proposal, because a
+    // catalog action belongs to a run: the column references one.
+    await recordHumanDecision(env, ownerId, proposal.last_run_id, action)
   }
-  // The decision is filed against the run that raised the proposal, because a
-  // catalog action belongs to a run: the column references one.
-  await recordHumanDecision(env, ownerId, proposal.last_run_id, action)
   const [view] = await listProposals(env, ownerId, approve ? 'approved' : 'rejected')
   const refreshed = view?.id === proposalId
     ? view
@@ -961,20 +951,25 @@ async function recordHumanDecision(
   runId: string,
   action: ActionRecord,
 ): Promise<void> {
-  const last = await env.DB.prepare(
-    'SELECT COALESCE(max(call_index), 0) + 1 AS next FROM catalog_actions WHERE run_id = ? AND batch = -3',
-  )
-    .bind(runId)
-    .first<{ next: number }>()
-  await env.DB.prepare(
+  await humanDecisionStatement(env, ownerId, runId, action).run()
+}
+
+function humanDecisionStatement(
+  env: Env,
+  ownerId: string,
+  runId: string,
+  action: ActionRecord,
+): D1PreparedStatement {
+  return env.DB.prepare(
     `INSERT INTO catalog_actions(run_id, owner_id, batch, turn, call_index, tool, kind, effect, memory_id, category_id, target_category_id, target_project, arguments_json, rationale, decision, created_at)
-     VALUES (?, ?, -3, 0, ?, ?, ?, 'proposal', ?, ?, ?, ?, '{}', ?, ?, ?)
-     ON CONFLICT(run_id, batch, turn, call_index) DO NOTHING`,
+     VALUES (?, ?, -3, 0,
+       (SELECT COALESCE(max(call_index), 0) + 1 FROM catalog_actions WHERE run_id = ? AND batch = -3),
+       ?, ?, 'proposal', ?, ?, ?, ?, '{}', ?, ?, ?)`,
   )
     .bind(
       runId,
       ownerId,
-      last?.next ?? 1,
+      runId,
       action.kind,
       action.kind,
       action.memoryId ?? null,
@@ -985,5 +980,56 @@ async function recordHumanDecision(
       action.decision,
       isoNow(),
     )
-    .run()
+}
+
+async function approveMerge(
+  env: Env,
+  ownerId: string,
+  proposalId: string,
+  runId: string,
+  action: ActionRecord,
+  fromId: string,
+  intoId: string,
+): Promise<void> {
+  if (fromId === intoId)
+    throw new AppError('CONFLICT', 'A category cannot be merged into itself.')
+  const categories = await env.DB.prepare(
+    'SELECT id FROM categories WHERE owner_id = ? AND id IN (?, ?) AND state != \'retired\'',
+  ).bind(ownerId, fromId, intoId).all<{ id: string }>()
+  if (categories.results.length !== 2)
+    throw new AppError('CONFLICT', 'Both categories must exist and be active to merge.')
+
+  const timestamp = isoNow()
+  await env.DB.batch([
+    // A primary source membership wins an overlap, carrying its metadata into
+    // the target. Otherwise keep the existing target membership. Delete each
+    // losing row before moving so both membership uniqueness rules hold.
+    env.DB.prepare(
+      `DELETE FROM memory_categories
+       WHERE owner_id = ? AND category_id = ? AND memory_id IN (
+         SELECT memory_id FROM memory_categories
+         WHERE owner_id = ? AND category_id = ? AND is_primary = 1
+       )`,
+    ).bind(ownerId, intoId, ownerId, fromId),
+    env.DB.prepare(
+      `DELETE FROM memory_categories
+       WHERE owner_id = ? AND category_id = ? AND memory_id IN (
+         SELECT memory_id FROM memory_categories WHERE owner_id = ? AND category_id = ?
+       )`,
+    ).bind(ownerId, fromId, ownerId, intoId),
+    env.DB.prepare(
+      'UPDATE memory_categories SET category_id = ?, updated_at = ? WHERE category_id = ? AND owner_id = ?',
+    ).bind(intoId, timestamp, fromId, ownerId),
+    env.DB.prepare(
+      'UPDATE categories SET state = \'retired\', member_count = 0, updated_at = ? WHERE id = ? AND owner_id = ?',
+    ).bind(timestamp, fromId, ownerId),
+    env.DB.prepare(
+      'UPDATE categories SET member_count = (SELECT count(*) FROM memory_categories WHERE category_id = categories.id AND owner_id = ?), updated_at = ? WHERE id = ? AND owner_id = ?',
+    ).bind(ownerId, timestamp, intoId, ownerId),
+    catalogCountsStatement(env, ownerId),
+    env.DB.prepare(
+      'UPDATE catalog_proposals SET status = \'approved\', resolved_at = ? WHERE id = ? AND owner_id = ?',
+    ).bind(timestamp, proposalId, ownerId),
+    humanDecisionStatement(env, ownerId, runId, action),
+  ])
 }

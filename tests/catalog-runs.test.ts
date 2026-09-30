@@ -3,7 +3,7 @@ import type { getRunDetail } from '../lib/server/catalog/query'
 import type { Env } from '../lib/server/env'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { selectBatch } from '../lib/server/catalog/model'
-import { listProposals, revertRun } from '../lib/server/catalog/query'
+import { decideProposals, listProposals, revertRun } from '../lib/server/catalog/query'
 import { dispatchCatalogWorkflow, finishRun } from '../lib/server/catalog/run'
 import { createMemory, moveMemoryProject } from '../lib/server/memories'
 import { api } from './api'
@@ -542,6 +542,123 @@ describe('deciding a proposal', () => {
       .bind(from)
       .first<{ state: string }>()
     expect(retired?.state).toBe('retired')
+  })
+  it.each([
+    { sourcePrimary: 1, targetPrimary: 0, otherPrimary: 0 },
+    { sourcePrimary: 0, targetPrimary: 1, otherPrimary: 0 },
+    { sourcePrimary: 0, targetPrimary: 0, otherPrimary: 1 },
+    { sourcePrimary: 0, targetPrimary: 0, otherPrimary: 0 },
+  ])('approves overlapping memberships without losing primary routing: %o', async ({ sourcePrimary, targetPrimary, otherPrimary }) => {
+    const from = await category('noise', 'Noise')
+    const into = await category('backend', 'Backend')
+    const other = await category('other', 'Other')
+    const overlap = await memory('Shared membership')
+    const sourceOnly = await memory('Source only')
+    const targetOnly = await memory('Target only')
+    await assign(overlap.id, from, sourcePrimary)
+    await assign(overlap.id, into, targetPrimary)
+    await assign(overlap.id, other, otherPrimary)
+    await assign(sourceOnly.id, from)
+    await assign(targetOnly.id, into)
+    await env.DB.prepare(
+      'UPDATE memory_categories SET confidence = 0.7, assigned_by = \'user\' WHERE memory_id = ? AND category_id = ?',
+    ).bind(overlap.id, into).run()
+    const proposalId = await seedProposal(
+      'merge_category',
+      { fromId: from, intoId: into },
+      { categoryId: from, targetCategoryId: into },
+    )
+
+    const approved = await call('/api/v1/catalog/proposals', 'POST', { decision: 'approve' })
+    expect(approved.status).toBe(200)
+    expect(approved.body).toEqual({ decided: 1, failed: [] })
+    expect(await env.DB.prepare(
+      'SELECT memory_id, is_primary FROM memory_categories WHERE category_id = ? ORDER BY memory_id',
+    ).bind(into).all()).toMatchObject({
+      results: [
+        { memory_id: overlap.id, is_primary: sourcePrimary || targetPrimary },
+        { memory_id: sourceOnly.id, is_primary: 1 },
+        { memory_id: targetOnly.id, is_primary: 1 },
+      ].sort((a, b) => a.memory_id.localeCompare(b.memory_id)),
+    })
+    expect(await env.DB.prepare(
+      'SELECT confidence, assigned_by FROM memory_categories WHERE memory_id = ? AND category_id = ?',
+    ).bind(overlap.id, into).first()).toEqual(sourcePrimary === 1
+      ? { confidence: 0.9, assigned_by: 'agent' }
+      : { confidence: 0.7, assigned_by: 'user' })
+    expect(await env.DB.prepare(
+      'SELECT is_primary FROM memory_categories WHERE memory_id = ? AND category_id = ?',
+    ).bind(overlap.id, other).first('is_primary')).toBe(otherPrimary)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM memory_categories WHERE category_id = ?')
+      .bind(from)
+      .first('n')).toBe(0)
+    expect(await env.DB.prepare('SELECT state, member_count FROM categories WHERE id = ?')
+      .bind(from)
+      .first()).toEqual({ state: 'retired', member_count: 0 })
+    expect(await env.DB.prepare('SELECT member_count FROM categories WHERE id = ?')
+      .bind(into)
+      .first('member_count')).toBe(3)
+    expect(await env.DB.prepare('SELECT category_count, assigned_count, orphan_count FROM catalog_state WHERE owner_id = \'alice\'')
+      .first()).toEqual({ category_count: 2, assigned_count: 4, orphan_count: 0 })
+    expect(await env.DB.prepare('SELECT status FROM catalog_proposals WHERE id = ?')
+      .bind(proposalId)
+      .first('status')).toBe('approved')
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions WHERE batch = -3 AND decision = \'applied\'')
+      .first('n')).toBe(1)
+  })
+  it('rolls back the whole merge if recording the approval fails', async () => {
+    const from = await category('noise', 'Noise')
+    const into = await category('backend', 'Backend')
+    const mem = await memory('Overlapping memberships')
+    await assign(mem.id, from)
+    await assign(mem.id, into, 0)
+    const proposalId = await seedProposal(
+      'merge_category',
+      {},
+      { categoryId: from, targetCategoryId: into },
+    )
+    store.sqlite.exec(`
+      CREATE TRIGGER fail_human_audit BEFORE INSERT ON catalog_actions
+      WHEN NEW.batch = -3 BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END;
+    `)
+    const memberships = store.sqlite.prepare('SELECT * FROM memory_categories ORDER BY category_id').all()
+    const categories = store.sqlite.prepare('SELECT * FROM categories ORDER BY id').all()
+
+    await expect(decideProposals(env, session, 'alice', true, [proposalId]))
+      .rejects
+      .toThrow('forced audit failure')
+    expect(store.sqlite.prepare('SELECT * FROM memory_categories ORDER BY category_id').all()).toEqual(memberships)
+    expect(store.sqlite.prepare('SELECT * FROM categories ORDER BY id').all()).toEqual(categories)
+    expect(await env.DB.prepare('SELECT status, resolved_at FROM catalog_proposals WHERE id = ?')
+      .bind(proposalId)
+      .first()).toEqual({ status: 'pending', resolved_at: null })
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_state').first('n')).toBe(0)
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM catalog_actions').first('n')).toBe(0)
+  })
+  it.each(['source', 'target', 'self'])('refuses an invalid merge before changing memberships: %s', async (invalid) => {
+    const from = await category('noise', 'Noise')
+    const into = invalid === 'self' ? from : await category('backend', 'Backend')
+    const mem = await memory('Keep this membership')
+    await assign(mem.id, from)
+    const proposalId = await seedProposal(
+      'merge_category',
+      {},
+      { categoryId: from, targetCategoryId: into },
+    )
+    if (invalid !== 'self') {
+      await env.DB.prepare('UPDATE categories SET state = \'retired\' WHERE id = ?')
+        .bind(invalid === 'source' ? from : into)
+        .run()
+    }
+    const result = await call('/api/v1/catalog/proposals', 'POST', { decision: 'approve' })
+    expect(result.status).toBe(200)
+    expect(result.body).toMatchObject({ decided: 0, failed: [{ id: proposalId, code: 'CONFLICT' }] })
+    expect(await env.DB.prepare('SELECT category_id, is_primary FROM memory_categories WHERE memory_id = ?')
+      .bind(mem.id)
+      .first()).toEqual({ category_id: from, is_primary: 1 })
+    expect(await env.DB.prepare('SELECT status FROM catalog_proposals WHERE id = ?')
+      .bind(proposalId)
+      .first('status')).toBe('pending')
   })
   it('refuses to decide twice', async () => {
     const proposalId = await seedProposal('retire_category', { categoryId: 'x' }, { categoryId: null })
