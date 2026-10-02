@@ -134,6 +134,7 @@ test(
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.goto('/memories/11111111-1111-4111-8111-111111111111')
+    await expect(page.getByRole('link', { name: 'Memories', exact: true })).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('link', { name: 'Back to memories' })).toBeVisible()
     await expect(page.getByText('Connect your identity provider')).toBeVisible()
     // The list-only affordances must not leak onto the detail route.
