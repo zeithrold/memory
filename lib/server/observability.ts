@@ -41,16 +41,19 @@ function stripQuery(value: string): string {
 }
 function scrubRecord(record: Record<string, unknown>): void {
   for (const key of Object.keys(record)) {
-    if (GEN_AI_CONTENT_ATTRIBUTES.has(key))
+    if (GEN_AI_CONTENT_ATTRIBUTES.has(key)) {
       delete record[key]
+    }
   }
 }
 function scrubHeaders(headers: Record<string, string> | undefined): void {
-  if (headers === undefined)
+  if (headers === undefined) {
     return
+  }
   for (const key of Object.keys(headers)) {
-    if (SENSITIVE_HEADERS.has(key.toLowerCase()))
+    if (SENSITIVE_HEADERS.has(key.toLowerCase())) {
       delete headers[key]
+    }
   }
 }
 function scrubCommon(event: ErrorEventArg | TransactionEventArg): void {
@@ -60,8 +63,9 @@ function scrubCommon(event: ErrorEventArg | TransactionEventArg): void {
     delete request.data
     delete request.cookies
     delete request.query_string
-    if (typeof request.url === 'string')
+    if (typeof request.url === 'string') {
       request.url = stripQuery(request.url)
+    }
     scrubHeaders(request.headers)
   }
   if (event.user !== undefined) {
@@ -71,10 +75,12 @@ function scrubCommon(event: ErrorEventArg | TransactionEventArg): void {
     delete event.user.name
   }
   for (const breadcrumb of event.breadcrumbs ?? []) {
-    if (typeof breadcrumb.message === 'string')
+    if (typeof breadcrumb.message === 'string') {
       breadcrumb.message = stripQuery(breadcrumb.message)
-    if (breadcrumb.data !== undefined)
+    }
+    if (breadcrumb.data !== undefined) {
       scrubRecord(breadcrumb.data)
+    }
   }
 }
 /**
@@ -83,8 +89,9 @@ function scrubCommon(event: ErrorEventArg | TransactionEventArg): void {
  */
 export function scrubEvent(event: ErrorEventArg): ErrorEventArg {
   scrubCommon(event)
-  if (event.extra !== undefined)
+  if (event.extra !== undefined) {
     scrubRecord(event.extra)
+  }
   return event
 }
 export function scrubTransaction(
@@ -98,8 +105,7 @@ export function scrubTransaction(
   }
   scrubCommon(event)
   for (const span of event.spans ?? []) {
-    if (span.data !== undefined)
-      scrubRecord(span.data)
+    scrubRecord(span.data)
   }
   return event
 }
@@ -107,8 +113,9 @@ export function sentryEnvironment(
   env: Pick<Env, 'SENTRY_ENVIRONMENT' | 'APP_ORIGIN'>,
 ): SentryEnvironment {
   const explicit = env.SENTRY_ENVIRONMENT?.trim()
-  if (explicit === 'stage' || explicit === 'production')
+  if (explicit === 'stage' || explicit === 'production') {
     return explicit
+  }
   return environmentFromOrigin(env.APP_ORIGIN)
 }
 export function traceRate(
@@ -117,8 +124,9 @@ export function traceRate(
   const value = env.SENTRY_TRACES_SAMPLE_RATE?.trim()
   if (value !== undefined && value.length > 0) {
     const parsed = Number(value)
-    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1)
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) {
       return parsed
+    }
   }
   return TRACES_SAMPLE_RATE[sentryEnvironment(env)]
 }
@@ -126,18 +134,20 @@ export function sentryRelease(
   env: Pick<Env, 'SENTRY_RELEASE'>,
 ): string | undefined {
   const explicit = env.SENTRY_RELEASE?.trim()
-  if (explicit !== undefined && explicit.length > 0)
+  if (explicit !== undefined && explicit.length > 0) {
     return explicit
+  }
   // Vite replaces the global expression with the build-time release.
-  // eslint-disable-next-line node/prefer-global/process
+  // eslint-disable-next-line node/prefer-global/process -- Preserve Vinext build-time inlining.
   const built = process.env.SENTRY_RELEASE
   return built === undefined || built.length === 0 ? undefined : built
 }
 export function sentryOptions(env: Env): CloudflareOptions | undefined {
   const dsn = env.SENTRY_DSN?.trim()
   // No DSN is the normal state for local development and the e2e preview.
-  if (dsn === undefined || dsn.length === 0)
+  if (dsn === undefined || dsn.length === 0) {
     return undefined
+  }
   return {
     dsn,
     release: sentryRelease(env),
@@ -159,13 +169,15 @@ export function captureRequestError(
   document: ProblemDocument,
   context: ProblemContext,
 ): void {
-  if (document.status < 500)
+  if (document.status < 500) {
     return
+  }
   Sentry.withScope((scope) => {
     scope.setTag('code', document.code)
     scope.setTag('status', String(document.status))
-    if (context.method !== undefined)
+    if (context.method !== undefined) {
       scope.setTag('method', context.method)
+    }
     Sentry.captureException(error)
   })
 }

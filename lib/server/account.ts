@@ -6,19 +6,26 @@ import { AppError } from './errors'
 
 export async function listTokens(env: Env, ownerId: string): Promise<Response> {
   const rows = await env.DB.prepare(
-    'SELECT id, name, prefix, scopes, project, created_at, expires_at, revoked_at, last_used_at FROM api_tokens WHERE owner_id = ? ORDER BY created_at DESC',
+    ('SELECT id, name, prefix, scopes, project, created_at, expires_at, '
+      + 'revoked_at, last_used_at FROM api_tokens WHERE owner_id = ? ORDER BY '
+      + 'created_at DESC'),
   ).bind(ownerId).all<{ scopes: string }>()
   return Response.json({
     tokens: rows.results.map(row => ({ ...row, scopes: JSON.parse(row.scopes) as unknown })),
   })
 }
 
-export async function createToken(env: Env, principal: Principal, raw: unknown): Promise<Response> {
+export async function createToken(
+  env: Env,
+  principal: Principal,
+  raw: unknown,
+): Promise<Response> {
   const input = tokenInputSchema.parse(raw)
   const token = randomToken()
   const tokenId = crypto.randomUUID()
   await env.DB.prepare(
-    'INSERT INTO api_tokens(id, owner_id, name, digest, prefix, scopes, project, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ('INSERT INTO api_tokens(id, owner_id, name, digest, prefix, scopes, project, '
+      + 'created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   ).bind(
     tokenId,
     principal.ownerId,
@@ -37,15 +44,18 @@ export async function revokeToken(env: Env, ownerId: string, id: string): Promis
   const result = await env.DB.prepare(
     'UPDATE api_tokens SET revoked_at = ? WHERE id = ? AND owner_id = ?',
   ).bind(new Date().toISOString(), id, ownerId).run()
-  if (!result.meta.changes)
+  if (!(result.meta.changes !== 0)) {
     throw new AppError('NOT_FOUND', 'Token not found.')
+  }
   return new Response(null, { status: 204 })
 }
 
 export async function getStatus(env: Env, principal: Principal): Promise<Response> {
   const projectFilter = principal.project === null ? '' : ' AND memories.project = ?'
   const statement = env.DB.prepare(
-    `SELECT count(*) AS pending, sum(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retrying FROM index_jobs JOIN memories ON memories.id = index_jobs.memory_id WHERE memories.owner_id = ?${projectFilter}`,
+    `SELECT count(*) AS pending, sum(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retrying
+FROM index_jobs JOIN memories ON memories.id = index_jobs.memory_id WHERE memories.owner_id
+= ?${projectFilter}`,
   )
   const result = await (principal.project === null
     ? statement.bind(principal.ownerId)
@@ -63,7 +73,7 @@ export async function getStatus(env: Env, principal: Principal): Promise<Respons
       missingScopes,
       project: principal.project,
     },
-    semanticEnabled: Boolean(env.AI && env.VECTORIZE),
+    semanticEnabled: Boolean((env.AI !== undefined) && env.VECTORIZE),
     index: {
       pending: Number(result?.pending ?? 0),
       retrying: Number(result?.retrying ?? 0),

@@ -4,12 +4,12 @@ import { readJson } from '@/lib/server/http'
 
 export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
-  GET: async ({ request, env, principal }) => readCatalogProposals(
+  GET: async ({ request, env, principal }) => await readCatalogProposals(
     env,
     principal.ownerId,
     new URL(request.url).searchParams.get('status'),
   ),
   POST: async ({ request, env, principal }) =>
-    decideCatalogProposals(env, principal, await readJson(request)),
+    await decideCatalogProposals(env, principal, await readJson(request)),
 }, { sessionOnly: true })
 export const { GET, POST, PUT, PATCH, DELETE } = route

@@ -61,7 +61,8 @@ export async function clearImplicitSkips(env: Env, ownerId: string): Promise<voi
   await env.DB.prepare(
     `DELETE FROM catalog_skips
      WHERE owner_id = ?
-       AND COALESCE(source, CASE WHEN reason = ? THEN 'implicit' ELSE 'explicit' END) = 'implicit'`,
+       AND COALESCE(source, CASE WHEN reason = ? THEN 'implicit' ELSE 'explicit' END) =
+'implicit'`,
   )
     .bind(ownerId, IMPLICIT_SKIP_REASON)
     .run()
@@ -75,12 +76,14 @@ export async function refreshCatalogCounts(env: Env, ownerId: string): Promise<v
 /** Can join a structural edit's transaction so its counters commit together. */
 export function catalogCountsStatement(env: Env, ownerId: string): D1PreparedStatement {
   return env.DB.prepare(
-    `INSERT INTO catalog_state(owner_id, version, category_count, assigned_count, orphan_count, skipped_count)
+    `INSERT INTO catalog_state(owner_id, version, category_count, assigned_count, orphan_count,
+skipped_count)
      VALUES (?, 1,
              (SELECT count(*) FROM categories WHERE owner_id = ? AND state != 'retired'),
              (SELECT count(*) FROM memory_categories WHERE owner_id = ?),
              (SELECT count(*) FROM memories m WHERE m.owner_id = ? AND m.deleted = 0
-                AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id = m.id)),
+                AND NOT EXISTS (SELECT 1 FROM memory_categories mc WHERE mc.memory_id =
+m.id)),
              (SELECT count(*) FROM catalog_skips WHERE owner_id = ?))
      ON CONFLICT(owner_id) DO UPDATE SET
        category_count = excluded.category_count,
@@ -113,8 +116,9 @@ export async function loadMemberships(
   memoryIds: string[],
 ): Promise<Map<string, MembershipRow[]>> {
   const byMemory = new Map<string, MembershipRow[]>()
-  if (memoryIds.length === 0)
+  if (memoryIds.length === 0) {
     return byMemory
+  }
   const placeholders = memoryIds.map(() => '?').join(', ')
   const rows = await env.DB.prepare(
     `SELECT memory_id, category_id, is_primary, confidence, updated_at
@@ -151,8 +155,9 @@ export async function loadBatchMemories(
   memoryIds: string[],
   includeContent: boolean,
 ): Promise<BatchMemory[]> {
-  if (memoryIds.length === 0)
+  if (memoryIds.length === 0) {
     return []
+  }
   const placeholders = memoryIds.map(() => '?').join(', ')
   const rows = await env.DB.prepare(
     `SELECT id, project, title, kind, tags, version, updated_at, deleted, content
@@ -185,7 +190,9 @@ export async function loadBatchMemories(
     }))
 }
 
-function parseTags(raw: string): string[] {
+function parseTags(
+  raw: string,
+): string[] {
   try {
     const parsed: unknown = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === 'string') : []
@@ -215,10 +222,10 @@ function parseTags(raw: string): string[] {
 export async function selectBatch(
   env: Env,
   ownerId: string,
-  limit: number,
-  reviewCutoff: string,
-  retryNow = new Date().toISOString(),
+  options: { limit: number, reviewCutoff: string, retryNow?: unknown },
 ): Promise<string[]> {
+  const { limit, reviewCutoff, retryNow = new Date().toISOString() } = options
+
   const rows = await env.DB.prepare(
     `WITH candidate AS (
        SELECT m.id, m.updated_at, m.version,
@@ -242,7 +249,8 @@ export async function selectBatch(
          s.memory_id IS NULL
          OR s.memory_version != c.version
          OR (
-           COALESCE(s.source, CASE WHEN s.reason = ? THEN 'implicit' ELSE 'explicit' END) = 'implicit'
+           COALESCE(s.source, CASE WHEN s.reason = ? THEN 'implicit' ELSE 'explicit' END)
+= 'implicit'
            AND s.attempts < 3
            AND (s.retry_after IS NULL OR s.retry_after <= ?)
          )
@@ -271,7 +279,7 @@ export interface CatalogStateRow {
 }
 
 export async function loadState(env: Env, ownerId: string): Promise<CatalogStateRow | null> {
-  return env.DB.prepare('SELECT * FROM catalog_state WHERE owner_id = ?')
+  return await env.DB.prepare('SELECT * FROM catalog_state WHERE owner_id = ?')
     .bind(ownerId)
     .first<CatalogStateRow>()
 }

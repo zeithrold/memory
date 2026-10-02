@@ -30,22 +30,33 @@ export interface AllocationInput {
 }
 
 export function allocate(balance: Balance, input: AllocationInput): Map<string, number> {
-  const ids = [...input.sizes.keys()]
+  const ids = [
+    ...input.sizes.keys(),
+  ]
   const allocation = new Map<string, number>()
-  if (ids.length === 0 || input.total <= 0)
+  if (ids.length === 0 || input.total <= 0) {
     return allocation
-  const total = Math.min(input.total, sum([...input.sizes.values()]))
+  }
+  const total = Math.min(input.total, sum([
+    ...input.sizes.values(),
+  ]))
   const weights = new Map<string, number>()
   for (const id of ids) {
     const size = Math.max(1, input.sizes.get(id) ?? 1)
-    if (balance === 'equal')
+    if (balance === 'equal') {
       weights.set(id, 1)
-    else if (balance === 'sqrt')
-      weights.set(id, Math.sqrt(size))
+    }
     else
-      weights.set(id, size * Math.max(input.deviations.get(id) ?? 1, 0.0001))
+      if (balance === 'sqrt') {
+        weights.set(id, Math.sqrt(size))
+      }
+      else {
+        weights.set(id, size * Math.max(input.deviations.get(id) ?? 1, 0.0001))
+      }
   }
-  const weightSum = sum([...weights.values()])
+  const weightSum = sum([
+    ...weights.values(),
+  ])
   // The cap stops one category from taking the whole budget when the others
   // have no candidates at all, which is otherwise a legitimate outcome of the
   // formula and defeats the purpose of routing.
@@ -63,19 +74,22 @@ function sum(values: number[]): number {
 
 /** `(s - mean) / deviation`, the shift- and scale-invariant normalization. */
 export function standardize(scores: number[]): number[] {
-  if (scores.length === 0)
+  if (scores.length === 0) {
     return []
+  }
   const mean = sum(scores) / scores.length
   const variance = sum(scores.map(score => (score - mean) ** 2)) / scores.length
-  const deviation = Math.sqrt(variance)
-  if (deviation === 0)
+  const standardDeviation = Math.sqrt(variance)
+  if (standardDeviation === 0) {
     return scores.map(() => 0)
-  return scores.map(score => (score - mean) / deviation)
+  }
+  return scores.map(score => (score - mean) / standardDeviation)
 }
 
 export function deviation(scores: number[]): number {
-  if (scores.length < 2)
+  if (scores.length < 2) {
     return 0
+  }
   const mean = sum(scores) / scores.length
   return Math.sqrt(sum(scores.map(score => (score - mean) ** 2)) / scores.length)
 }
@@ -100,17 +114,20 @@ export function scoreCategories(
   terms: string[],
 ): Map<string, number> {
   const scores = new Map<string, number>()
-  if (terms.length === 0)
+  if (terms.length === 0) {
     return scores
+  }
   for (const category of categories) {
     const haystack = `${category.label} ${category.description} ${category.boundary}`.toLowerCase()
     let hits = 0
     for (const term of terms) {
-      if (haystack.includes(term))
+      if (haystack.includes(term)) {
         hits += 1
+      }
     }
-    if (hits > 0)
+    if (hits > 0) {
       scores.set(category.id, hits / Math.sqrt(haystack.length))
+    }
   }
   return scores
 }
@@ -121,8 +138,9 @@ export async function membersOf(
   categoryIds: string[],
 ): Promise<Map<string, string[]>> {
   const members = new Map<string, string[]>()
-  if (categoryIds.length === 0)
+  if (categoryIds.length === 0) {
     return members
+  }
   const placeholders = categoryIds.map(() => '?').join(', ')
   const rows = await env.DB.prepare(
     `SELECT category_id, memory_id FROM memory_categories

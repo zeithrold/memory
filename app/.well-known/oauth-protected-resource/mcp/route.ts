@@ -1,11 +1,10 @@
-import type { Env } from '@/lib/server/env'
 import { env } from 'cloudflare:workers'
 import { protectedResourceResponse } from '@/lib/server/discovery'
 import { MCP_RESOURCE_PATH } from '@/lib/server/oauth'
 
 export const dynamic = 'force-dynamic'
-async function handle(request: Request): Promise<Response> {
-  return protectedResourceResponse(request, env as unknown as Env, MCP_RESOURCE_PATH)
+function handle(request: Request): Response {
+  return protectedResourceResponse(request, env, MCP_RESOURCE_PATH)
 }
 export {
   handle as DELETE,

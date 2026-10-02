@@ -6,15 +6,15 @@ import { Toaster as Sonner } from 'sonner'
 
 // Sonner skins its default (non-rich) toast from these custom properties, so
 // the host follows the dashboard tokens instead of shipping its own theme.
-const skin = {
+const skin: CSSProperties & Record<`--${string}`, string> = {
   '--normal-bg': 'var(--card)',
   '--normal-text': 'var(--foreground)',
   '--normal-border': 'var(--border)',
   '--border-radius': '10px',
-} as CSSProperties
+}
 
 /** Single toast host for the whole dashboard. */
-export function Toaster(props: ToasterProps) {
+export function Toaster(props: ToasterProps): React.JSX.Element {
   return (
     <Sonner
       position="bottom-right"

@@ -6,7 +6,11 @@ import { useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import { Button } from './ui/button'
 
-function CopyButton({ value, t }: { value: string, t: Messages }) {
+interface CopyButtonProps { value: string, t: Messages }
+
+function CopyButton(
+  { value, t }: CopyButtonProps,
+) {
   const [copied, setCopied] = useState(false)
   return (
     <Button
@@ -14,7 +18,9 @@ function CopyButton({ value, t }: { value: string, t: Messages }) {
       variant="outline"
       size="sm"
       onClick={() => {
-        void navigator.clipboard.writeText(value).then(() => setCopied(true)).catch(() => toast.error(t.copyFailed))
+        void navigator.clipboard.writeText(value).then(() => setCopied(true)).catch(
+          () => toast.error(t.copyFailed),
+        )
       }}
     >
       <Copy size={14} />
@@ -23,12 +29,20 @@ function CopyButton({ value, t }: { value: string, t: Messages }) {
   )
 }
 
-export function ConnectPanel({ t }: { t: Messages }) {
-  const origin = useSyncExternalStore(() => () => undefined, () => window.location.origin, () => 'https://your-memory.example')
-  const mcpUrl = `${origin}/mcp`
-  const codex = `codex mcp add shared_memory --url ${mcpUrl}`
-  const cursor = JSON.stringify({ mcpServers: { shared_memory: { url: mcpUrl } } }, null, 2)
-  const skillInstall = `npx skills add zeithrold/memory --skill shared-memory -g`
+interface ConnectPanelProps { t: Messages }
+
+interface ConnectionInstructionsProps {
+  t: Messages
+  mcpUrl: string
+  codex: string
+  cursor: string
+  skillInstall: 'npx skills add zeithrold/memory --skill shared-memory -g'
+  origin: string
+}
+
+function ConnectionInstructions(
+  { t, mcpUrl, codex, cursor, skillInstall, origin }: ConnectionInstructionsProps,
+): React.JSX.Element {
   return (
     <div className="connect-grid">
       <section className="connection-card">
@@ -44,7 +58,10 @@ export function ConnectPanel({ t }: { t: Messages }) {
         <p>{t.chatgptBody}</p>
         <code>{mcpUrl}</code>
       </section>
-      {[{ name: 'Codex', text: codex, body: t.oauthConnectBody }, { name: 'Cursor', text: cursor, body: t.oauthConnectBody }].map(item => (
+      {[
+        { name: 'Codex', text: codex, body: t.oauthConnectBody },
+        { name: 'Cursor', text: cursor, body: t.oauthConnectBody },
+      ].map(item => (
         <section key={item.name} className="connection-card">
           <div className="section-heading">
             <h2>{item.name}</h2>
@@ -77,5 +94,26 @@ export function ConnectPanel({ t }: { t: Messages }) {
         </code>
       </section>
     </div>
+  )
+}
+export function ConnectPanel({ t }: ConnectPanelProps): React.JSX.Element {
+  const origin = useSyncExternalStore(
+    () => () => undefined,
+    () => window.location.origin,
+    () => 'https://your-memory.example',
+  )
+  const mcpUrl = `${origin}/mcp`
+  const codex = `codex mcp add shared_memory --url ${mcpUrl}`
+  const cursor = JSON.stringify({ mcpServers: { shared_memory: { url: mcpUrl } } }, null, 2)
+  const skillInstall = `npx skills add zeithrold/memory --skill shared-memory -g`
+  return (
+    <ConnectionInstructions
+      t={t}
+      mcpUrl={mcpUrl}
+      codex={codex}
+      cursor={cursor}
+      skillInstall={skillInstall}
+      origin={origin}
+    />
   )
 }

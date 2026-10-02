@@ -10,7 +10,7 @@ import { sentryOptions } from './lib/server/observability'
 // default handler. `pnpm check:bundle` guards that.
 export { CatalogWorkflow } from './lib/server/catalog/workflow'
 
-const base = handler as unknown as ExportedHandler<Env>
+const base: ExportedHandler<Env> = handler
 
 const worker = {
   ...base,

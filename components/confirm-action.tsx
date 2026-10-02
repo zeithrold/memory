@@ -1,12 +1,35 @@
 'use client'
 
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './ui/alert-dialog'
 import { Button } from './ui/button'
 
-export function ConfirmAction({ label, description, cancel, disabled, onConfirm, size = 'sm' }: { label: string, description: string, cancel: string, disabled: boolean, onConfirm: () => void, size?: 'xs' | 'sm' }) {
+interface ConfirmActionProps {
+  label: string
+  description: string
+  cancel: string
+  disabled: boolean
+  onConfirm: () => void
+  size?: 'xs' | 'sm'
+}
+
+export function ConfirmAction(
+  { label, description, cancel, disabled, onConfirm, size = 'sm' }: ConfirmActionProps,
+): React.JSX.Element {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild><Button type="button" variant="outline" size={size} disabled={disabled}>{label}</Button></AlertDialogTrigger>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="outline" size={size} disabled={disabled}>{label}</Button>
+      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{label}</AlertDialogTitle>

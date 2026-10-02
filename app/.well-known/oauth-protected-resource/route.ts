@@ -1,10 +1,9 @@
-import type { Env } from '@/lib/server/env'
 import { env } from 'cloudflare:workers'
 import { protectedResourceResponse } from '@/lib/server/discovery'
 
 export const dynamic = 'force-dynamic'
-async function handle(request: Request): Promise<Response> {
-  return protectedResourceResponse(request, env as unknown as Env, '')
+function handle(request: Request): Response {
+  return protectedResourceResponse(request, env, '')
 }
 export {
   handle as DELETE,

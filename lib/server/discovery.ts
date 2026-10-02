@@ -19,8 +19,9 @@ export function protectedResourceResponse(
   env: Env,
   resourcePath: string,
 ): Response {
-  if (request.method === 'OPTIONS')
+  if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS })
+  }
   const context = {
     origin: env.APP_ORIGIN,
     instance: new URL(request.url).pathname,

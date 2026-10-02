@@ -5,10 +5,10 @@ export interface Env {
   API_RATE_LIMITER?: RateLimit
   CLOUDFLARE_ACCOUNT_ID?: string
   ANALYTICS_READ_TOKEN?: string
-  VECTORIZE?: VectorizeIndex
-  AI?: Ai
+  VECTORIZE?: Pick<VectorizeIndex, 'query' | 'upsert' | 'deleteByIds'>
+  AI?: { run: (model: string, input: Record<string, unknown>) => Promise<unknown> }
   /** Absent when the deployment (or the e2e preview) declares no Workflow. */
-  CATALOG_WORKFLOW?: Workflow<unknown>
+  CATALOG_WORKFLOW?: { create: (options: WorkflowInstanceCreateOptions<unknown>) => Promise<unknown> }
   /**
    * 64 hex characters (32 bytes). Encrypts each account's model credential;
    * without it the service refuses to store one rather than keeping plaintext.

@@ -1,11 +1,21 @@
-import antfu from '@antfu/eslint-config'
+import config from '@ztd-me/eslint'
 
-export default antfu({
-  react: true,
+export default config({
+  react: { framework: 'vinext' },
+  test: true,
   typescript: { tsconfigPath: 'tsconfig.json' },
-  ignores: ['dist/**', '.wrangler/**', '.vinext/**', 'pnpm-lock.yaml', 'next-env.d.ts'],
+  ignores: [
+    'dist/**',
+    '.wrangler/**',
+    '.vinext/**',
+    'pnpm-lock.yaml',
+    'next-env.d.ts',
+  ],
   rules: {
-    'no-console': ['error', { allow: ['warn', 'error'] }],
+    'no-console': [
+      'error',
+      { allow: ['warn', 'error'] },
+    ],
   },
 }, {
   files: ['**/*.ts', '**/*.tsx'],
@@ -19,10 +29,4 @@ export default antfu({
     'ts/no-unsafe-member-access': 'error',
     'ts/no-unsafe-return': 'error',
   },
-}, {
-  files: ['app/**/*.tsx'],
-  rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['metadata', 'dynamic', 'generateMetadata', 'generateStaticParams'] }] },
-}, {
-  files: ['components/ui/*.tsx'],
-  rules: { 'react-refresh/only-export-components': ['error', { allowExportNames: ['buttonVariants', 'badgeVariants'] }] },
 })

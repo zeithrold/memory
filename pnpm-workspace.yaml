@@ -1,4 +1,6 @@
 minimumReleaseAgeExcludePrune: true
+minimumReleaseAgeExclude:
+  - '@ztd-me/eslint'
 
 trustPolicy: no-downgrade
 # @sentry/vite-plugin -> @babel/core -> semver@6.3.1, a frozen package whose
@@ -9,6 +11,7 @@ trustPolicyExclude:
 
 shellEmulator: true
 
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+allowBuilds:
+  '@sentry/cli': false
+  esbuild: true
+  workerd: true

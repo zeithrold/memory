@@ -1,4 +1,4 @@
-import type { BatchMemory, CatalogSnapshot, MembershipRow } from './model'
+import type { BatchMemory, CatalogSnapshot, CategoryRow, MembershipRow } from './model'
 
 /**
  * The gateway every tool call passes through before it can have an effect.
@@ -52,19 +52,28 @@ export interface PolicyInput {
   confidence?: number
 }
 
-export function memoryInBatch(input: PolicyInput, memoryId: string | undefined): PolicyVerdict {
-  if (memoryId === undefined || memoryId.length === 0)
+export function memoryInBatch(
+  input: PolicyInput,
+  memoryId: string | undefined,
+): PolicyVerdict {
+  if (memoryId === undefined || memoryId.length === 0) {
     return { allowed: false, reason: 'A memory identifier is required.' }
+  }
   // The owner always comes from the run, never from the model, and the batch is
   // the only region of the library the agent may touch.
-  if (!input.batchMemoryIds.has(memoryId))
+  if (!input.batchMemoryIds.has(memoryId)) {
     return { allowed: false, reason: 'That memory is not part of the current batch.' }
+  }
   return ALLOWED
 }
 
-export function categoryById(input: PolicyInput, categoryId: string | undefined) {
-  if (categoryId === undefined || categoryId.length === 0)
+export function categoryById(
+  input: PolicyInput,
+  categoryId: string | undefined,
+): CategoryRow | undefined {
+  if (categoryId === undefined || categoryId.length === 0) {
     return undefined
+  }
   return input.snapshot.categories.find(category => category.id === categoryId)
 }
 
@@ -89,12 +98,18 @@ export function reassignmentBudget(input: PolicyInput): number {
   )
 }
 
-export function canReassign(input: PolicyInput): PolicyVerdict {
+export function canReassign(
+  input: PolicyInput,
+): PolicyVerdict {
   const budget = reassignmentBudget(input)
   if (input.reassignments >= budget) {
     return {
       allowed: false,
-      reason: `This batch has already re-classified ${input.reassignments} memories, which is its budget of ${budget}. Finish the batch instead.`,
+      reason: ('This batch has already re-classified '
+        + `${input.reassignments}`
+        + ' memories, which is its budget of '
+        + `${budget}`
+        + '. Finish the batch instead.'),
     }
   }
   if (input.confidence === undefined || input.confidence < MIN_CONFIDENCE_FOR_REASSIGNMENT) {
@@ -116,46 +131,61 @@ export function hysteresis(
   memory: BatchMemory | undefined,
 ): PolicyVerdict {
   const assignedAt = Date.parse(assignment.updated_at)
-  if (memory !== undefined && Date.parse(memory.updated_at) > assignedAt)
+  if (memory !== undefined && Date.parse(memory.updated_at) > assignedAt) {
     return ALLOWED
+  }
   const ageDays = (Date.now() - assignedAt) / 86_400_000
-  if (ageDays >= REASSIGNMENT_AGE_DAYS)
+  if (ageDays >= REASSIGNMENT_AGE_DAYS) {
     return ALLOWED
+  }
   return {
     allowed: false,
-    reason: `This memory was classified ${Math.max(0, Math.floor(ageDays))} day(s) ago and has not changed since. Leave it where it is unless new information supports the move.`,
+    reason: ('This memory was classified '
+      + `${Math.max(0, Math.floor(ageDays))}`
+      + ' day(s) ago and has not changed since. Leave it where it is unless new informati'
+      + 'on supports the move.'),
   }
 }
 
-export function categoryCapacity(input: PolicyInput, parentId: string | null): PolicyVerdict {
+export function categoryCapacity(
+  input: PolicyInput,
+  parentId: string | null,
+): PolicyVerdict {
   const categories = input.snapshot.categories
   if (categories.length >= MAX_CATEGORIES) {
     return {
       allowed: false,
-      reason: `The catalog already holds its maximum of ${MAX_CATEGORIES} categories. Reuse a category or propose a merge.`,
+      reason: `The catalog already holds its maximum of ${MAX_CATEGORIES} categories. `
+        + 'Reuse a category or propose a merge.',
     }
   }
   const siblings = categories.filter(category => category.parent_id === parentId)
   if (parentId === null && siblings.length >= MAX_ROOTS) {
     return {
       allowed: false,
-      reason: `The master catalog already has its maximum of ${MAX_ROOTS} top-level categories. Classify within an existing one.`,
+      reason: ('The master catalog already has its maximum of '
+        + `${MAX_ROOTS}`
+        + ' top-level categories. Classify within an existing one.'),
     }
   }
   if (parentId !== null && siblings.length >= MAX_CHILDREN) {
     return {
       allowed: false,
-      reason: `That parent already has its maximum of ${MAX_CHILDREN} child categories. Classify within an existing one.`,
+      reason: `That parent already has its maximum of ${MAX_CHILDREN} child categories. `
+        + 'Classify within an existing one.',
     }
   }
   return ALLOWED
 }
 
 /** `assign` — may apply immediately. */
-export function checkAssign(input: PolicyInput): PolicyVerdict & { reassigns?: MembershipRow } {
+export function checkAssign(
+  input: PolicyInput,
+): PolicyVerdict & { reassigns?: MembershipRow } {
   const memory = memoryInBatch(input, input.memoryId)
-  if (!memory.allowed)
+  if (!memory.allowed) {
     return memory
+  }
   const category = categoryById(input, input.categoryId)
   if (category === undefined) {
     return {
@@ -163,9 +193,16 @@ export function checkAssign(input: PolicyInput): PolicyVerdict & { reassigns?: M
       reason: 'No such category. Call catalog_list for an existing id, or propose_category first.',
     }
   }
-  if (category.state !== 'active')
+  if (category.state !== 'active') {
     return { allowed: false, reason: `Category "${category.label}" is not active.` }
+  }
 
+  return checkAssignmentMembership(input)
+}
+
+function checkAssignmentMembership(
+  input: PolicyInput,
+): PolicyVerdict & { reassigns?: MembershipRow } {
   const assignments = input.snapshot.memberships.get(input.memoryId ?? '') ?? []
   const existing = assignments.find(row => row.category_id === input.categoryId)
   const wantsPrimary = input.primary === true
@@ -177,27 +214,39 @@ export function checkAssign(input: PolicyInput): PolicyVerdict & { reassigns?: M
   }
   // Adding a second, non-primary membership is additive and reversible: it
   // costs no churn budget, which is what makes cross-cutting memories work.
-  if (!wantsPrimary && existing === undefined)
+  if (!wantsPrimary && existing === undefined) {
     return ALLOWED
+  }
 
   const currentPrimary = assignments.find(row => row.is_primary === 1)
-  if (currentPrimary === undefined || currentPrimary.category_id === input.categoryId)
+  if (currentPrimary === undefined || currentPrimary.category_id === input.categoryId) {
     return ALLOWED
+  }
 
+  return checkPrimaryReassignment(input, currentPrimary)
+}
+
+function checkPrimaryReassignment(
+  input: PolicyInput,
+  currentPrimary: MembershipRow,
+): PolicyVerdict & { reassigns?: MembershipRow } {
   const age = hysteresis(currentPrimary, memoryRow(input, input.memoryId))
-  if (!age.allowed)
+  if (!age.allowed) {
     return age
+  }
   const budget = canReassign(input)
-  if (!budget.allowed)
+  if (!budget.allowed) {
     return budget
+  }
   return { allowed: true, reassigns: currentPrimary }
 }
 
 /** `unassign` — may apply immediately, but only for a membership that exists. */
 export function checkUnassign(input: PolicyInput): PolicyVerdict {
   const memory = memoryInBatch(input, input.memoryId)
-  if (!memory.allowed)
+  if (!memory.allowed) {
     return memory
+  }
   if (membershipOf(input, input.memoryId ?? '', input.categoryId ?? '') === undefined) {
     return {
       allowed: false,
@@ -217,26 +266,34 @@ export function checkProjectMove(input: PolicyInput): PolicyVerdict {
   return memoryInBatch(input, input.memoryId)
 }
 
-export function checkProposeCategory(input: PolicyInput, parentId: string | null): PolicyVerdict {
-  if (parentId !== null && categoryById(input, parentId) === undefined)
+export function checkProposeCategory(
+  input: PolicyInput,
+  parentId: string | null,
+): PolicyVerdict {
+  if (parentId !== null && categoryById(input, parentId) === undefined) {
     return { allowed: false, reason: 'The parent category does not exist. Call catalog_list first.' }
+  }
   return categoryCapacity(input, parentId)
 }
 
 export function checkMerge(input: PolicyInput): PolicyVerdict {
-  if (categoryById(input, input.categoryId) === undefined)
+  if (categoryById(input, input.categoryId) === undefined) {
     return { allowed: false, reason: 'The category to merge does not exist.' }
-  if (categoryById(input, input.targetCategoryId) === undefined)
+  }
+  if (categoryById(input, input.targetCategoryId) === undefined) {
     return { allowed: false, reason: 'The destination category does not exist.' }
-  if (input.categoryId === input.targetCategoryId)
+  }
+  if (input.categoryId === input.targetCategoryId) {
     return { allowed: false, reason: 'A category cannot be merged into itself.' }
+  }
   return ALLOWED
 }
 
 export function checkRetire(input: PolicyInput): PolicyVerdict {
   const category = categoryById(input, input.categoryId)
-  if (category === undefined)
+  if (category === undefined) {
     return { allowed: false, reason: 'That category does not exist, or is already retired.' }
+  }
   if (category.depth === 1) {
     const children = input.snapshot.categories.filter(child => child.parent_id === category.id)
     if (children.length > 0) {

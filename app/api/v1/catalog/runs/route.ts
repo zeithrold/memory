@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
   GET: async ({ request, env, principal }) => {
     const query = new URL(request.url).searchParams
-    return readCatalogRuns(
+    return await readCatalogRuns(
       env,
       principal.ownerId,
       query.get('limit'),
@@ -14,6 +14,6 @@ const route = defineApiRoute('catalog', {
     )
   },
   POST: async ({ request, env, principal }) =>
-    startCatalogRun(env, principal.ownerId, await readJson(request)),
+    await startCatalogRun(env, principal.ownerId, await readJson(request)),
 }, { sessionOnly: true })
 export const { GET, POST, PUT, PATCH, DELETE } = route
