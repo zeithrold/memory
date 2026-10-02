@@ -68,7 +68,7 @@ function ConnectionInstructions(
             <CopyButton value={item.text} t={t} />
           </div>
           <p>{item.body}</p>
-          <pre>{item.text}</pre>
+          <pre tabIndex={0}>{item.text}</pre>
         </section>
       ))}
       <section className="connection-card">
@@ -77,7 +77,7 @@ function ConnectionInstructions(
           <CopyButton value={skillInstall} t={t} />
         </div>
         <p>{t.skillBody}</p>
-        <pre>{skillInstall}</pre>
+        <pre tabIndex={0}>{skillInstall}</pre>
       </section>
       <section className="connection-card">
         <h2>{t.plugin}</h2>

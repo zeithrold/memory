@@ -48,14 +48,38 @@ function DialogOverlay({
   )
 }
 
+type AutoFocusHandler = React.ComponentProps<typeof DialogPrimitive.Content>['onOpenAutoFocus']
+
+function useDialogFocus(onOpen?: AutoFocusHandler, onClose?: AutoFocusHandler) {
+  const previousFocusRef = React.useRef<HTMLElement | null>(null)
+  return {
+    onOpenAutoFocus(event: Event) {
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      onOpen?.(event)
+    },
+    onCloseAutoFocus(event: Event) {
+      onClose?.(event)
+      if (!event.defaultPrevented && previousFocusRef.current?.isConnected === true) {
+        event.preventDefault()
+        previousFocusRef.current.focus({ preventScroll: true })
+      }
+    },
+  }
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeLabel,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  closeLabel: string
 }): React.JSX.Element {
+  const focus = useDialogFocus(onOpenAutoFocus, onCloseAutoFocus)
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -71,6 +95,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        {...focus}
       >
         {children}
         {showCloseButton && (
@@ -79,7 +104,7 @@ function DialogContent({
               variant="ghost"
               size="sm"
               className="absolute top-3 right-3"
-              aria-label="Close"
+              aria-label={closeLabel}
             >
               <X size={16} />
             </Button>

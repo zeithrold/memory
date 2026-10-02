@@ -156,7 +156,7 @@ export function RunTimelineDialog(
         }
       }}
     >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent closeLabel={props.t.close} className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         {detail !== null
 
           && (

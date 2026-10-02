@@ -1,6 +1,6 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
-  - '@ztd-me/eslint'
+  - '@ztd-me/*'
 
 trustPolicy: no-downgrade
 # @sentry/vite-plugin -> @babel/core -> semver@6.3.1, a frozen package whose

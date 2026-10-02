@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "id": "web",
+      "path": ".",
+      "stack": "js-ts",
+      "profiles": {
+        "frontend": [
+          "lint",
+          "css",
+          "typecheck",
+          "unit",
+          "build",
+          "e2e",
+          "a11y"
+        ]
+      },
+      "commands": {
+        "css": [
+          "pnpm",
+          "run",
+          "lint:css"
+        ],
+        "build": [
+          "pnpm",
+          "run",
+          "e2e:prepare"
+        ],
+        "e2e": [
+          "pnpm",
+          "run",
+          "test:browser"
+        ],
+        "a11y": [
+          "pnpm",
+          "run",
+          "test:a11y"
+        ]
+      }
+    }
+  ],
+  "skills": [
+    "js-ts-testing",
+    "ui-foundation",
+    "ui-web",
+    "frontend-engineering",
+    "frontend-verification"
+  ],
+  "lint": {
+    "js-ts": "@ztd-me/eslint"
+  }
+}

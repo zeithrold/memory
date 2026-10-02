@@ -81,7 +81,7 @@ export function CategoryChildDialog(
         }
       }}
     >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent closeLabel={t.close} className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         {childDetail !== null
 
           && (

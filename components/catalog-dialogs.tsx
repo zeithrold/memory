@@ -26,7 +26,7 @@ export function RunStartDialog(
         }
       }}
     >
-      <DialogContent>
+      <DialogContent closeLabel={props.t.close}>
         <DialogHeader>
           <DialogTitle>{props.t.runPromptTitle}</DialogTitle>
           <DialogDescription>{props.t.runPromptHint}</DialogDescription>
@@ -60,7 +60,7 @@ export function ProposalAdviceDialog(
 ): React.JSX.Element {
   return (
     <Dialog open={props.adviceDialog} onOpenChange={props.setAdviceDialog}>
-      <DialogContent>
+      <DialogContent closeLabel={props.t.close}>
         <DialogHeader>
           <DialogTitle>{props.t.rejectWithAdvice}</DialogTitle>
           <DialogDescription>{props.t.adviceLabel}</DialogDescription>

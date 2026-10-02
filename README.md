@@ -6,7 +6,7 @@ English-first interface and documentation, with typed Simplified Chinese transla
 
 ## Local development
 
-Requires Node.js 24 and pnpm 10.33.0.
+Requires Node.js 24 and pnpm 11.22.0.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -38,17 +38,30 @@ The skill supplies the retrieval and bounded automatic-capture policy. Its `scri
 
 ## Checks
 
+Install the pinned CLI (requires Go >=1.24) and Chromium once, then run the aggregate:
+
 ```sh
+go install github.com/zeithrold/tools/cmd/zt@3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f
+pnpm exec playwright install chromium
 pnpm check
-pnpm build
-pnpm check:bundle
-pnpm test:e2e
+pnpm test:artifacts
 ```
 
-`pnpm test:e2e` runs `pnpm e2e:build` first, which rebuilds the preview with no Access or Sentry credentials, so the browser checks never depend on your local `.env.local` or a real identity provider.
+Ensure Go's bin directory is on `PATH`. `pnpm check` runs strict lint, CSS/token
+validation, types, unit/integration tests, the unsigned build and bundle guard, and
+separate desktop/mobile unsigned and mocked-session browser suites, each once.
+`pnpm check:code` is the narrower lint/types/unit loop; `pnpm test:e2e` prepares both
+browser variants when run separately. Builds clear Access/Sentry credentials; mocked
+session affordances use a synthetic public domain and intercepted APIs, not real auth.
+See [the frontend contract](DESIGN.md) for state coverage and artifact boundaries.
+
+`zt sync --root . --plan` previews managed Skills before `zt sync --root .` and protects
+local edits. CI retains zt reports, CSS findings, full Axe scans and browser captures in
+`.zt/artifacts`, including failure traces/screenshots/videos. `pnpm test:artifacts`
+verifies these files using one deliberate Axe failure in an isolated consumer probe.
 
 `pnpm check:bundle` asserts against the built artifact that every Workflow class the Wrangler configuration binds is still a named export of the entry module. `pnpm deploy` runs it between the build and the upload, because a Workflow that lost its export would deploy without error and then never run.
 
 The test suite executes the real migrations against SQLite and tests authorization, Access JWT verification and challenges, optimistic concurrency, exact deduplication, forgetting, CJK keywords, vector hydration, provider failures, MCP JSON-RPC, plugin packaging, credential sealing, the catalog policy gateway, the tool loop's idempotency and dry-run behaviour, run reversion and proposal decisions. Playwright checks the unsigned interface, the memory detail route, discovery failing closed, and English/Chinese switching at desktop/mobile widths. These checks do not replace real Cloudflare Access authentication or Managed OAuth linking, remote D1/Vectorize, a scheduled Workflow firing, a live model endpoint, or client acceptance testing.
 
-`pnpm lint` uses strict, type-aware antfu ESLint and allows no warnings. TypeScript strictness includes unchecked indexed access. Dependency versions are pinned by `pnpm-lock.yaml`.
+`pnpm lint` uses `@ztd-me/eslint@0.1.1` strict, type-aware ESLint and allows no warnings. TypeScript strictness includes unchecked indexed access. Dependency versions are pinned by `pnpm-lock.yaml`.
