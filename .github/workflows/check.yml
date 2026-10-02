@@ -31,6 +31,7 @@ jobs:
       # The deploy step repeats it against the production build.
       - run: pnpm check:bundle
       - name: Build and deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: pnpm run deploy
         env:
           NEXT_PUBLIC_ACCESS_TEAM_DOMAIN: ${{ secrets.NEXT_PUBLIC_ACCESS_TEAM_DOMAIN }}
