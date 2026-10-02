@@ -4,7 +4,11 @@ The local shell, schema, unit/integration tests, and unsigned browser preview wo
 
 ## 1. Install and run the local application
 
-Use Node.js 24 and pnpm 10.33.0 (see `packageManager`).
+Use Node.js 24 and pnpm 11.22.0 (see `packageManager`).
+
+Before running `pnpm check`, install the pinned Go CLI and Chromium as described in
+[Checks](../README.md#checks). The aggregate includes CSS, accessibility and built-Worker
+browser verification; it never deploys. `pnpm check:code` runs the local lint/types/unit loop.
 
 ```sh
 pnpm install --frozen-lockfile

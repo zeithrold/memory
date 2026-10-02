@@ -13,7 +13,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
       - name: Resolve Playwright version
         id: playwright-version
         run: |
@@ -26,10 +25,28 @@ jobs:
       # Installation reuses cached browsers; Linux system dependencies still
       # need to be installed on each fresh runner.
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
-      # `test:e2e` builds the preview, so the artifact the guard inspects exists.
-      # The deploy step repeats it against the production build.
-      - run: pnpm check:bundle
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.1
+          cache: false
+      - name: Install pinned frontend CLI
+        run: |
+          go install github.com/zeithrold/tools/cmd/zt@3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      # zt runs each native gate once; two browser suites use distinct builds.
+      - run: pnpm check
+        env:
+          MEMORY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: pnpm test:artifacts
+      - name: Retain frontend verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-verification-${{ github.sha }}
+          path: .zt/artifacts/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
       - name: Build and deploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: pnpm run deploy

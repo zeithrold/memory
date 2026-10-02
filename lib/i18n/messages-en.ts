@@ -49,6 +49,9 @@ export const en = {
   signInBody:
     'Your memories belong to you. Sign in through Cloudflare Access to use them across your agents.',
   loadError: 'Something went wrong. Please try again.',
+  pageError: 'This page could not be loaded.',
+  retry: 'Try again',
+  skipToContent: 'Skip to content',
   tokensHeading: 'A key for each connection.',
   tokensIntro:
     'Give each agent its own token. Choose its permissions and revoke access at any time.',

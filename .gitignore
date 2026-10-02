@@ -11,5 +11,8 @@ dist/
 *.tsbuildinfo
 test-results/
 playwright-report/
+.zt/artifacts/
+.zt/browser/
+.zt/previews/
 __pycache__/
 *.pyc

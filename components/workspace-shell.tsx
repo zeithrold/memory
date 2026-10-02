@@ -196,6 +196,7 @@ function ShellFrame(
 ): React.JSX.Element {
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace-content">{props.t.skipToContent}</a>
       <BrowserObservability dsn={props.sentryDsn} release={props.sentryRelease} />
       <Toaster containerAriaLabel={props.t.notifications} />
       <WorkspaceSidebar t={props.t} nav={props.nav} pathname={props.pathname} />
@@ -220,7 +221,7 @@ function ShellFrame(
             {props.accountControl}
           </div>
         </header>
-        {props.children}
+        <div id="workspace-content" tabIndex={-1}>{props.children}</div>
       </div>
     </div>
   )

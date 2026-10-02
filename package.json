@@ -21,11 +21,17 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "e2e:build": "tsx scripts/e2e-build.ts",
-    "test:e2e": "pnpm e2e:build && playwright test",
+    "test:e2e": "pnpm e2e:prepare && pnpm test:browser && pnpm test:a11y",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:check-tenants:local": "tsx scripts/check-tenant-integrity.ts --local",
     "db:check-tenants:remote": "tsx scripts/check-tenant-integrity.ts --remote",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "tsx scripts/verification-metadata.ts && zt check --root . --module web --profile frontend",
+    "lint:css": "ztd-css ./css-check.config.mjs",
+    "e2e:prepare": "pnpm e2e:build && pnpm check:bundle",
+    "test:browser": "playwright test",
+    "test:a11y": "tsx scripts/e2e-mock-build.ts && playwright test --config playwright.mock.config.ts",
+    "test:artifacts": "tsx scripts/verify-failure-artifacts.ts",
+    "check:code": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -48,7 +54,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.54.10",
     "@cloudflare/workers-types": "^5.20260916.1",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "1.62.0",
     "@sentry/vite-plugin": "5.4.0",
     "@tailwindcss/postcss": "latest",
     "@types/node": "^24.19.0",
@@ -57,7 +63,9 @@
     "@vitejs/plugin-react": "^6.1.1",
     "@vitejs/plugin-rsc": "^0.5.35",
     "@ztd-me/eslint": "0.1.1",
+    "@ztd-me/frontend-checks": "0.1.0",
     "eslint": "^10.11.0",
+    "playwright-core": "1.62.0",
     "tailwindcss": "latest",
     "tsx": "^4.23.13",
     "typescript": "~6.0.3",
