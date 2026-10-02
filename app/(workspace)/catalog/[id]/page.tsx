@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import CatalogCategoryPage from '@/components/catalog-category-page'
 
 export const metadata: Metadata = { title: 'Category — Shared Memory' }
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page(
+  { params }: { params: Promise<{ id: string }> },
+): Promise<React.JSX.Element> {
   return <CatalogCategoryPage categoryId={(await params).id} />
 }

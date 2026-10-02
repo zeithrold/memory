@@ -36,21 +36,26 @@ export interface BuiltPlugin {
   marketplace: string
   origin: string
 }
-export function buildPlugin(options: BuildPluginOptions): BuiltPlugin {
-  const base = options.root ?? root
-  const origin = options.origin.replace(/\/+$/, '')
-  const out = path.resolve(options.outDir ?? path.join(base, 'dist/plugin'))
-  const manifest = manifestSchema.parse(
-    JSON.parse(readFileSync(path.join(base, 'plugin/plugin.json'), 'utf8')),
-  )
-  const directory = path.join(out, manifest.name)
-  manifest.extensions ??= {}
-  manifest.extensions['com.openai'] ??= {}
-  manifest.extensions['com.openai'].interface ??= {}
-  manifest.extensions['com.openai'].interface.websiteURL = origin
+
+interface CopyPluginSkillContext {
+  base: string
+  out: string
+  directory: string
+  manifest: {
+    [x: string]: unknown
+    name: string
+    version: string
+    description: string
+    extensions?: { 'com.openai'?: { interface?: Record<string, unknown> | undefined } | undefined } | undefined
+  }
+  origin: string
+}
+function copyPluginSkill(context: CopyPluginSkillContext): void {
+  const { base, out, directory, manifest, origin } = context
   const skill = path.join(base, 'skills/shared-memory')
-  if (!existsSync(path.join(skill, 'SKILL.md')))
+  if (!existsSync(path.join(skill, 'SKILL.md'))) {
     throw new Error(`Missing skills/shared-memory/SKILL.md under ${base}.`)
+  }
   rmSync(out, { recursive: true, force: true })
   mkdirSync(path.join(directory, 'skills'), { recursive: true })
   writeFileSync(
@@ -76,6 +81,20 @@ export function buildPlugin(options: BuildPluginOptions): BuiltPlugin {
   cpSync(skill, path.join(directory, 'skills/shared-memory'), {
     recursive: true,
   })
+}
+export function buildPlugin(options: BuildPluginOptions): BuiltPlugin {
+  const base = options.root ?? root
+  const origin = options.origin.replace(/\/+$/, '')
+  const out = path.resolve(options.outDir ?? path.join(base, 'dist/plugin'))
+  const manifest = manifestSchema.parse(
+    JSON.parse(readFileSync(path.join(base, 'plugin/plugin.json'), 'utf8')),
+  )
+  const directory = path.join(out, manifest.name)
+  manifest.extensions ??= {}
+  manifest.extensions['com.openai'] ??= {}
+  manifest.extensions['com.openai'].interface ??= {}
+  manifest.extensions['com.openai'].interface.websiteURL = origin
+  copyPluginSkill({ base, out, directory, manifest, origin })
   const marketplace = path.join(out, 'marketplace.json')
   const published = manifest.extensions['com.openai'].interface.displayName
   const displayName
@@ -109,7 +128,9 @@ export function configuredOrigin(base = root): string {
     .parse(JSON.parse(readFileSync(path.join(base, 'wrangler.jsonc'), 'utf8')))
   return config.vars.APP_ORIGIN
 }
-function assertDeployableOrigin(origin: string): void {
+function assertDeployableOrigin(
+  origin: string,
+): void {
   if (origin.startsWith('http:') || origin.includes('localhost')) {
     throw new Error(
       `The MCP endpoint must be a public HTTPS origin, got ${origin}. Pass --origin=https://your-host.`,

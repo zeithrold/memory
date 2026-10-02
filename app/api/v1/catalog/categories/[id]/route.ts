@@ -4,7 +4,7 @@ import { readCategory } from '@/lib/server/catalog/api'
 export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
   GET: async ({ request, env, principal, params }) =>
-    readCategory(
+    await readCategory(
       env,
       principal.ownerId,
       params.id,

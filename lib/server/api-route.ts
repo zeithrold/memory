@@ -20,14 +20,16 @@ interface NextContext {
   env?: Env
 }
 
+interface DefineApiRouteOptions { sessionOnly?: boolean, credentialKinds?: CredentialKind[] }
+
 export function defineApiRoute(
   operation: string,
   handlers: Partial<Record<ApiMethod, ApiHandler>>,
-  options: { sessionOnly?: boolean, credentialKinds?: CredentialKind[] } = {},
+  options: DefineApiRouteOptions = {},
 ): Record<ApiMethod, (request: Request, context?: NextContext) => Promise<Response>> {
-  const allow = (Object.keys(handlers) as ApiMethod[]).join(', ')
+  const allow = Object.keys(handlers).join(', ')
   const make = (method: ApiMethod) => async (request: Request, context?: NextContext) => {
-    const env = context?.env ?? (await import('cloudflare:workers')).env as unknown as Env
+    const env = context?.env ?? (await import('cloudflare:workers')).env
     const url = new URL(request.url)
     const started = Date.now()
     let principal: Principal | undefined
@@ -35,7 +37,7 @@ export function defineApiRoute(
     try {
       await preAuthRateLimit(request, env)
       const handler = handlers[method]
-      if (!handler) {
+      if (!(handler !== undefined)) {
         response = problemResponse(
           problemDocument('METHOD_NOT_ALLOWED', `This endpoint accepts ${allow}.`, {
             origin: env.APP_ORIGIN,
@@ -48,13 +50,10 @@ export function defineApiRoute(
       else {
         principal = await authenticate(request, env, options.credentialKinds)
         await rateLimit(env, principal)
-        if (options.sessionOnly)
+        if ((options.sessionOnly !== undefined && options.sessionOnly === true)) {
           requireSession(principal)
-        const rawParams = await context?.params
-        const params = Object.fromEntries(
-          Object.entries(rawParams ?? {}).flatMap(([key, value]) =>
-            typeof value === 'string' ? [[key, value]] : []),
-        )
+        }
+        const params = await routeParams(context)
         response = await handler({ request, env, principal, params })
       }
     }
@@ -65,8 +64,13 @@ export function defineApiRoute(
         method,
       })
     }
-    if (principal)
-      recordUsage(env, principal, `${method} ${operation}`, response.status, started)
+    if ((principal !== undefined)) {
+      recordUsage(
+        env,
+        principal,
+        { operation: `${method} ${operation}`, status: response.status, started },
+      )
+    }
     return secureResponse(response)
   }
   return {
@@ -76,4 +80,17 @@ export function defineApiRoute(
     PATCH: make('PATCH'),
     DELETE: make('DELETE'),
   }
+}
+
+async function routeParams(context: NextContext | undefined): Promise<Record<string, string>> {
+  const rawParams = await context?.params
+  const params = Object.fromEntries(
+    Object.entries(rawParams ?? {}).flatMap(([key, value]) =>
+      typeof value === 'string'
+        ? [
+            [key, value],
+          ]
+        : []),
+  )
+  return params
 }

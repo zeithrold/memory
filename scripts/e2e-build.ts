@@ -13,16 +13,23 @@ const cleared = [
   'SENTRY_RELEASE',
 ]
 const env: NodeJS.ProcessEnv = { ...process.env }
-for (const key of cleared)
+for (const key of cleared) {
   env[key] = ''
+}
 
-const result = spawnSync('pnpm', ['exec', 'vinext', 'build'], {
+const result = spawnSync('pnpm', [
+  'exec',
+  'vinext',
+  'build',
+], {
   env,
   stdio: 'inherit',
   // Windows resolves pnpm through a shell; POSIX does not need one.
   shell: process.platform === 'win32',
 })
-if (result.error !== undefined)
+if (result.error !== undefined) {
   throw result.error
-if (result.status !== 0)
-  throw new Error(`The unsigned e2e build failed with status ${result.status}.`)
+}
+if (result.status !== 0) {
+  throw new Error(`The unsigned e2e build failed with status ${result.status ?? 'unknown'}.`)
+}

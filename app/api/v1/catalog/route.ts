@@ -3,6 +3,6 @@ import { readCatalog } from '@/lib/server/catalog/api'
 
 export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
-  GET: async ({ env, principal }) => readCatalog(env, principal.ownerId),
+  GET: async ({ env, principal }) => await readCatalog(env, principal.ownerId),
 }, { sessionOnly: true })
 export const { GET, POST, PUT, PATCH, DELETE } = route

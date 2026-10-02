@@ -3,9 +3,9 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.14.0"
   },
   "scripts": {
     "dev": "vinext dev --port 3000",
@@ -46,20 +46,18 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.5.1",
     "@cloudflare/vite-plugin": "^1.54.10",
     "@cloudflare/workers-types": "^5.20260916.1",
-    "@eslint-react/eslint-plugin": "^5.19.1",
     "@playwright/test": "^1.63.0",
     "@sentry/vite-plugin": "5.4.0",
     "@tailwindcss/postcss": "latest",
-    "@types/node": "latest",
+    "@types/node": "^24.19.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitejs/plugin-rsc": "^0.5.35",
-    "eslint": "^10.10.0",
-    "eslint-plugin-react-refresh": "^0.5.7",
+    "@ztd-me/eslint": "0.1.1",
+    "eslint": "^10.11.0",
     "tailwindcss": "latest",
     "tsx": "^4.23.13",
     "typescript": "~6.0.3",

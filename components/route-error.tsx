@@ -3,7 +3,9 @@
 import { useEffect } from 'react'
 import { Button } from './ui/button'
 
-export default function RouteError({ error, reset }: { error: Error & { digest?: string }, reset: () => void }) {
+interface RouteErrorProps { error: Error & { digest?: string }, reset: () => void }
+
+export default function RouteError({ error, reset }: RouteErrorProps): React.JSX.Element {
   useEffect(() => {
     console.error('Workspace route failed', { name: error.name, digest: error.digest })
   }, [error])

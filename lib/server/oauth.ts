@@ -35,20 +35,23 @@ export function accessIssuer(
   env: Pick<Env, 'ACCESS_TEAM_DOMAIN'> = {},
 ): string | null {
   const explicit = env.ACCESS_TEAM_DOMAIN?.trim()
-  if (explicit !== undefined && explicit.length > 0)
+  if (explicit !== undefined && explicit.length > 0) {
     return trimOrigin(explicit)
+  }
   // Vite replaces the global expression; importing node:process prevents it.
-  // eslint-disable-next-line node/prefer-global/process
+  // eslint-disable-next-line node/prefer-global/process -- Preserve Vinext build-time inlining.
   const fromPublic = process.env.NEXT_PUBLIC_ACCESS_TEAM_DOMAIN?.trim()
-  if (fromPublic !== undefined && fromPublic.length > 0)
+  if (fromPublic !== undefined && fromPublic.length > 0) {
     return trimOrigin(fromPublic)
+  }
   return null
 }
 
 export function accessAudience(env: Pick<Env, 'ACCESS_AUD'>): string | null {
   const aud = env.ACCESS_AUD?.trim()
-  if (aud === undefined || aud.length === 0)
+  if (aud === undefined || aud.length === 0) {
     return null
+  }
   return aud
 }
 
@@ -61,62 +64,79 @@ export function protectedResourceMetadata(
   resource: string,
 ): ProtectedResourceMetadata | null {
   const issuer = accessIssuer(env)
-  if (issuer === null)
+  if (issuer === null) {
     return null
+  }
   return {
     resource,
     authorization_servers: [issuer],
-    scopes_supported: [...OAUTH_SCOPES],
+    scopes_supported: [
+      ...OAUTH_SCOPES,
+    ],
     bearer_methods_supported: ['header'],
   }
 }
 
 /** RFC 9728 challenge that lets an unauthenticated client discover the metadata. */
+interface ChallengeOptions {
+  scopes?: readonly Scope[]
+  error?: string
+  description?: string
+}
+
 export function challenge(
   env: Env,
-  options: {
-    scopes?: readonly Scope[]
-    error?: string
-    description?: string
-  } = {},
+  options: ChallengeOptions = {},
 ): string {
   const clean = (value: string) =>
     value.replace(/["\\]/g, '').replace(/\s+/g, ' ').trim()
-  const parts = [`Bearer resource_metadata="${resourceMetadataUrl(env)}"`]
-  if (options.scopes && options.scopes.length > 0)
+  const parts = [
+    `Bearer resource_metadata="${resourceMetadataUrl(env)}"`,
+  ]
+  if ((options.scopes !== undefined) && options.scopes.length > 0) {
     parts.push(`scope="${options.scopes.join(' ')}"`)
-  if (options.error !== undefined && options.error.length > 0)
+  }
+  if (options.error !== undefined && options.error.length > 0) {
     parts.push(`error="${clean(options.error)}"`)
-  if (options.description !== undefined && options.description.length > 0)
+  }
+  if (options.description !== undefined && options.description.length > 0) {
     parts.push(`error_description="${clean(options.description)}"`)
+  }
   return parts.join(', ')
 }
 
 /** Every tool requires at least one scope, so every scheme is `oauth2`. */
 export function securitySchemesFor(scope: Scope): ToolSecurityScheme[] {
-  return [{ type: 'oauth2', scopes: [scope] }]
+  return [
+    { type: 'oauth2', scopes: [scope] },
+  ]
 }
 
 export function accessPrincipal(ownerId: string): Principal {
   return {
     ownerId,
     tokenId: null,
-    scopes: [...OAUTH_SCOPES],
+    scopes: [
+      ...OAUTH_SCOPES,
+    ],
     project: null,
   }
 }
 
 function cookieValue(request: Request, name: string): string | null {
   const header = request.headers.get('cookie')
-  if (header === null || header.length === 0)
+  if (header === null || header.length === 0) {
     return null
+  }
   for (const part of header.split(';')) {
     const trimmed = part.trim()
     const eq = trimmed.indexOf('=')
-    if (eq <= 0)
+    if (eq <= 0) {
       continue
-    if (trimmed.slice(0, eq) !== name)
+    }
+    if (trimmed.slice(0, eq) !== name) {
       continue
+    }
     return decodeURIComponent(trimmed.slice(eq + 1))
   }
   return null
@@ -152,8 +172,9 @@ export async function verifyAccessJwt(
 ): Promise<Principal | null> {
   const token = request.headers.get('cf-access-jwt-assertion')
     ?? cookieValue(request, 'CF_Authorization')
-  if (token === null || token.length === 0)
+  if (token === null || token.length === 0) {
     return null
+  }
   const teamDomain = accessIssuer(env)
   const audience = accessAudience(env)
   if (teamDomain === null || audience === null) {
@@ -164,19 +185,12 @@ export async function verifyAccessJwt(
       issuer: teamDomain,
       audience,
     })
-    const sub = typeof payload.sub === 'string' ? payload.sub.trim() : ''
-    // Service-token assertions carry an empty sub; this app needs a user identity.
-    if (sub.length === 0) {
-      throw new AppError(
-        'UNAUTHORIZED',
-        'This Access credential does not identify a user.',
-      )
-    }
-    return accessPrincipal(sub)
+    return principalFromAccessPayload(payload)
   }
   catch (error) {
-    if (error instanceof AppError)
+    if (error instanceof AppError) {
       throw error
+    }
     console.error('Access JWT verification failed', {
       type: error instanceof Error ? error.name : 'UnknownError',
       message: error instanceof Error ? error.message.slice(0, 200) : '',
@@ -186,4 +200,16 @@ export async function verifyAccessJwt(
       'Your session has expired. Sign in again.',
     )
   }
+}
+
+function principalFromAccessPayload(payload: { sub?: string }): Principal {
+  const sub = typeof payload.sub === 'string' ? payload.sub.trim() : ''
+  // Service-token assertions carry an empty sub; this app needs a user identity.
+  if (sub.length === 0) {
+    throw new AppError(
+      'UNAUTHORIZED',
+      'This Access credential does not identify a user.',
+    )
+  }
+  return accessPrincipal(sub)
 }

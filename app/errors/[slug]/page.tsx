@@ -15,7 +15,9 @@ function exampleFor(entry: CatalogEntry): Record<string, unknown> {
     instance: '/api/v1/memories',
     code: entry.code,
     ...(entry.code === 'INVALID_INPUT'
-      ? { fields: [{ path: ['content'], message: 'Too big: expected string to have <=6000 characters' }] }
+      ? { fields: [
+          { path: ['content'], message: 'Too big: expected string to have <=6000 characters' },
+        ] }
       : {}),
   }
 }
@@ -24,18 +26,20 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const entry = ERROR_BY_SLUG.get(slug)
-  if (entry === undefined)
+  if (entry === undefined) {
     return { title: 'Unknown error — Shared Memory' }
+  }
   return {
     title: `${entry.status} ${entry.title} — Shared Memory`,
     description: entry.summary,
   }
 }
-export default async function ErrorDetail({ params }: PageProps) {
+export default async function ErrorDetail({ params }: PageProps): Promise<React.JSX.Element> {
   const { slug } = await params
   const entry = ERROR_BY_SLUG.get(slug)
-  if (entry === undefined)
+  if (entry === undefined) {
     notFound()
+  }
   return (
     <main className="page">
       <p className="eyebrow">

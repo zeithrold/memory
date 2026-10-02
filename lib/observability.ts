@@ -11,13 +11,19 @@ export const TRACES_SAMPLE_RATE: Record<SentryEnvironment, number> = {
   production: 0.5,
 }
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+const LOCAL_HOSTS = new Set([
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  '[::1]',
+])
 
 export function environmentFromOrigin(origin: string): SentryEnvironment {
   try {
     const url = new URL(origin)
-    if (url.protocol === 'http:' || LOCAL_HOSTS.has(url.hostname))
+    if (url.protocol === 'http:' || LOCAL_HOSTS.has(url.hostname)) {
       return 'stage'
+    }
     return 'production'
   }
   catch {

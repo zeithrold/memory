@@ -1,9 +1,10 @@
 'use client'
 
 import { ConnectPanel } from './connect-panel'
-import { PageHeading, useWorkspace } from './workspace-shell'
+import { useWorkspace } from './workspace-context'
+import { PageHeading } from './workspace-shell'
 
-export default function ConnectPage() {
+export default function ConnectPage(): React.JSX.Element {
   const { t } = useWorkspace()
   return (
     <main className="page">

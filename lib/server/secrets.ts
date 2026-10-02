@@ -39,8 +39,9 @@ function toHex(bytes: Uint8Array): string {
  */
 function fromHex(value: string): Uint8Array<ArrayBuffer> {
   const bytes = new Uint8Array(new ArrayBuffer(value.length / 2))
-  for (let index = 0; index < bytes.length; index++)
+  for (let index = 0; index < bytes.length; index++) {
     bytes[index] = Number.parseInt(value.slice(index * 2, index * 2 + 2), 16)
+  }
   return bytes
 }
 /**
@@ -52,13 +53,17 @@ export function settingsKeyConfigured(env: Env): boolean {
 }
 function masterKeyBytes(env: Env): Uint8Array<ArrayBuffer> | null {
   const raw = env.AGENT_SETTINGS_KEY?.trim()
-  if (raw === undefined || raw.length !== KEY_HEX_LENGTH)
+  if (raw === undefined || raw.length !== KEY_HEX_LENGTH) {
     return null
-  if (!/^[\da-f]+$/i.test(raw))
+  }
+  if (!/^[\da-f]+$/i.test(raw)) {
     return null
+  }
   return fromHex(raw)
 }
-async function masterKey(env: Env): Promise<CryptoKey> {
+async function masterKey(
+  env: Env,
+): Promise<CryptoKey> {
   const bytes = masterKeyBytes(env)
   if (bytes === null) {
     throw new AppError(
@@ -66,10 +71,7 @@ async function masterKey(env: Env): Promise<CryptoKey> {
       'This deployment cannot store model credentials because AGENT_SETTINGS_KEY is missing or malformed.',
     )
   }
-  return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, [
-    'encrypt',
-    'decrypt',
-  ])
+  return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
 }
 export function secretHint(plaintext: string): string {
   return plaintext.slice(-HINT_LENGTH)

@@ -7,12 +7,18 @@ export function terms(text: string): string[] {
   for (const run of normalized.match(
     /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu,
   ) ?? []) {
-    const chars = [...run]
+    const chars = Array.from(run)
     cjk.push(...chars)
-    for (let i = 0; i < chars.length - 1; i++)
+    for (let i = 0; i < chars.length - 1; i++) {
       cjk.push(chars.slice(i, i + 2).join(''))
+    }
   }
-  return [...new Set([...latin, ...cjk])]
+  return [
+    ...new Set([
+      ...latin,
+      ...cjk,
+    ]),
+  ]
 }
 export function ftsQuery(text: string): string {
   return terms(text)
@@ -23,8 +29,13 @@ export function ftsQuery(text: string): string {
 export function fuseRankings(lists: string[][]): string[] {
   const scores = new Map<string, number>()
   for (const list of lists) {
-    for (const [rank, id] of [...new Set(list)].entries())
+    for (const [rank, id] of [
+      ...new Set(list),
+    ].entries()) {
       scores.set(id, (scores.get(id) ?? 0) + 1 / (60 + rank + 1))
+    }
   }
-  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id)
+  return [
+    ...scores.entries(),
+  ].sort((a, b) => b[1] - a[1]).map(([id]) => id)
 }

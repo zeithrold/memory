@@ -18,7 +18,9 @@ function MemoryCardSkeleton() {
     </article>
   )
 }
-export function MemoryGridSkeleton({ count = 6 }: { count?: number }) {
+interface MemoryGridSkeletonProps { count?: number }
+
+export function MemoryGridSkeleton({ count = 6 }: MemoryGridSkeletonProps): React.JSX.Element {
   return (
     <div className="memory-grid" role="status" aria-busy="true">
       {Array.from({ length: count }, (_, index) => (
@@ -28,7 +30,7 @@ export function MemoryGridSkeleton({ count = 6 }: { count?: number }) {
   )
 }
 /** Full-page placeholder for the first authenticated paint. */
-export function PageSkeleton() {
+export function PageSkeleton(): React.JSX.Element {
   return (
     <>
       <div className="page-heading">
@@ -42,7 +44,7 @@ export function PageSkeleton() {
     </>
   )
 }
-export function MemoryDetailSkeleton() {
+export function MemoryDetailSkeleton(): React.JSX.Element {
   return (
     <article className="detail-card" role="status" aria-busy="true">
       <div className="card-meta">
@@ -62,7 +64,11 @@ export function MemoryDetailSkeleton() {
     </article>
   )
 }
-export function RevisionListSkeleton({ count = 2 }: { count?: number }) {
+interface RevisionListSkeletonProps { count?: number }
+
+export function RevisionListSkeleton(
+  { count = 2 }: RevisionListSkeletonProps,
+): React.JSX.Element {
   return (
     <div className="revision-list" role="status" aria-busy="true">
       {Array.from({ length: count }, (_, index) => (
@@ -80,7 +86,9 @@ export function RevisionListSkeleton({ count = 2 }: { count?: number }) {
     </div>
   )
 }
-export function TokenListSkeleton({ count = 3 }: { count?: number }) {
+interface TokenListSkeletonProps { count?: number }
+
+export function TokenListSkeleton({ count = 3 }: TokenListSkeletonProps): React.JSX.Element {
   return (
     <div className="token-list" role="status" aria-busy="true">
       {Array.from({ length: count }, (_, index) => (
@@ -95,7 +103,7 @@ export function TokenListSkeleton({ count = 3 }: { count?: number }) {
     </div>
   )
 }
-export function UsageSkeleton() {
+export function UsageSkeleton(): React.JSX.Element {
   return (
     <div role="status" aria-busy="true">
       <div className="stats">

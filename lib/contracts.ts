@@ -16,13 +16,18 @@ export const memoryInputSchema = z
     project: projectSchema.default('global'),
     title: z.string().trim().min(1).max(160),
     content: z.string().trim().min(1).max(6000),
-    kind: z.enum(['preference', 'fact', 'decision', 'experience']),
+    kind: z.enum([
+      'preference',
+      'fact',
+      'decision',
+      'experience',
+    ]),
     tags: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
     source: z.string().trim().min(1).max(1000),
   })
   .strict()
 export const createSchema = memoryInputSchema.extend({
-  idempotencyKey: z.string().uuid(),
+  idempotencyKey: z.uuid(),
 })
 export const updateSchema = memoryInputSchema.extend({
   expectedVersion: z.number().int().positive(),
@@ -42,10 +47,14 @@ export const searchSchema = z
      * Explicit catalog scope. A depth-1 category includes its depth-2
      * children; a depth-2 category includes only itself.
      */
-    categoryIds: z.array(z.string().uuid()).min(1).max(5).optional(),
+    categoryIds: z.array(z.uuid()).min(1).max(5).optional(),
     mode: z.enum(['flat', 'catalog']).default('flat'),
     /** Only consulted when `mode` is `catalog`. */
-    balance: z.enum(['equal', 'sqrt', 'neyman']).default('sqrt'),
+    balance: z.enum([
+      'equal',
+      'sqrt',
+      'neyman',
+    ]).default('sqrt'),
   })
   .strict()
 
@@ -69,7 +78,7 @@ export const tokenInputSchema = z
  * row shape without updating this schema fails a test rather than a tool call.
  */
 export const memorySchema = memoryInputSchema.extend({
-  id: z.string().uuid(),
+  id: z.uuid(),
   version: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -82,7 +91,11 @@ export const searchResultSchema = z.object({
   catalog: z
     .object({
       routed: z.boolean(),
-      balance: z.enum(['equal', 'sqrt', 'neyman']),
+      balance: z.enum([
+        'equal',
+        'sqrt',
+        'neyman',
+      ]),
       categories: z.array(
         z.object({
           id: z.string(),
@@ -95,8 +108,8 @@ export const searchResultSchema = z.object({
 })
 
 export const catalogSearchCategorySchema = z.object({
-  id: z.string().uuid(),
-  parentId: z.string().uuid().nullable(),
+  id: z.uuid(),
+  parentId: z.uuid().nullable(),
   depth: z.number().int(),
   slug: z.string(),
   label: z.string(),
@@ -104,7 +117,7 @@ export const catalogSearchCategorySchema = z.object({
   boundary: z.string(),
   path: z.array(
     z.object({
-      id: z.string().uuid(),
+      id: z.uuid(),
       slug: z.string(),
       label: z.string(),
     }),
@@ -122,8 +135,8 @@ export const catalogSearchResultSchema = z.object({
  * instead of injecting this whole structure into model context.
  */
 export const catalogCategorySchema = z.object({
-  id: z.string().uuid(),
-  parentId: z.string().uuid().nullable(),
+  id: z.uuid(),
+  parentId: z.uuid().nullable(),
   depth: z.number().int(),
   slug: z.string(),
   label: z.string(),

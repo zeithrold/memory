@@ -7,5 +7,12 @@ export async function digest(value: string): Promise<string> {
     byte.toString(16).padStart(2, '0')).join('')
 }
 export function randomToken(): string {
-  return `mem_${Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')}`
+  return ('mem_'
+    + ((((`${Array.from(
+      crypto.getRandomValues(new Uint8Array(32)),
+      byte => byte.toString(16).padStart(2, '0'),
+    )
+      .join(
+        '',
+      )}`)))))
 }

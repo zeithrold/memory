@@ -19,8 +19,9 @@ const DEFAULT_KINDS: CredentialKind[] = ['session', 'personal']
 
 export function checkOrigin(request: Request, env: Env): void {
   const origin = request.headers.get('origin')
-  if (origin !== null && origin !== env.APP_ORIGIN)
+  if (origin !== null && origin !== env.APP_ORIGIN) {
     throw new AppError('INVALID_ORIGIN', 'This origin is not allowed.')
+  }
 }
 export async function authenticate(
   request: Request,
@@ -34,72 +35,93 @@ export async function authenticate(
   Sentry.setTag('credential', principal.tokenId === null ? 'linked' : 'token')
   return principal
 }
+
+interface TokenRow {
+  id: string
+  owner_id: string
+  scopes: string
+  project: string | null
+  last_used_at: string | null
+}
+
 async function resolvePrincipal(
   request: Request,
   env: Env,
   kinds: CredentialKind[],
 ): Promise<Principal> {
-  // Origin checks only guard session credentials. Machine clients may omit
-  // Origin, and no cookie is ever honored on those paths for CSRF.
-  if (kinds.includes('session'))
+  // Origin checks only guard sessions. Machine paths never honor a cookie.
+  if (kinds.includes('session')) {
     checkOrigin(request, env)
+  }
   const authorization = request.headers.get('authorization')
-  if (authorization?.startsWith('Bearer ')) {
+  if (authorization?.startsWith('Bearer ') === true) {
     const token = authorization.slice(7)
     if (token.startsWith('mem_')) {
       if (!kinds.includes('personal')) {
         throw new AppError('UNAUTHORIZED', 'This endpoint does not accept personal API tokens.')
       }
-      const row = await env.DB.prepare(
-        'SELECT * FROM api_tokens WHERE digest = ? AND revoked_at IS NULL AND expires_at > ?',
-      )
-        .bind(await digest(token), new Date().toISOString())
-        .first<{
-        id: string
-        owner_id: string
-        scopes: string
-        project: string | null
-        last_used_at: string | null
-      }>()
-      if (!row) {
-        throw new AppError('UNAUTHORIZED', 'The API token is invalid, expired, or revoked.')
-      }
-      const now = Date.now()
-      const lastUsed = row.last_used_at === null ? 0 : Date.parse(row.last_used_at)
-      if (!Number.isFinite(lastUsed) || now - lastUsed >= 3600000) {
-        const update = env.DB.prepare(
-          'UPDATE api_tokens SET last_used_at = ? WHERE id = ? AND (last_used_at IS NULL OR last_used_at < ?)',
-        )
-          .bind(
-            new Date(now).toISOString(),
-            row.id,
-            new Date(now - 3600000).toISOString(),
-          )
-          .run()
-          .catch(() => console.error('Token activity update failed', { tokenId: row.id.slice(0, 8) }))
-        if (process.env.NODE_ENV === 'test')
-          void update
-        else
-          (await import('cloudflare:workers')).waitUntil(update)
-      }
-      return {
-        ownerId: row.owner_id,
-        tokenId: row.id,
-        scopes: z.array(scopeSchema).parse(JSON.parse(row.scopes)),
-        project: row.project,
-      }
+      return await personalPrincipal(env, token)
     }
   }
   const wantsAccess = kinds.includes('session') || kinds.includes('oauth')
   if (wantsAccess) {
     const principal = await verifyAccessJwt(request, env)
-    if (principal !== null)
+    if (principal !== null) {
       return principal
+    }
   }
   if (!kinds.includes('session')) {
     throw new AppError('UNAUTHORIZED', 'Use a personal API token or an OAuth connection for MCP.')
   }
   throw new AppError('UNAUTHORIZED', 'Your session has expired. Sign in again.')
+}
+
+async function personalPrincipal(
+  env: Env,
+  token: string,
+): Promise<Principal> {
+  const row = await env.DB.prepare(
+    'SELECT * FROM api_tokens WHERE digest = ? AND revoked_at IS NULL AND expires_at > ?',
+  ).bind(await digest(token), new Date().toISOString()).first<TokenRow>()
+  if (row === null) {
+    throw new AppError('UNAUTHORIZED', 'The API token is invalid, expired, or revoked.')
+  }
+  await touchToken(row, env)
+  return {
+    ownerId: row.owner_id,
+    tokenId: row.id,
+    scopes: z.array(scopeSchema).parse(JSON.parse(row.scopes)),
+    project: row.project,
+  }
+}
+
+async function touchToken(
+  row: TokenRow,
+  env: Env,
+): Promise<void> {
+  const now = Date.now()
+  const lastUsed = row.last_used_at === null ? 0 : Date.parse(row.last_used_at)
+  if (Number.isFinite(lastUsed) && now - lastUsed < 3600000) {
+    return
+  }
+  const update = env.DB.prepare(
+    'UPDATE api_tokens SET last_used_at = ? WHERE id = ? AND (last_used_at IS NULL OR last_used_at < ?)',
+  )
+    .bind(
+      new Date(now).toISOString(),
+      row.id,
+      new Date(now - 3600000).toISOString(),
+    )
+    .run()
+    .catch(
+      () => console.error('Token activity update failed', { tokenId: row.id.slice(0, 8) }),
+    )
+  if (process.env.NODE_ENV === 'test') {
+    await update
+  }
+  else {
+    (await import('cloudflare:workers')).waitUntil(update)
+  }
 }
 function maySkipMissingBinding(env: Env): boolean {
   return env.APP_ORIGIN.includes('localhost')
@@ -113,8 +135,9 @@ async function enforceLimiter(
   binding: string,
 ): Promise<void> {
   if (limiter === undefined) {
-    if (maySkipMissingBinding(env))
+    if (maySkipMissingBinding(env)) {
       return
+    }
     console.error('Required rate limiter binding is missing', { binding })
     throw new AppError('INTERNAL_ERROR', 'Request protection is not configured.')
   }

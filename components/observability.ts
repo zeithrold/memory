@@ -8,13 +8,15 @@ import {
 
 let started = false
 
+interface BrowserObservabilityProps {
+  dsn: string
+  release: string
+}
+
 export function BrowserObservability({
   dsn,
   release,
-}: {
-  dsn: string
-  release: string
-}) {
+}: BrowserObservabilityProps): null {
   if (!started && dsn !== '' && typeof window !== 'undefined') {
     started = true
 

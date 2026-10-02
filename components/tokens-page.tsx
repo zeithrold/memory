@@ -1,9 +1,10 @@
 'use client'
 
 import { TokenPanel } from './panels'
-import { PageHeading, SetupBanner, useWorkspace } from './workspace-shell'
+import { useWorkspace } from './workspace-context'
+import { PageHeading, SetupBanner } from './workspace-shell'
 
-export default function TokensPage() {
+export default function TokensPage(): React.JSX.Element {
   const { t, api, authState } = useWorkspace()
   return (
     <main className="page">

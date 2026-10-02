@@ -21,8 +21,9 @@ export default defineConfig({
       // Apply after vinext's client treeshake defaults. This pinned toolchain
       // otherwise emits empty client-boundary chunks in production.
       configEnvironment(name) {
-        if (name === 'client' || name === 'ssr')
+        if (name === 'client' || name === 'ssr') {
           return { build: { rolldownOptions: { treeshake: false } } }
+        }
       },
     },
     vinext(),

@@ -5,12 +5,10 @@ export const dynamic = 'force-dynamic'
 const route = defineApiRoute('catalog', {
   GET: async ({ request, env, principal, params }) => {
     const query = new URL(request.url).searchParams
-    return readCatalogRun(
+    return await readCatalogRun(
       env,
       principal.ownerId,
-      params.id,
-      query.get('offset'),
-      query.get('limit'),
+      { rawId: params.id, rawOffset: query.get('offset'), rawLimit: query.get('limit') },
     )
   },
 }, { sessionOnly: true })

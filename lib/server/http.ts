@@ -1,19 +1,22 @@
 import { AppError } from './errors'
 
 export async function readJson(request: Request): Promise<unknown> {
-  if (!request.headers.get('content-type')?.includes('application/json'))
+  if (request.headers.get('content-type')?.includes('application/json') !== true) {
     throw new AppError('JSON_REQUIRED', 'Use application/json.')
+  }
   const reader = request.body?.getReader()
-  if (!reader)
+  if (!(reader !== undefined)) {
     throw new AppError('INVALID_JSON', 'A JSON body is required.')
+  }
   let bytes = 0
   let text = ''
   const decoder = new TextDecoder()
   try {
     while (true) {
       const chunk = await reader.read()
-      if (chunk.done)
+      if (chunk.done) {
         break
+      }
       bytes += chunk.value.byteLength
       if (bytes > 65536) {
         await reader.cancel()
@@ -37,8 +40,9 @@ export function secureResponse(response: Response, challenge?: string): Response
   response.headers.set('Cache-Control', 'no-store')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'no-referrer')
-  if (response.status === 429)
+  if (response.status === 429) {
     response.headers.set('Retry-After', '60')
+  }
   if (challenge !== undefined && (response.status === 401 || response.status === 403)) {
     response.headers.set('WWW-Authenticate', challenge)
   }

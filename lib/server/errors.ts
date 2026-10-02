@@ -64,12 +64,13 @@ export function problemResponse(
   document: ProblemDocument,
   headers?: HeadersInit,
 ): Response {
+  const responseHeaders = new Headers(headers)
+  if (!responseHeaders.has('Content-Type')) {
+    responseHeaders.set('Content-Type', 'application/problem+json')
+  }
   return new Response(JSON.stringify(document), {
     status: document.status,
-    headers: {
-      'Content-Type': 'application/problem+json',
-      ...headers,
-    },
+    headers: responseHeaders,
   })
 }
 export function errorResponse(
@@ -82,8 +83,9 @@ export function errorResponse(
     captureRequestError(error, document, context)
     return problemResponse(document)
   }
-  if (error instanceof AppError)
+  if (error instanceof AppError) {
     return respond(problemDocument(error.code, error.message, context))
+  }
   if (error instanceof ZodError) {
     return respond(
       problemDocument('INVALID_INPUT', 'Check the request fields.', context, {
