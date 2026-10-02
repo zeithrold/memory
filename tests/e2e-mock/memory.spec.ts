@@ -71,3 +71,21 @@ test('configured preview still rejects real anonymous API requests', async ({ re
   expect(response.status()).toBe(401)
   expect(await response.json()).toMatchObject({ code: 'UNAUTHORIZED' })
 })
+
+test('mocked session keeps logout with Memory Access and returns to this origin', async ({ page }) => {
+  await mockWorkspace(page)
+  let logout: string | undefined
+  await page.route('https://memory-browser-preview.cloudflareaccess.com/cdn-cgi/access/logout?**', async (route) => {
+    logout = route.request().url()
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<html lang="en"><body>Logout fixture</body></html>',
+    })
+  })
+  await page.goto('/memories')
+  await expect(page.getByText('Original decision', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect.poll(() => logout).toBe('https://memory-browser-preview.cloudflareaccess.com/cdn-cgi/access/logout'
+    + '?returnTo=http%3A%2F%2Flocalhost%3A3101')
+})

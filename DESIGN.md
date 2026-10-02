@@ -5,11 +5,23 @@ Extracted from main `143e1a71eda4bc1500c28dc65270d16c96378906`, `app/globals.css
 Shared guidance/checks use tools source
 [`3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`](https://github.com/zeithrold/tools/blob/3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f/docs/frontend-tooling.md).
 
-## Product and visual identity
+## Approved shared-shell target
+
+The unified migration adopts the shared `@ztd-me/frontend` shell with neutral grayscale
+as Memory's default, five selectable colorful palettes, and light/dark/system mode
+(default system). Share only versioned non-sensitive appearance/UI locale across production
+`ztd.me` subdomains; auth, account and business state remain local. Preserve Memory's
+business navigation/content/controls. The shared footer identifies Zeithrold, this repo
+and `hello@ztd.me`. Integration awaits the verified public package contract/version.
+See [migration ownership and gates](docs/UNIFIED-FRONTEND-MIGRATION.md).
+The sections below record the currently shipped baseline, not the completed target.
+
+## Baseline product and visual identity
 
 Memory is a private library of context shared across agents. Preserve memory creation,
-editing, search, catalog maintenance and connection instructions. The green palette,
-quiet surfaces, existing typography and compact controls remain local product choices.
+editing, search, catalog maintenance and connection instructions. The shipped baseline uses a green palette,
+quiet surfaces, existing typography and compact controls. The approved shared-shell target
+changes appearance ownership and defaults while retaining product content and controls.
 Empty, loading, setup and service recovery states are real states, not sample content.
 
 `app/globals.css` owns the light surface, foreground, muted text, primary action,
@@ -26,10 +38,10 @@ existing values. The sidebar/content layout changes at 1000px; compact panels ch
 and Radix primitives. Dialogs require a translated close label and retain focus trapping,
 Escape dismissal and focus restoration. The first keyboard link skips repeated navigation.
 
-## Preferences and boundaries
+## Baseline preferences and business boundaries
 
-The shipped theme is light. The existing Tailwind dark variant is not evidence of a
-supported dark theme; adding theme ownership is outside this change. Skeleton animation
+The baseline theme is light and includes a Tailwind dark variant declaration. Shared
+integration will add the approved mode ownership through the verified package. Skeleton animation
 honors reduced motion. Language values are `en` and `zh-CN`, normalized by the existing
 cookie reader, with English as the deterministic SSR fallback. The workspace updates
 `html.lang` and persists its existing one-year, SameSite=Lax locale cookie. Dictionaries
