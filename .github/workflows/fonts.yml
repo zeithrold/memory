@@ -1,0 +1,46 @@
+name: Source UI Fonts
+on:
+  push:
+  pull_request:
+jobs:
+  actual-fonts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          node -e 'const fs = require("node:fs"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${require("@playwright/test/package.json").version}\n`)'
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-${{ steps.playwright-version.outputs.version }}-chromium-v1
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify pinned UI source and record head
+        run: pnpm exec tsx scripts/font-ci-metadata.ts
+        env:
+          MEMORY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build unsigned production Worker
+        run: pnpm e2e:prepare
+      # This gate intentionally runs independently of the full required profile.
+      # Its Cloud-only preview flag is absent; fixtures reject that flag in CI.
+      - name: Verify actual Google Fonts and chrome
+        run: pnpm exec playwright test tests/e2e/fonts.spec.ts tests/e2e/chrome.spec.ts
+        env:
+          ZT_ARTIFACTS_DIR: .zt/artifacts/font-ci
+      - name: Retain font acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: font-verification-${{ github.sha }}
+          path: .zt/artifacts/font-ci/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

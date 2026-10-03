@@ -1,7 +1,7 @@
 'use client'
 
-import { PublicShell, useFrontendPreferences } from '@ztd-me/frontend/client'
 import { Brain } from 'lucide-react'
+import { PublicShell, useFrontendPreferences } from '@/components/ui/ztd-me/client'
 import { memoryFooter } from '@/lib/frontend-config'
 import { FrontendLink } from './frontend-link'
 import { FrontendPersistenceNotice } from './frontend-persistence-notice'

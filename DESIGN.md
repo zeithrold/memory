@@ -1,83 +1,59 @@
 # Memory frontend contract
 
-Extracted from main `143e1a71eda4bc1500c28dc65270d16c96378906`, `app/globals.css`,
-`components/ui`, `components/workspace-shell.tsx`, and `lib/i18n`.
-Shared guidance/checks use tools source
-[`3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`](https://github.com/zeithrold/tools/blob/3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f/docs/frontend-tooling.md).
+Memory is a private context library for AI agents. Preserve creation/edit/search,
+catalog maintenance, connection instructions, authentication and all real empty,
+loading, setup, service failure and recovery states.
 
-## Approved shared-shell target
+The editable `@ztd-me/ui` source is pinned to tools
+`7c708c0e0672a302cd751550276fb7a7a43cf1e5` and installed through `shadcn@4.21.1`.
+See [ownership, reproducibility and acceptance](docs/UNIFIED-FRONTEND-MIGRATION.md)
+and `ui-source.lock.json`. Installed source is consumer-owned; updates require a
+reviewed merge, not automatic overwrite. Keep MIT/shadcn/Noto notices.
 
-The unified migration adopts the shared `@ztd-me/frontend` shell with neutral grayscale
-as Memory's default, five selectable colorful palettes, and light/dark/system mode
-(default system). Share only versioned non-sensitive appearance/UI locale across production
-`ztd.me` subdomains; auth, account and business state remain local. Preserve Memory's
-business navigation/content/controls. The shared footer identifies Zeithrold, this repo
-and `hello@ztd.me`. Integration awaits the verified public package contract/version.
-See [migration ownership and gates](docs/UNIFIED-FRONTEND-MIGRATION.md).
-The sections below record the currently shipped baseline, not the completed target.
+Neutral/System is the default, with six palettes and light/dark/system modes.
+Appearance and non-sensitive UI locale use the existing explicit current-format
+production cookie policy; preview/development remain isolated. Neither source nor
+consumer reads/maps/deletes retired preferences. Auth, accounts, business state and
+drafts stay local. API mutations retain idempotency keys and expected versions.
 
-## Baseline product and visual identity
+The shell uses soft semantic borders, compact visible control surfaces with 44px
+hit targets and menu enter/exit motion. Closed menus stop intercepting pointers;
+reduced motion disables their animations. Preserve Memory's business navigation,
+content widths, panel spacing, responsive rules, native link prefetch policy and
+translated dialogs/focus. Footer identity remains © Zeithrold, this repository and
+`hello@ztd.me`, without a year or extra navigation. One provider and one main landmark
+own each shell; server and first client share one initial snapshot.
 
-Memory is a private library of context shared across agents. Preserve memory creation,
-editing, search, catalog maintenance and connection instructions. The shipped baseline uses a green palette,
-quiet surfaces, existing typography and compact controls. The approved shared-shell target
-changes appearance ownership and defaults while retaining product content and controls.
-Empty, loading, setup and service recovery states are real states, not sample content.
+Ordinary UI uses Noto Sans with SC/JP/KR language-specific variants and Noto Color
+Emoji for genuine emoji, delivered directly by the Google Fonts API. Do not add
+unused Serif families, font binaries or Fontsource. Disable synthesized weights.
+Use Lucide SVGs for actions/navigation/status with consistent role sizes, decorative
+`aria-hidden` and named icon-only controls; preserve prose, mathematics and user content.
+Third-party network/privacy/mutability/CSP boundaries are documented in the migration.
 
-`app/globals.css` owns the light surface, foreground, muted text, primary action,
-feedback, border, focus and layout tokens. Paint literals belong in custom properties;
-Tailwind's imported declarations are included in the checker inventory. `--ink` aliases
-the foreground role. Muted/navigation/search/tag foregrounds were darkened within
-the existing green family in response to measured Axe contrast failures. `--color-destructive` owns destructive controls. No runtime token
-exceptions are needed. Token inventory alone does not prove a rendered state's contrast.
+Paint literals belong in semantic token declarations. App roles reference installed
+shared tokens. Static CSS checking includes all installed styles, Tailwind declarations
+and only the exact Radix runtime custom properties. Verify actual palette contrast,
+keyboard focus, inert cleanup, motion and narrow reflow; token inventory is insufficient.
 
-Inter is a local/system preference, followed by system and CJK-capable sans-serif fonts;
-there is no third-party font request. The spacing scale and panel padding retain their
-existing values. The sidebar/content layout changes at 1000px; compact panels change at
-640px. Retain the original reflow rules. Component variants remain in the existing CVA
-and Radix primitives. Dialogs require a translated close label and retain focus trapping,
-Escape dismissal and focus restoration. The first keyboard link skips repeated navigation.
+Use pnpm 11.22.0, `@ztd-me/eslint@0.1.1`, `@ztd-me/frontend-checks@0.1.1` and matching
+Playwright 1.62.0. Existing CLI/managed Skills stay pinned to
+`3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`; authoring also follows the updated frontend
+Skills at the approved UI source SHA. Preserve release-age gates, no-downgrade trust,
+the exact semver@6.3.1 exception and existing build grants. The Radix Select patch is
+declaration-only. Strict UI library checking is required alongside application types.
 
-## Baseline preferences and business boundaries
+Native gates remain lint, CSS, types, units, unsigned production Worker/bundle build,
+unsigned browser suite and configured synthetic-session browser suite. Tests exercise
+SSR without JavaScript, hydration, storage boundaries, preferences, all palettes/modes/
+locales, keyboard/dialogs, full-page Axe, application CRUD/recovery and catalog polling.
+Actual remote Noto glyphs/weights/complete emoji and English/Chinese cold/warm transfer
+caps are required in CI. Cloud-only local font preview cannot establish remote acceptance.
 
-The baseline theme is light and includes a Tailwind dark variant declaration. Shared
-integration will add the approved mode ownership through the verified package. Skeleton animation
-honors reduced motion. Language values are `en` and `zh-CN`, normalized by the existing
-cookie reader, with English as the deterministic SSR fallback. The workspace updates
-`html.lang` and persists its existing one-year, SameSite=Lax locale cookie. Dictionaries
-own user-facing errors, retry and dialog close copy.
-
-The workspace API client validates responses with the existing Zod schemas. Mutations
-retain idempotency keys and expected versions. The server still owns authentication,
-tenancy, concurrency, storage and model execution. Browser fixtures intercept only local
-API requests with synthetic data; they supply no Access session, token or paid provider.
-The configured local preview's unmocked APIs must still reject anonymous requests.
-
-## Tooling and evidence
-
-Use pnpm 11.22.0, `@ztd-me/eslint@0.1.1`, `@ztd-me/frontend-checks@0.1.0`,
-`@playwright/test@1.62.0`, matching `playwright-core@1.62.0`, and the exact tools CLI commit above. `zt.json` selects all five
-Skills explicitly; `zt sync --root . --plan` previews changes and detects local edits.
-Check in the managed Skills and `zt.lock.json`; do not hand-edit their contents.
-The approved `@ztd-me/*` exception applies only to release age. Trust remains
-`no-downgrade`, with only the existing exact `semver@6.3.1` exception and build grants.
-
-`pnpm check` runs each native frontend gate once through zt: lint, CSS, types, unit,
-unsigned build/bundle guard, unsigned browser suite, configured mock browser suite.
-The second compilation enables session affordances in the UI without changing auth;
-it restores the unsigned `dist` in `finally`. These suites share desktop/mobile projects
-but have distinct routes/contracts and artifact subdirectories. No aggregate invokes itself.
-
-zt retains command results and CSS JSON in a unique `.zt/artifacts` run directory.
-`metadata.json` records the source revision, dirty state, tool/package versions and
-lockfile hashes; CI also records the pull request head independently of its merge checkout.
-Playwright retains full Axe scans, named captures, HTML/JSON reports, and failure
-screenshots/traces/videos there. `pnpm test:artifacts` deliberately fails one isolated
-unlabelled button scan, then verifies the failure and complete evidence; this is separate
-from passing application tests. CI uploads `.zt/artifacts` on success or failure.
-
-Axe uses the helper's full-page WCAG 2 A/AA, 2.1 AA and 2.2 AA defaults. Keyboard tests
-cover skip navigation, dialog Tab/Shift+Tab trapping, dismissal and restored focus.
-Automated captures are review evidence, not visual approval. Baselines and performance
-budgets are deferred. Real Access/OAuth, remote bindings, live models and deployment
-remain outside these local/mock checks. Deployment retains its main-push-only condition.
+Retain transient JSON, captures, traces, videos and CSS/check reports only under ignored
+`.zt/artifacts` and CI artifacts. Durable docs and source provenance remain committed.
+A deliberate expected-failure probe verifies evidence retention. Visual captures support
+owner review, not automatic visual approval. Authenticated production CSP, real Access,
+remote models/bindings and deployment are not established by local synthetic checks.
+Production deployment is eligible only after green checks on a main push; this branch
+must not merge or manually deploy. See the upstream lint blocker before acceptance.

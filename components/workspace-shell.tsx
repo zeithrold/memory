@@ -1,8 +1,8 @@
 'use client'
 
-import { ApplicationShell, useFrontendPreferences } from '@ztd-me/frontend/client'
 import { Brain, LockKeyhole } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { ApplicationShell, useFrontendPreferences } from '@/components/ui/ztd-me/client'
 import { memoryFooter } from '@/lib/frontend-config'
 import { messages } from '@/lib/i18n/messages'
 import { FrontendLink } from './frontend-link'

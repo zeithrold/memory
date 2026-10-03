@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@radix-ui/react-select@2.3.7': 9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c
+
 importers:
 
   .:
@@ -11,6 +14,15 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(supports-color@10.2.2)(zod@4.6.5)
+      '@radix-ui/react-dropdown-menu':
+        specifier: 2.1.24
+        version: 2.1.24(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@radix-ui/react-select':
+        specifier: 2.3.7
+        version: 2.3.7(patch_hash=9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@radix-ui/react-slot':
+        specifier: 1.3.3
+        version: 1.3.3(@types/react@19.3.0)(react@19.3.0)
       '@sentry/cloudflare':
         specifier: 10.74.0
         version: 10.74.0(@cloudflare/workers-types@5.20260916.1)(wrangler@4.132.0(@cloudflare/workers-types@5.20260916.1)(@types/node@24.19.0))
@@ -20,29 +32,29 @@ importers:
       '@vinext/cloudflare':
         specifier: 1.0.0-beta.8
         version: 1.0.0-beta.8(vinext@1.0.0-beta.10(@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(@vitejs/plugin-rsc@0.5.35(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@24.19.0))))(react@19.3.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@24.19.0))))(react@19.3.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
-      '@ztd-me/frontend':
-        specifier: 0.2.0
-        version: 0.2.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      get-nonce:
+        specifier: 1.0.1
+        version: 1.0.1
       jose:
         specifier: ^6.2.12
         version: 6.2.12
       lucide-react:
-        specifier: ^1.46.0
-        version: 1.46.0(react@19.3.0)
+        specifier: 1.49.0
+        version: 1.49.0(@types/react@19.3.0)(react@19.3.0)
       radix-ui:
         specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react:
-        specifier: latest
+        specifier: 19.3.0
         version: 19.3.0
       react-dom:
-        specifier: latest
+        specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       react-server-dom-webpack:
         specifier: ^19.3.0
@@ -91,8 +103,8 @@ importers:
         specifier: ^0.5.35
         version: 0.5.35(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@24.19.0))))(react@19.3.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
       '@ztd-me/eslint':
-        specifier: 0.1.1
-        version: 0.1.1(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
+        specifier: 0.1.2
+        version: 0.1.2(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
       '@ztd-me/frontend-checks':
         specifier: 0.1.1
         version: 0.1.1(@playwright/test@1.62.0)(playwright-core@1.62.0)(supports-color@10.2.2)(typescript@6.0.3)
@@ -2434,8 +2446,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  '@ztd-me/eslint@0.1.1':
-    resolution: {integrity: sha512-ty5OjgNw3N3yAyYSLV8c8OJZPQd/q7y4QRLZuN+j86bhwgNDNHJOykiAjkQJOyiy5C4bNpzDPB9g0qQRi4ASyw==}
+  '@ztd-me/eslint@0.1.2':
+    resolution: {integrity: sha512-dtrP9YUCeFteFceYV1LFCv0GQI1BBrpaJy7UM+mOvYGDWaXEOJ4WjWwqKejzf8ZemUViygdQFHPANfyXIuViWg==}
     engines: {node: '>=22.14.0'}
     peerDependencies:
       eslint: ^10.11.0
@@ -2447,13 +2459,6 @@ packages:
     hasBin: true
     peerDependencies:
       '@playwright/test': ^1.62.0
-
-  '@ztd-me/frontend@0.2.0':
-    resolution: {integrity: sha512-HJ+tsAuRzAzM4nRHS0McBhdqO7EIMLYi/jLmh8cp+mh42taJNK06Z739/5xxGKBQI0/xtQpKnVWeGVRSplt84w==}
-    engines: {node: '>=22.14.0'}
-    peerDependencies:
-      react: '>=19.2.0 <20'
-      react-dom: '>=19.2.0 <20'
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -3806,11 +3811,6 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
-
-  lucide-react@1.46.0:
-    resolution: {integrity: sha512-Bv+FZXgZPrxc/NCl1e7JJVQFLdiCxYgxNVhqoV7X0p6I8ADJo8DxBnK1auH0fZz4AmqOJ3jgneL4f1i8LJQRAA==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   lucide-react@1.49.0:
     resolution: {integrity: sha512-ApfaNM4/7jBrVopqLJ84Jz8TMQ1Q1JeZ1PmKh25aeS3E1FTVcMkSh1bEQB7dfzdIrwXRP8p3z4AJjTIHHb5IIA==}
@@ -6418,7 +6418,7 @@ snapshots:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@radix-ui/react-select@2.3.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@radix-ui/react-select@2.3.7(patch_hash=9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@radix-ui/number': 1.1.3
       '@radix-ui/primitive': 1.1.7
@@ -7255,7 +7255,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  '@ztd-me/eslint@0.1.1(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))':
+  '@ztd-me/eslint@0.1.2(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))':
     dependencies:
       '@antfu/eslint-config': 9.5.1(@eslint-react/eslint-plugin@5.23.3(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint-plugin-react-refresh@0.5.7(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint-plugin-sonarjs@4.2.2(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint-plugin-vuejs-accessibility@2.6.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2))(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
       '@eslint-react/eslint-plugin': 5.23.3(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -7307,19 +7307,6 @@ snapshots:
       - playwright-core
       - supports-color
       - typescript
-
-  '@ztd-me/frontend@0.2.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
-    dependencies:
-      '@radix-ui/react-dropdown-menu': 2.1.24(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@radix-ui/react-select': 2.3.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@radix-ui/react-slot': 1.3.3(@types/react@19.3.0)(react@19.3.0)
-      get-nonce: 1.0.1
-      lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
-      react: 19.3.0
-      react-dom: 19.3.0(react@19.3.0)
-    transitivePeerDependencies:
-      - '@types/react'
-      - '@types/react-dom'
 
   accepts@2.0.0:
     dependencies:
@@ -8675,10 +8662,6 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.46.0(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-
   lucide-react@1.49.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
@@ -9347,7 +9330,7 @@ snapshots:
       '@radix-ui/react-radio-group': 1.4.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@radix-ui/react-roving-focus': 1.1.19(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@radix-ui/react-scroll-area': 1.2.18(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@radix-ui/react-select': 2.3.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@radix-ui/react-select': 2.3.7(patch_hash=9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@radix-ui/react-separator': 1.1.15(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@radix-ui/react-slider': 1.4.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@radix-ui/react-slot': 1.3.3(@types/react@19.3.0)(react@19.3.0)

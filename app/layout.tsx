@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { frontendRootAttributes } from '@ztd-me/frontend'
 import { FrontendRoot } from '@/components/frontend-root'
+import { frontendRootAttributes } from '@/components/ui/ztd-me'
 import { readFrontendBootstrap } from '@/lib/server/frontend-preferences'
-import '@ztd-me/frontend/styles.css'
+import '@/components/ui/ztd-me/styles.css'
 import './globals.css'
 
 export const metadata: Metadata = {

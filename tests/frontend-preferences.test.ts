@@ -1,5 +1,5 @@
-import { preferenceCookie, serializePreferences } from '@ztd-me/frontend'
 import { expect, it } from 'vitest'
+import { preferenceCookie, serializePreferences } from '@/components/ui/ztd-me'
 import { memoryFrontendBootstrap, memoryPreferencePolicy } from '../lib/frontend-preferences'
 
 const production = 'https://memory.ztd.me'

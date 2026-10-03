@@ -5,5 +5,8 @@
   "tsx": true,
   "tailwind": { "config": "", "css": "app/globals.css", "baseColor": "neutral", "cssVariables": true },
   "aliases": { "components": "@/components", "utils": "@/lib/utils", "ui": "@/components/ui", "lib": "@/lib", "hooks": "@/hooks" },
-  "iconLibrary": "lucide"
+  "iconLibrary": "lucide",
+  "registries": {
+    "@ztd-me": "https://raw.githubusercontent.com/zeithrold/tools/7c708c0e0672a302cd751550276fb7a7a43cf1e5/registry/{name}.json"
+  }
 }

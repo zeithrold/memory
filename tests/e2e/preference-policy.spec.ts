@@ -1,8 +1,9 @@
 import type { Page } from '@playwright/test'
-import type { FrontendPreferences } from '@ztd-me/frontend'
-import { expect, test } from '@playwright/test'
-import { preferenceCookie } from '@ztd-me/frontend'
+import type { FrontendPreferences } from '@/components/ui/ztd-me'
+import { expect } from '@playwright/test'
+import { preferenceCookie } from '@/components/ui/ztd-me'
 import { memoryFrontendBootstrap, memoryPreferencePolicy } from '../../lib/frontend-preferences'
+import { test } from './font-preview'
 
 const selected = { version: 1, mode: 'dark', palette: 'ocean', locale: 'zh-CN' } as const
 const production = 'https://memory.ztd.me'

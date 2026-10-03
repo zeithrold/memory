@@ -1,6 +1,7 @@
 import type { Page, TestInfo } from '@playwright/test'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { test } from '../e2e/font-preview'
 import { mockWorkspace } from './fixture'
 
 async function createMemory(page: Page, info: TestInfo): Promise<void> {

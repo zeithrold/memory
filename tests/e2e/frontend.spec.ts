@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { test } from './font-preview'
 import { chooseAppearance, chooseChinese, preferenceKey } from './preferences-fixture'
 
 test('shared SSR selection, footer and landmarks survive route navigation', async ({ context, page }) => {
@@ -29,10 +30,10 @@ test('shared SSR selection, footer and landmarks survive route navigation', asyn
 
 test('system colors resolve before hydration and explicit mode remains fixed', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' })
-  await page.route('**/assets/*.js', async route => await route.abort())
+  await page.route('**/_next/static/**/*.js', async route => await route.abort())
   await page.goto('/memories')
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).colorScheme)).toBe('dark')
-  await page.unroute('**/assets/*.js')
+  await page.unroute('**/_next/static/**/*.js')
   await page.reload()
   await chooseAppearance(page, 'Light')
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).colorScheme)).toBe('light')

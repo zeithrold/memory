@@ -1,4 +1,4 @@
-import type { Locale, SiteFooterProps } from '@ztd-me/frontend'
+import type { Locale, SiteFooterProps } from '@/components/ui/ztd-me'
 
 export function memoryFooter(locale: Locale): SiteFooterProps {
   return {

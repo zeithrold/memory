@@ -1,8 +1,8 @@
-import type { FrontendPreferences, PreferencePolicy } from '@ztd-me/frontend'
+import type { FrontendPreferences, PreferencePolicy } from '@/components/ui/ztd-me'
 import {
   createPreferencePolicy,
   resolveInitialPreferences,
-} from '@ztd-me/frontend'
+} from '@/components/ui/ztd-me'
 
 export interface FrontendBootstrap {
   initialPreferences: FrontendPreferences

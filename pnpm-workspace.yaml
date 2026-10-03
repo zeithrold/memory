@@ -11,6 +11,9 @@ trustPolicyExclude:
 
 shellEmulator: true
 
+patchedDependencies:
+  '@radix-ui/react-select@2.3.7': components/ui/ztd-me/patches/@radix-ui__react-select@2.3.7.patch
+
 allowBuilds:
   '@sentry/cli': false
   esbuild: true

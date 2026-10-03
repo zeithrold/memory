@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './font-preview'
 import { chooseAppearance, chooseChinese } from './preferences-fixture'
 
 test('denied cookie reads preserve business UI and preference controls', async ({ context, page }, info) => {

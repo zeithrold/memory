@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "item": "@ztd-me/ui",
+  "sourceSha": "7c708c0e0672a302cd751550276fb7a7a43cf1e5",
+  "registryUrl": "https://raw.githubusercontent.com/zeithrold/tools/7c708c0e0672a302cd751550276fb7a7a43cf1e5/registry/ui.json",
+  "cli": "shadcn@4.21.1",
+  "payloadSha256": "fd862845249d052d761a8661e8ec60683f42e0691f69d8afbeff88caf158995d",
+  "dependencies": [
+    "react@19.3.0",
+    "react-dom@19.3.0",
+    "@radix-ui/react-dropdown-menu@2.1.24",
+    "@radix-ui/react-select@2.3.7",
+    "@radix-ui/react-slot@1.3.3",
+    "get-nonce@1.0.1",
+    "lucide-react@1.49.0"
+  ],
+  "files": [
+    {
+      "path": "components/ui/ztd-me/appbar.tsx",
+      "sha256": "50b0546252692942143fe8a5cb4f0d919cec0126547cf12504b4d9fd60f923c2"
+    },
+    {
+      "path": "components/ui/ztd-me/appearance.tsx",
+      "sha256": "4aaf8d755eb24b72b6a356f280ba72b9af5538c48a366a59499a625d9ec78b9e"
+    },
+    {
+      "path": "components/ui/ztd-me/browser-environment.ts",
+      "sha256": "3a2dd07c834286fb48d02c32bf3b23a4079ef37f1bd11d0683e249de0ffbe7e5"
+    },
+    {
+      "path": "components/ui/ztd-me/client.ts",
+      "sha256": "235d42a5fa6e877eda8dcec5bc51693277d34222df7e2561bcd209e89780933a"
+    },
+    {
+      "path": "components/ui/ztd-me/context.ts",
+      "sha256": "50ae6a2925e9d319d656eab358050761afbe5aa6546d47a3c842a9f64bd4aa39"
+    },
+    {
+      "path": "components/ui/ztd-me/cookies.ts",
+      "sha256": "543e375b1a6e1a6efefe3f6413de9cdea6281340880d8cfe80c5da15984e7f8b"
+    },
+    {
+      "path": "components/ui/ztd-me/footer.tsx",
+      "sha256": "ca0a8b433aee97765f400768f62826e2bcec2388c3b58fc203d527a6b6cdbd34"
+    },
+    {
+      "path": "components/ui/ztd-me/href.ts",
+      "sha256": "c3248535b2582a76f23ca8e9f1b2bf8360ba92e83a6a4f2a09f87782f07cce1a"
+    },
+    {
+      "path": "components/ui/ztd-me/index.ts",
+      "sha256": "6dc466ba80ed8f64b78eb143148d1b6e2e514f1ed4fc29372969e564530173db"
+    },
+    {
+      "path": "components/ui/ztd-me/link.tsx",
+      "sha256": "cbb9ca6ca46b50c74e0ac4a63b2585c32ba50d6f99c224dff2c592c2dd70e77c"
+    },
+    {
+      "path": "components/ui/ztd-me/locale-select.tsx",
+      "sha256": "d56904d84558ca8c46cd129af1dd646b6faa8903693bd8b44d45d6ada6584bae"
+    },
+    {
+      "path": "components/ui/ztd-me/locale.ts",
+      "sha256": "a78d33ce3710c7896c5dc21e6ef69a74db657869f2cabcd355b7ca8eefa8ab9a"
+    },
+    {
+      "path": "components/ui/ztd-me/messages.ts",
+      "sha256": "31586e9d521ba424abc4972f3bc97248c764222ccf63a6326e2bddbddf7519e7"
+    },
+    {
+      "path": "components/ui/ztd-me/policy.ts",
+      "sha256": "b41fc9f80048d76cfda1a3eb787ea847428f1f1b7c1cceceb65bebb69c21d394"
+    },
+    {
+      "path": "components/ui/ztd-me/preferences.ts",
+      "sha256": "c73dbf5ec4c5d772e6cceb7d2fe7b8bc6febb01ac94cb175968fa7d1aa8a12f7"
+    },
+    {
+      "path": "components/ui/ztd-me/provider.tsx",
+      "sha256": "f8643ee65d490c041ea51a9aedac8f994a27b274ffcb0d64c2715f3b267310b7"
+    },
+    {
+      "path": "components/ui/ztd-me/shell-types.ts",
+      "sha256": "f80fc211fbcf8e658886316583c278fcc3b649d181c171264e6fc655ee3b17d3"
+    },
+    {
+      "path": "components/ui/ztd-me/shell.tsx",
+      "sha256": "f3cf2cec2ed158edf3f5962e8a588ef62b32832f1aaf9b8cbbb3146293461428"
+    },
+    {
+      "path": "components/ui/ztd-me/store-types.ts",
+      "sha256": "ca79d6f74f444960904a2d548b3818f15cfb0da4a7ad984da2d701b6e8ea7708"
+    },
+    {
+      "path": "components/ui/ztd-me/store.ts",
+      "sha256": "fe8be9738149e1953928653aca29e029a4006fa2be8d7f6021ca52c359e8269d"
+    },
+    {
+      "path": "components/ui/ztd-me/text.ts",
+      "sha256": "a31d90591246a8d3c9f40087138d926df2abfb9a2e47e4b6f166ed9c9873bc24"
+    },
+    {
+      "path": "components/ui/ztd-me/types.ts",
+      "sha256": "1bda46136217f9c43711aa5f03a0d97e53c94f51fcd932ab17c17c1d90cbf0c4"
+    },
+    {
+      "path": "components/ui/ztd-me/ui/button.tsx",
+      "sha256": "72d9234ff201fbd90e261bffa1206d9ea21981e655dd7fa4f20e353646aa304c"
+    },
+    {
+      "path": "components/ui/ztd-me/ui/inert.ts",
+      "sha256": "2212c3baa5d123cdf5ff2fcdff81ef038d006dd904e49b9d1f6bdede118d2ceb"
+    },
+    {
+      "path": "components/ui/ztd-me/ui/menu-choice.tsx",
+      "sha256": "2ad6ef0aa7d0af247bc62c549dee25c108e86d246799cd656afca87a7d552ae8"
+    },
+    {
+      "path": "components/ui/ztd-me/styles.css",
+      "sha256": "5758897ecb289752e0c53b8dd5aaacd54701f41aedfa4d58c2b030295150111f"
+    },
+    {
+      "path": "components/ui/ztd-me/styles/tokens.css",
+      "sha256": "8da58188276e63b964a8c625a64f004ef24c86f0d8b7090fa6db5fb88e3c5915"
+    },
+    {
+      "path": "components/ui/ztd-me/styles/shell.css",
+      "sha256": "6b07c1fd91ef9697f4c01176daea7099fd5448478da6db2d2a0551be8f0c5540"
+    },
+    {
+      "path": "components/ui/ztd-me/styles/motion.css",
+      "sha256": "fc51ea4c1f44871af23936010c43c8f0749316d0cf8a532239d2c707e2bc6bf6"
+    },
+    {
+      "path": "components/ui/ztd-me/styles/fonts.css",
+      "sha256": "99f3e7ed8d70f290c455b87bee7fa5674c77b2171d2b72ef3f8ddbeaa48fd05e"
+    },
+    {
+      "path": "components/ui/ztd-me/LICENSE",
+      "sha256": "97505f3d4a00e2a4f427e2f46d51f9da44a720a456ae79b70341b3d311bc201d"
+    },
+    {
+      "path": "components/ui/ztd-me/THIRD_PARTY_NOTICES.md",
+      "sha256": "066674e5489073e71bd48fbca3530b2437bec4c0e76addb7afe50509e2a144ba"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/SHADCN-MIT.txt",
+      "sha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f"
+    },
+    {
+      "path": "components/ui/ztd-me/patches/@radix-ui__react-select@2.3.7.patch",
+      "sha256": "9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c"
+    },
+    {
+      "path": "components/ui/ztd-me/README.md",
+      "sha256": "9a2b8941388700ea39e15e04ebc29d85a3776f8b7c0c466286d6f1623ace5c82"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-SANS-OFL.txt",
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-SANS-SC-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-SANS-JP-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-SANS-KR-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-EMOJI-OFL.txt",
+      "sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b"
+    },
+    {
+      "path": "components/ui/ztd-me/third-party/NOTO-COLOR-EMOJI-OFL.txt",
+      "sha256": "ac564676d10054a8445923dfc2dfb13c042d97888bd27c1b6ec6dfe89a9d8d62"
+    },
+    {
+      "path": "components/ui/ztd-me/fonts.md",
+      "sha256": "cf69376e373868580a6d54ee76b77a0cf279d69f464b85acbc7dd4d1991fdb2c"
+    }
+  ],
+  "adaptations": [
+    {
+      "path": "components/ui/ztd-me/README.md",
+      "sha256": "62ab293b26a69dbbbfe746a453d1c67c2ab6d132dfd50c2b013b1990ee3cc43d",
+      "reason": "Correct the example import order and declare React.JSX.Element for strict ESLint 0.1.2; runtime source is unchanged."
+    }
+  ]
+}

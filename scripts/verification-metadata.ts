@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import { z } from 'zod'
+import { verifyUiSource } from './verify-ui-source'
 
 const versionSchema = z.object({ version: z.string() })
 function version(name: string): string {
@@ -25,11 +26,9 @@ const metadata = {
   pnpm: execFileSync('pnpm', ['--version'], { encoding: 'utf8' }).trim(),
   zt: execFileSync('zt', ['version'], { encoding: 'utf8' }).trim(),
   toolsSource: '3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f',
-  frontendSource: '1e8b408ccf165d1b0aa5eca679f9ea62a82cd1a3',
-  frontendReviewedSource: '757ecc6ae77a361680efb9e5875815ff28a65146',
+  uiSource: verifyUiSource(),
   packages: Object.fromEntries([
     '@ztd-me/eslint',
-    '@ztd-me/frontend',
     '@ztd-me/frontend-checks',
     '@playwright/test',
     'playwright-core',

@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { test } from '../e2e/font-preview'
 import { mockWorkspace } from './fixture'
 
 async function checkFocusTrap(page: Page, dialog: Locator): Promise<void> {
@@ -25,7 +26,9 @@ test('mocked session: polling retains draft and keyboard run dialog is translate
   await page.getByRole('button', { name: 'Save settings', exact: true }).click()
   await expect.poll(() => state.settings.model).toBe('unsaved-draft')
   const trigger = page.getByRole('button', { name: 'Run now', exact: true })
+  await expect(trigger).toBeEnabled()
   await trigger.focus()
+  await expect(trigger).toBeFocused()
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
