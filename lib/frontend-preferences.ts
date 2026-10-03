@@ -12,12 +12,21 @@ export interface FrontendBootstrap {
 // APP_ORIGIN is a trusted Worker binding. Request Host never selects cookie scope.
 export function memoryPreferencePolicy(appOrigin: string): PreferencePolicy {
   const origin = new URL(appOrigin)
-  const environment = deploymentEnvironment(origin)
+  if (origin.origin === 'https://memory.ztd.me') {
+    return createPreferencePolicy({
+      name: 'ztd.frontend.v1',
+      domain: 'ztd.me',
+      secure: true,
+      mirrorKey: 'ztd.frontend.v1',
+    })
+  }
+  const name = origin.protocol === 'http:'
+    ? 'ztd.frontend.development.memory.v1'
+    : 'ztd.frontend.preview.memory.v1'
   return createPreferencePolicy({
-    environment,
-    namespace: 'memory',
-    hostname: origin.hostname,
-    protocol: origin.protocol === 'https:' ? 'https:' : 'http:',
+    name,
+    secure: origin.protocol === 'https:',
+    mirrorKey: name,
   })
 }
 
@@ -29,11 +38,4 @@ export function memoryFrontendBootstrap(
   const policy = memoryPreferencePolicy(appOrigin)
   const initialPreferences = resolveInitialPreferences({ policy, cookieHeader, acceptLanguage })
   return { policy, initialPreferences }
-}
-
-function deploymentEnvironment(origin: URL): 'production' | 'preview' | 'development' {
-  if (origin.origin === 'https://memory.ztd.me') {
-    return 'production'
-  }
-  return origin.protocol === 'http:' ? 'development' : 'preview'
 }

@@ -3,6 +3,7 @@
 import { ApplicationShell, useFrontendPreferences } from '@ztd-me/frontend/client'
 import { Brain, LockKeyhole } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { memoryFooter } from '@/lib/frontend-config'
 import { messages } from '@/lib/i18n/messages'
 import { FrontendLink } from './frontend-link'
 import { FrontendPersistenceNotice } from './frontend-persistence-notice'
@@ -34,7 +35,7 @@ export default function WorkspaceShell(
       <Toaster theme={resolvedMode} containerAriaLabel={t.notifications} />
       <ApplicationShell
         brand={{ label: t.brand, homeHref: '/memories', mark: <Brain size={23} /> }}
-        repositoryUrl="https://github.com/zeithrold/memory"
+        footer={memoryFooter(preferences.locale)}
         mainId="workspace-content"
         linkComponent={FrontendLink}
         identity={<WorkspaceAccountControl accessTeamDomain={accessTeamDomain} t={t} />}
