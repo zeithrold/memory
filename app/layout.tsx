@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
+import { frontendRootAttributes } from '@ztd-me/frontend'
+import { FrontendRoot } from '@/components/frontend-root'
+import { readFrontendBootstrap } from '@/lib/server/frontend-preferences'
+import '@ztd-me/frontend/styles.css'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -9,11 +12,10 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>): Promise<React.JSX.Element> {
-  const locale
-    = (await cookies()).get('locale')?.value === 'zh-CN' ? 'zh-CN' : 'en'
+  const bootstrap = await readFrontendBootstrap()
   return (
-    <html lang={locale}>
-      <body>{children}</body>
+    <html {...frontendRootAttributes(bootstrap.initialPreferences)}>
+      <body><FrontendRoot {...bootstrap}>{children}</FrontendRoot></body>
     </html>
   )
 }

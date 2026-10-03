@@ -62,7 +62,7 @@ function MemoryWorkspaceHeading({ props }: MemoryWorkspaceHeadingProps): React.J
 }
 export function MemoryWorkspaceContent(props: MemoryWorkspaceContentProps): React.JSX.Element {
   return (
-    <main className="page">
+    <div className="page">
       <MemoryWorkspaceHeading props={props} />
       {props.authState === 'unconfigured' && <SetupBanner />}
       {(props.error.length > 0) && (
@@ -116,6 +116,6 @@ export function MemoryWorkspaceContent(props: MemoryWorkspaceContentProps): Reac
           />
         )}
       </>
-    </main>
+    </div>
   )
 }

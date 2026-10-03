@@ -1,11 +1,9 @@
-import { cookies } from 'next/headers'
 import WorkspaceShell from '@/components/workspace-shell'
 
 export const dynamic = 'force-dynamic'
-export default async function Layout(
+export default function Layout(
   { children }: Readonly<{ children: React.ReactNode }>,
-): Promise<React.JSX.Element> {
-  const locale = (await cookies()).get('locale')?.value === 'zh-CN' ? 'zh-CN' : 'en'
+): React.JSX.Element {
   /* eslint-disable node/prefer-global/process -- Preserve Vinext build-time inlining. */
   const accessTeamDomain = process.env.NEXT_PUBLIC_ACCESS_TEAM_DOMAIN ?? ''
   const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? ''
@@ -13,7 +11,6 @@ export default async function Layout(
   /* eslint-enable node/prefer-global/process */
   return (
     <WorkspaceShell
-      initialLocale={locale}
       accessTeamDomain={accessTeamDomain}
       sentryDsn={sentryDsn}
       sentryRelease={sentryRelease}

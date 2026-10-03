@@ -42,7 +42,8 @@ test(
         expect(new Set(row).size).toBe(1)
       }
     }
-    await page.getByRole('button', { name: 'Language' }).click()
+    await page.getByRole('combobox', { name: 'Language' }).click()
+    await page.getByRole('option', { name: '简体中文', exact: true }).click()
     await expect(page.getByRole('heading', { name: '一份记忆，连接不同 Agent。' })).toBeVisible()
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN')

@@ -50,7 +50,7 @@ function ErrorTable(): React.JSX.Element {
 }
 export default function ErrorsIndex(): React.JSX.Element {
   return (
-    <main className="page">
+    <div className="page">
       <p className="eyebrow">RFC 9457 problem details</p>
       <h1>API errors</h1>
       <p className="muted">Every failure from this service is a problem document served as application/problem+json.</p>
@@ -87,7 +87,9 @@ export default function ErrorsIndex(): React.JSX.Element {
       </div>
       <section className="connection-card">
         <h2>Example response</h2>
-        <pre>{JSON.stringify(EXAMPLE, null, 2)}</pre>
+        <pre tabIndex={0} role="region" aria-label="Example response">
+          {JSON.stringify(EXAMPLE, null, 2)}
+        </pre>
         <p className="muted">
           The type prefix follows APP_ORIGIN, so a staging deployment documents its own origin
           while code stays identical everywhere.
@@ -96,6 +98,6 @@ export default function ErrorsIndex(): React.JSX.Element {
       <p className="muted">
         <a href="/">← Shared Memory</a>
       </p>
-    </main>
+    </div>
   )
 }

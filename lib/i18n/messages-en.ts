@@ -1,4 +1,6 @@
 export const en = {
+  preferencePersistenceError: 'Your preferences work for this visit, but the browser could not save them. '
+    + 'Reloading may reset them.',
   brand: 'Shared Memory',
   tagline: 'A little context. Everywhere.',
   memories: 'Memories',

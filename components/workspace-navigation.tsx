@@ -8,7 +8,7 @@ interface WorkspaceNavigationProps { t: Messages, pathname: string }
 
 export function WorkspaceNavigation({ t, pathname }: WorkspaceNavigationProps): React.JSX.Element {
   return (
-    <nav aria-label={t.workspace}>
+    <nav className="workspace-navigation" aria-label={t.workspace}>
       {workspaceNavigation.map((item) => {
         const active = isWorkspaceRouteActive(item, pathname)
         const Icon = item.icon

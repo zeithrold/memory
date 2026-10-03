@@ -120,7 +120,7 @@ export function MemoryDetailContent(
   props: MemoryDetailContentProps,
 ): React.JSX.Element {
   return (
-    <main className="page detail-page">
+    <div className="page detail-page">
       <MemoryToolbar
         t={props.t}
         memory={props.memory}
@@ -162,7 +162,7 @@ export function MemoryDetailContent(
           />
         </>
       )}
-    </main>
+    </div>
   )
 }
 

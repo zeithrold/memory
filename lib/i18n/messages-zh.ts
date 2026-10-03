@@ -1,6 +1,7 @@
 import type { Messages } from './messages-types'
 
 export const zh: Messages = {
+  preferencePersistenceError: '偏好设置在本次访问中有效，但浏览器无法保存。重新加载后可能恢复默认设置。',
   brand: 'Shared Memory',
   tagline: '让上下文随你同行。',
   memories: '记忆',
