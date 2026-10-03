@@ -4,29 +4,38 @@ on:
   pull_request:
 jobs:
   actual-fonts:
+    name: Verify actual Google Fonts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout the workflow commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Record verification provenance
+        run: pnpm exec tsx scripts/font-ci-metadata.ts
+        env:
+          MEMORY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Resolve Playwright version
         id: playwright-version
         run: |
           node -e 'const fs = require("node:fs"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${require("@playwright/test/package.json").version}\n`)'
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-${{ steps.playwright-version.outputs.version }}-chromium-v1
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Verify pinned UI source and record head
-        run: pnpm exec tsx scripts/font-ci-metadata.ts
-        env:
-          MEMORY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
       - name: Build unsigned production Worker
         run: pnpm e2e:prepare
       # This gate intentionally runs independently of the full required profile.
@@ -35,9 +44,9 @@ jobs:
         run: pnpm exec playwright test tests/e2e/fonts.spec.ts tests/e2e/chrome.spec.ts
         env:
           ZT_ARTIFACTS_DIR: .zt/artifacts/font-ci
-      - name: Retain font acceptance evidence
+      - name: Upload frontend verification evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: font-verification-${{ github.sha }}
           path: .zt/artifacts/font-ci/

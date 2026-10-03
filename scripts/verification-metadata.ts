@@ -15,6 +15,7 @@ function hash(file: string): string {
 const root = '.zt/artifacts'
 mkdirSync(root, { recursive: true })
 const metadata = {
+  buildPurpose: 'unsigned-verification',
   revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty: execFileSync('git', [
     'status',
