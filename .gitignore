@@ -14,5 +14,6 @@ playwright-report/
 .zt/artifacts/
 .zt/browser/
 .zt/previews/
+.zt/verified-build/
 __pycache__/
 *.pyc
