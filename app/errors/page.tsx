@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ArrowLeft } from 'lucide-react'
 import { ERROR_BY_STATUS } from '@/lib/error-catalog'
 
 export const metadata: Metadata = {
@@ -96,7 +97,10 @@ export default function ErrorsIndex(): React.JSX.Element {
         </p>
       </section>
       <p className="muted">
-        <a href="/">← Shared Memory</a>
+        <a className="inline-flex items-center gap-2" href="/">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Shared Memory
+        </a>
       </p>
     </div>
   )

@@ -1,0 +1,28 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Color+Emoji&display=swap");
+
+:root {
+  --ztd-font-emoji: "Noto Color Emoji";
+  --ztd-font-sans: "Noto Sans", "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", "Noto Color Emoji", sans-serif;
+}
+
+.ztd-frontend,
+.ztd-overlay {
+  font-family: var(--ztd-font-sans);
+  font-synthesis: none;
+}
+
+.ztd-frontend :lang(ja),
+.ztd-overlay :lang(ja) {
+  font-family: "Noto Sans", "Noto Sans JP", "Noto Sans SC", "Noto Sans KR", "Noto Color Emoji", sans-serif;
+}
+
+.ztd-frontend :lang(ko),
+.ztd-overlay :lang(ko) {
+  font-family: "Noto Sans", "Noto Sans KR", "Noto Sans SC", "Noto Sans JP", "Noto Color Emoji", sans-serif;
+}
+
+.ztd-frontend .ztd-emoji,
+.ztd-overlay .ztd-emoji {
+  font-family: var(--ztd-font-emoji), sans-serif;
+  font-weight: 400;
+}

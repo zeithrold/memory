@@ -1,6 +1,6 @@
 'use client'
 
-import { useFrontendPreferences } from '@ztd-me/frontend/client'
+import { useFrontendPreferences } from '@/components/ui/ztd-me/client'
 import { messages } from '@/lib/i18n/messages'
 
 export function FrontendPersistenceNotice(): React.JSX.Element | null {

@@ -1,0 +1,269 @@
+:root {
+  --ztd-swatch-neutral: #737373;
+  --ztd-swatch-terracotta: #ad4c30;
+  --ztd-swatch-moss: #55734d;
+  --ztd-swatch-ocean: #3f718c;
+  --ztd-swatch-plum: #835582;
+  --ztd-swatch-graphite: #657987;
+  --ztd-background: #fafafa;
+  --ztd-foreground: #171717;
+  --ztd-surface: #fff;
+  --ztd-muted: #f0f0f0;
+  --ztd-muted-foreground: #595959;
+  --ztd-border: #e5e5e5;
+  --ztd-accent: #404040;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="neutral"][data-frontend-mode="dark"] {
+  --ztd-background: #171717;
+  --ztd-foreground: #fafafa;
+  --ztd-surface: #222;
+  --ztd-muted: #303030;
+  --ztd-muted-foreground: #bdbdbd;
+  --ztd-border: #353535;
+  --ztd-accent: #e0e0e0;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="neutral"][data-frontend-mode="system"] {
+    --ztd-background: #171717;
+    --ztd-foreground: #fafafa;
+    --ztd-surface: #222;
+    --ztd-muted: #303030;
+    --ztd-muted-foreground: #bdbdbd;
+    --ztd-border: #353535;
+    --ztd-accent: #e0e0e0;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}
+
+:root[data-frontend-palette="terracotta"] {
+  --ztd-background: #f5f3ee;
+  --ztd-foreground: #292822;
+  --ztd-surface: #fdfcf9;
+  --ztd-muted: #efede7;
+  --ztd-muted-foreground: #6c6961;
+  --ztd-border: #e1ded5;
+  --ztd-accent: #ad4c30;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="terracotta"][data-frontend-mode="dark"] {
+  --ztd-background: #1b1c1a;
+  --ztd-foreground: #e8e6de;
+  --ztd-surface: #222320;
+  --ztd-muted: #2c2d29;
+  --ztd-muted-foreground: #a3a297;
+  --ztd-border: #3b3d35;
+  --ztd-accent: #ee8661;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="terracotta"][data-frontend-mode="system"] {
+    --ztd-background: #1b1c1a;
+    --ztd-foreground: #e8e6de;
+    --ztd-surface: #222320;
+    --ztd-muted: #2c2d29;
+    --ztd-muted-foreground: #a3a297;
+    --ztd-border: #3b3d35;
+    --ztd-accent: #ee8661;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}
+
+:root[data-frontend-palette="moss"] {
+  --ztd-background: #f0f3ed;
+  --ztd-foreground: #2c342b;
+  --ztd-surface: #fafcf7;
+  --ztd-muted: #e7ece1;
+  --ztd-muted-foreground: #616a5b;
+  --ztd-border: #d8e0d2;
+  --ztd-accent: #556e4b;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="moss"][data-frontend-mode="dark"] {
+  --ztd-background: #1b201a;
+  --ztd-foreground: #e5eadf;
+  --ztd-surface: #232a21;
+  --ztd-muted: #2e372b;
+  --ztd-muted-foreground: #a1ad97;
+  --ztd-border: #3a4536;
+  --ztd-accent: #a2bc88;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="moss"][data-frontend-mode="system"] {
+    --ztd-background: #1b201a;
+    --ztd-foreground: #e5eadf;
+    --ztd-surface: #232a21;
+    --ztd-muted: #2e372b;
+    --ztd-muted-foreground: #a1ad97;
+    --ztd-border: #3a4536;
+    --ztd-accent: #a2bc88;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}
+
+:root[data-frontend-palette="ocean"] {
+  --ztd-background: #eef3f5;
+  --ztd-foreground: #26363d;
+  --ztd-surface: #f9fcfd;
+  --ztd-muted: #e3edf0;
+  --ztd-muted-foreground: #5a6b72;
+  --ztd-border: #dce5e9;
+  --ztd-accent: #356f86;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="ocean"][data-frontend-mode="dark"] {
+  --ztd-background: #192126;
+  --ztd-foreground: #e2ebef;
+  --ztd-surface: #212d33;
+  --ztd-muted: #2b3941;
+  --ztd-muted-foreground: #9db0ba;
+  --ztd-border: #33454f;
+  --ztd-accent: #88bfd1;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="ocean"][data-frontend-mode="system"] {
+    --ztd-background: #192126;
+    --ztd-foreground: #e2ebef;
+    --ztd-surface: #212d33;
+    --ztd-muted: #2b3941;
+    --ztd-muted-foreground: #9db0ba;
+    --ztd-border: #33454f;
+    --ztd-accent: #88bfd1;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}
+
+:root[data-frontend-palette="plum"] {
+  --ztd-background: #f5eff3;
+  --ztd-foreground: #3e2f3a;
+  --ztd-surface: #fdf9fc;
+  --ztd-muted: #eee3eb;
+  --ztd-muted-foreground: #70606c;
+  --ztd-border: #e5d8e0;
+  --ztd-accent: #865770;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="plum"][data-frontend-mode="dark"] {
+  --ztd-background: #241c23;
+  --ztd-foreground: #eee2eb;
+  --ztd-surface: #2e242d;
+  --ztd-muted: #3b2e39;
+  --ztd-muted-foreground: #b7a1b1;
+  --ztd-border: #4c3a48;
+  --ztd-accent: #d3a0c0;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="plum"][data-frontend-mode="system"] {
+    --ztd-background: #241c23;
+    --ztd-foreground: #eee2eb;
+    --ztd-surface: #2e242d;
+    --ztd-muted: #3b2e39;
+    --ztd-muted-foreground: #b7a1b1;
+    --ztd-border: #4c3a48;
+    --ztd-accent: #d3a0c0;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}
+
+:root[data-frontend-palette="graphite"] {
+  --ztd-background: #f1f1f0;
+  --ztd-foreground: #2e3033;
+  --ztd-surface: #fcfcfb;
+  --ztd-muted: #e8e9e8;
+  --ztd-muted-foreground: #64676b;
+  --ztd-border: #dedfdf;
+  --ztd-accent: #55575b;
+  --ztd-color-scheme: light;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+:root[data-frontend-palette="graphite"][data-frontend-mode="dark"] {
+  --ztd-background: #1b1c1e;
+  --ztd-foreground: #e6e7e9;
+  --ztd-surface: #242629;
+  --ztd-muted: #303236;
+  --ztd-muted-foreground: #a6a9ae;
+  --ztd-border: #3d4046;
+  --ztd-accent: #c3c6cc;
+  --ztd-color-scheme: dark;
+  --ztd-focus: var(--ztd-accent);
+  --ztd-action: var(--ztd-foreground);
+  --ztd-action-foreground: var(--ztd-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-frontend-palette="graphite"][data-frontend-mode="system"] {
+    --ztd-background: #1b1c1e;
+    --ztd-foreground: #e6e7e9;
+    --ztd-surface: #242629;
+    --ztd-muted: #303236;
+    --ztd-muted-foreground: #a6a9ae;
+    --ztd-border: #3d4046;
+    --ztd-accent: #c3c6cc;
+    --ztd-color-scheme: dark;
+    --ztd-focus: var(--ztd-accent);
+    --ztd-action: var(--ztd-foreground);
+    --ztd-action-foreground: var(--ztd-background);
+  }
+}

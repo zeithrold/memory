@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from '@playwright/test'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './font-preview'
 import { observePreferenceStorage, retainedStorage } from './preference-storage-fixture'
 import { chooseAppearance, chooseChinese, preferenceKey } from './preferences-fixture'
 

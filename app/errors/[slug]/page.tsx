@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type { CatalogEntry } from '@/lib/error-catalog'
+import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { ERROR_BY_SLUG } from '@/lib/error-catalog'
 
@@ -67,7 +68,10 @@ export default async function ErrorDetail({ params }: PageProps): Promise<React.
         </pre>
       </section>
       <p className="muted">
-        <a href="/errors">← All API errors</a>
+        <a className="inline-flex items-center gap-2" href="/errors">
+          <ArrowLeft size={16} aria-hidden="true" />
+          All API errors
+        </a>
       </p>
     </div>
   )

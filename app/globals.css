@@ -65,7 +65,8 @@
   --radius-panel: 12px;
 
   color-scheme: var(--ztd-color-scheme);
-  font-family: "Inter Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--ztd-font-sans);
+  font-synthesis: none;
   background: var(--background);
   color: var(--foreground);
 

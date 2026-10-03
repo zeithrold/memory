@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { test } from './font-preview'
 
 test('unsigned routes, translated dialog, keyboard dismissal and reduced motion', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })

@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { test } from '../e2e/font-preview'
 import { mockWorkspace } from './fixture'
 
 async function checkFocusTrap(page: Page, dialog: Locator): Promise<void> {
