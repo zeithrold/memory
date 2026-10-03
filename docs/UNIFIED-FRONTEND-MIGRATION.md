@@ -181,7 +181,7 @@ budgets. Reports mark preview-only results; setting this flag in CI throws. Norm
 requires actual Google Fonts browser delivery and the approved caps.
 
 Full native lint is blocked by the reproduced public ESLint Markdown/TS project bug
-recorded in [UPSTREAM-LINT-BUG.md](UPSTREAM-LINT-BUG.md). No ignore, rule disable or
+recorded in [draft PR #5](https://github.com/zeithrold/memory/pull/5). No ignore, rule disable or
 parser/type-check bypass is applied. The required profile stops at this failure;
 later gates are run separately for review evidence. Acceptance requires an upstream
 fix, a green exact-head required profile with actual remote fonts, and owner visual/
@@ -208,3 +208,10 @@ Executed consumer checks in the saved Memory Cloud environment:
 The isolated preview verifies rendering/interaction, not remote transfers. Local
 transient reports/captures/logs remain under ignored `.zt/artifacts`; CI retains its
 own evidence. No screenshot, video, transient patch or review JSON is committed.
+
+`fonts.yml` runs focused font/chrome acceptance independently in normal CI, so the
+upstream lint failure cannot prevent actual Google Fonts evidence. It verifies the
+source receipt, builds the unsigned production Worker and runs desktop/mobile glyph,
+weight, complete-emoji, cold/warm transfer, motion and Axe checks. It has no deployment,
+secrets or permissions changes. The existing complete native profile stays required
+and unchanged; this independent evidence does not replace its failed lint gate.
