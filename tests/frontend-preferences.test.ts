@@ -31,16 +31,21 @@ it('preserves a valid shared selection over the old host locale', () => {
   expect(memoryFrontendBootstrap(production, cookie, 'en').initialPreferences).toEqual(selection)
 })
 
-it('retains legacy Chinese SSR only when the policy cookie is missing', () => {
-  expect(memoryFrontendBootstrap(development, 'locale=zh-CN', 'en').initialPreferences).toEqual({
-    version: 1,
-    mode: 'system',
-    palette: 'neutral',
-    locale: 'zh-CN',
-  })
-  const invalid = 'ztd.frontend.development.memory.v1=broken; locale=zh-CN'
-  expect(memoryFrontendBootstrap(development, invalid, 'en').initialPreferences.locale).toBe('en')
-})
+it.each([
+  'locale=zh-CN',
+  'ztd.frontend.development.memory.v1=broken; locale=zh-CN',
+  'ztd.frontend.development.memory.v1=%7B%22version%22%3A2%7D; locale=zh-CN',
+])(
+  'ignores retired locale preferences when the current cookie is missing, invalid or future: %s',
+  (cookie) => {
+    expect(memoryFrontendBootstrap(development, cookie, 'en').initialPreferences).toEqual({
+      version: 1,
+      mode: 'system',
+      palette: 'neutral',
+      locale: 'en',
+    })
+  },
+)
 
 it('negotiates locale, ignores production cookies in previews and discards private data', () => {
   const withPrivateData = { ...selection, auth: 'secret', account: 'alice', draft: 'private' }

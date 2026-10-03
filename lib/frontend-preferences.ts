@@ -1,8 +1,6 @@
 import type { FrontendPreferences, PreferencePolicy } from '@ztd-me/frontend'
 import {
   createPreferencePolicy,
-  migrateLegacyPreferences,
-  readPreferenceCookie,
   resolveInitialPreferences,
 } from '@ztd-me/frontend'
 
@@ -29,13 +27,7 @@ export function memoryFrontendBootstrap(
   acceptLanguage: string | undefined,
 ): FrontendBootstrap {
   const policy = memoryPreferencePolicy(appOrigin)
-  const initial = resolveInitialPreferences({ policy, cookieHeader, acceptLanguage })
-  const read = readPreferenceCookie(cookieHeader, policy)
-  // Preserve Memory's existing Chinese SSR before the first shared selection.
-  const legacy = cookieHeader.split(';').map(value => value.trim()).find(value => value.startsWith('locale='))
-  const initialPreferences = read.status === 'missing'
-    ? migrateLegacyPreferences(legacy?.slice(7), 'memory', initial)
-    : initial
+  const initialPreferences = resolveInitialPreferences({ policy, cookieHeader, acceptLanguage })
   return { policy, initialPreferences }
 }
 
