@@ -37,6 +37,9 @@ jobs:
       - run: pnpm check
         env:
           MEMORY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Show failed native frontend checks
+        if: failure()
+        run: pnpm exec tsx scripts/show-check-failures.ts
       - run: pnpm test:artifacts
       - name: Retain frontend verification evidence
         if: always()

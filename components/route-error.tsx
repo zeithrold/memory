@@ -12,9 +12,9 @@ export default function RouteError({ error, reset }: RouteErrorProps): React.JSX
     console.error('Workspace route failed', { name: error.name, digest: error.digest })
   }, [error])
   return (
-    <main className="page">
+    <div className="page">
       <div className="error-banner" role="alert">{t.pageError}</div>
       <Button onClick={reset}>{t.retry}</Button>
-    </main>
+    </div>
   )
 }

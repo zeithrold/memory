@@ -145,12 +145,12 @@ export default function CatalogCategoryPage(
   const model = useCategoryPageModel({ categoryId })
   if (model.authState === 'ready' && model.loading) {
     return (
-      <main className="page">
+      <div className="page">
         <div className="skeleton-stack">
           <div className="skeleton skeleton-heading" />
           <div className="skeleton skeleton-line" />
         </div>
-      </main>
+      </div>
     )
   }
   return <CategoryPageContent {...model} />

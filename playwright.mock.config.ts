@@ -8,7 +8,7 @@ export default defineConfig({
   ...preview,
   ...artifacts,
   testDir: './tests/e2e-mock',
-  use: { ...artifacts.use, baseURL: 'http://localhost:3101' },
+  use: { ...artifacts.use, baseURL: 'http://localhost:3101', colorScheme: 'dark' },
   webServer: {
     command: 'pnpm exec wrangler dev --config tests/e2e/wrangler.mock.json --local --port 3101 --ip 127.0.0.1',
     url: 'http://localhost:3101',

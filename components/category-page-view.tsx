@@ -72,7 +72,7 @@ function CategoryMembers(
 }
 export function CategoryPageContent(props: CategoryPageContentProps): React.JSX.Element {
   return (
-    <main className="page">
+    <div className="page">
       <CategoryHeading t={props.t} detail={props.detail} />
       {props.authState === 'unconfigured' && <SetupBanner />}
       {props.error.length > 0 && (
@@ -106,7 +106,7 @@ export function CategoryPageContent(props: CategoryPageContentProps): React.JSX.
         busy={props.busy}
         openChild={props.openChild}
       />
-    </main>
+    </div>
   )
 }
 

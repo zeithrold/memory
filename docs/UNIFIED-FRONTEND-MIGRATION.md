@@ -1,72 +1,83 @@
-# Unified frontend migration checkpoint
+# Shared frontend integration
 
-Preparation starts from Memory main `29399091d74bf6ade148483edece2db7305d7f1d`.
-The Cloud executor and checkout were confirmed with successful commands and a fetch.
-The shared `@ztd-me/frontend` implementation is a dependency owned by tools. Integrate
-only after the parent supplies its verified stable API, source revision, public version
-and registry verification evidence. No speculative API or vendored copy is introduced.
+Memory adopts the public registry releases `@ztd-me/frontend@0.1.0` and
+`@ztd-me/frontend-checks@0.1.1`. Their reviewed implementation is tools merge
+`de4ec8fdab86c40789fdf02b82601350a12e111d`. The companion checker patch supports
+Tailwind block custom variants while retaining invalid nesting, property, token and
+literal-color checks. No source tarball, local-file dependency or consumer Radix patch
+is required. Existing pnpm security policies, build grants, strict ESLint and CLI/Skill
+pins are retained. React/react-dom 19.3.0 satisfy the shared package's >=19.2 <20 peers.
 
-## Approved target
+## Ownership
 
-Adopt the shared shadcn/Radix shell with neutral grayscale as Memory's default and the
-existing five colorful palettes as selectable options. Support light/dark/system with
-system as the default. Share only validated, versioned, non-sensitive appearance and UI
-locale across production `ztd.me` subdomains. Account, auth and business state stay local.
-Storage failures, deterministic SSR/hydration, and local/preview isolation are required.
-The shared footer shows © Zeithrold, this repository's GitHub link and `hello@ztd.me`.
-Memory retains its business navigation, route content, assets and project controls.
+| Boundary | Implementation |
+| --- | --- |
+| Server bootstrap | `lib/server/frontend-preferences.ts` reads request cookies/languages and trusted Worker `APP_ORIGIN` |
+| Cookie scope and legacy locale | `lib/frontend-preferences.ts` delegates parsing, defaults and migration to the shared package |
+| Document provider | `components/frontend-root.tsx` mounts one shared provider from the exact server snapshot |
+| Document attributes/styles | `app/layout.tsx` applies shared root attributes and imports the packaged CSS once |
+| Workspace frame | `ApplicationShell` receives Memory's business navigation, native routing link, account control and security note |
+| Business API/auth | `WorkspaceProvider` retains Memory API, Access configuration and translated business context |
+| Public documentation/404 | `PublicShell` supplies the same appearance/language controls and footer without a cross-site menu |
+| Content landmarks | Shared shells own the main landmark; route content uses inner containers |
+| Business colors | App semantic roles reference declared shared tokens; Tailwind variants follow explicit and system dark modes |
 
-## Replacement map
+The shared shell replaces the legacy sidebar/topbar preference owners. Memory retains
+its five business destinations, nested-route selection, content, assets and controls.
+The footer is © Zeithrold, this repository's GitHub link and `hello@ztd.me`, without a
+year or added service navigation. Native framework links retain `prefetch={false}`.
 
-| Current owner | Prepared boundary | Integration after the package gate |
-| --- | --- | --- |
-| `app/layout.tsx` | Root language and CSS entry | Verified server preference reader/bootstrap and shared stylesheet; deterministic first render |
-| `app/(workspace)/layout.tsx` | Build-time Access/Sentry values | Keep Memory's environment and auth inputs local; pass verified initial preferences |
-| `components/workspace-shell.tsx` | Legacy sidebar/topbar/skip target, language toggle and branding | Replace frame and host-only locale persistence using the shared shell/provider contract |
-| `components/workspace-navigation-model.ts` | Five route definitions and nested-route selection | Adapt to verified navigation slots/types; retain Memory route ownership and native links |
-| `components/workspace-navigation.tsx` | Translated native business links and active page semantics | Reuse business navigation through the supported shared integration point |
-| `components/workspace-account-control.tsx` / `lib/access-logout.ts` | Access logout and return origin | Keep project-specific account action; do not place it in shared preference storage |
-| `components/workspace-provider.tsx` / `workspace-context.ts` | API, auth state and translated business context | Bridge the verified UI locale into Memory while keeping API/session state outside shared persistence |
-| `app/globals.css` / `css-check.config.mjs` | App semantic/layout tokens and explicit CSS declaration inventory | Map app roles to verified shared neutral/palette/mode tokens without legacy root values overriding them |
-| `components/ui`, `PageHeading`, `SetupBanner`, `observability.tsx` | Existing business controls, recovery, toasts and telemetry | Preserve their contracts and confirm shared styling/focus integration; no speculative wholesale replacement |
-| `lib/i18n` and route errors | Typed English/Simplified Chinese content and locale formatting | Preserve translations and define legacy host-cookie migration using the verified preference contract |
+## Preferences and boundaries
 
-Preparation extracts existing business/account/provider ownership. The running shell
-continues to use its current implementation until the dependency gate opens. Its public
-props and `Api` type re-export remain compatible. No preference schema, shared cookies,
-new theme implementation, dependency/security exception or auth change is added here.
+Defaults are neutral grayscale, system mode and negotiated English/Simplified Chinese.
+All six palettes support light and dark. Only validated version/mode/palette/locale
+enter shared persistence; API clients, auth, accounts, workspace data and drafts remain
+local. UI preferences never authorize access.
 
-## Contract needed from tools
+Cookie policy is selected from trusted `APP_ORIGIN`, never request Host. Only the exact
+HTTPS production origin `https://memory.ztd.me` enables the shared production cookie on
+`ztd.me`. Other HTTPS origins use host-only preview preferences; HTTP development uses
+its own Memory namespace. Preview requests ignore production preference cookies.
 
-- Exact public version, reviewed source SHA, exports, type declarations, peer ranges and
-  stylesheet entry compatible with React/Vinext/Tailwind; install the registry package.
-- Shell navigation/link rendering, branding, footer, account/action slots and accessible
-  preference controls; Memory must keep native framework links and business routes.
-  Existing pages own their `main` landmarks, so shell content wrapping must avoid nesting
-  another `main`; the shared skip link needs a supported focus target.
-- Supported locale/palette/mode unions, defaults and token declarations; all mode/palette
-  CSS mappings must pass strict token checks and rendered contrast tests.
-- Versioned preference parsing/serialization, server initial values and client bootstrap,
-  legacy locale migration, cookie domain/security rules, system-media subscriptions and
-  local/preview isolation. Unknown/corrupt/stale values and storage failures need safe defaults.
-- Evidence that preference storage contains no auth, user/account, API or business state.
+A valid shared selection wins over the legacy host-only `locale` cookie. When the
+policy cookie is missing, a valid legacy Chinese locale also supplies the server
+snapshot, preserving the existing first render. Invalid or future shared values use
+supported defaults instead of overriding them with legacy data. The package owns
+normalization, serialization, recovery subscriptions and preference storage.
 
-## Completion checklist
+The server and first client render use one snapshot. System colors resolve through CSS
+media before hydration, and explicit choices remain fixed. Shared locale updates feed
+Memory's existing translations and formatting. Toasts follow the resolved mode. Denied
+cookie reads/writes retain usable in-memory controls and display translated persistence
+feedback; a reload can return to server defaults. Local storage remains an optional
+notification mirror. Cross-subdomain sharing uses cookie recovery on focus/visibility
+and last-write-wins values, rather than an atomic or instantaneous broadcast.
 
-1. Install the verified public package and actual peers using pnpm; preserve the own-scope
-   release-age exception, no-downgrade trust, semver 6.3.1 exception and existing build grants.
-2. Replace only the frame/preference owners above. Apply approved neutral/system defaults,
-   five palettes and footer; preserve app routes, controls, content and non-sensitive locale.
-3. Retain strict CSS/ESLint/typed checks. Include the shared token declaration sources;
-   avoid broad ignores, disables or accessibility exclusions.
-4. Add preference/migration regressions for malformed/stale data, denied storage, host-only
-   previews, production-domain sharing, SSR/hydration, reload, navigation and system changes.
-5. Exercise all supported modes/palettes and locales in desktop/mobile browser/Axe/keyboard
-   flows, preserving create/edit/search, polling drafts, dialogs and the account boundary.
-6. Run frozen install and all required native unit/integration/build/browser gates. Retain
-   reports and failure artifacts, verify the exact pushed head's CI, and keep the PR draft.
-7. Verify production deploy remains eligible only for main pushes. Do not merge, manually
-   deploy, alter credentials or promote npm releases.
+## Verification and CI
 
-Visual baselines and performance budgets remain deferred. Real Access/OAuth, remote
-bindings and paid/live models are outside the synthetic local browser fixtures.
+`pnpm check` runs the required native profile: strict lint, CSS, types, unit/integration,
+unsigned Worker build, unsigned browser checks and a separate configured-session
+browser build. The configured build uses synthetic APIs and an inert Access domain,
+and restores the unsigned artifact before returning. No live auth/model service or
+production binding is exercised by these fixtures.
+
+Coverage includes preference parsing/isolation/legacy precedence, SSR and hydration,
+system media changes, all palettes in light/dark and both locales, denied cookie reads
+and writes, keyboard/focus behavior, full-page Axe, route navigation, public landmarks,
+create/edit/search, service recovery, catalog polling/draft retention, translated
+dialogs and logout return origin. Scrollable public JSON examples are keyboard
+focusable. `pnpm test:artifacts` deliberately triggers an Axe finding and verifies that
+HTML/JSON, trace, screenshot and video evidence survive a failed test.
+
+CI retains the full evidence directory on success/failure. A failure-only step prints
+failed native check logs into the Actions log, preserving the original failure result.
+This addresses the diagnostic gap seen in main run
+[37079965038](https://github.com/zeithrold/memory/actions/runs/37079965038): its configured
+browser gate failed, the artifact download returned HTTP 403, and the exact merge
+commit passed the complete profile locally. The specific original CI assertion remains
+unconfirmed; this integration does not claim to have reproduced it.
+
+Production deployment remains eligible only after successful checks on a main push:
+`github.event_name == 'push' && github.ref == 'refs/heads/main'`. Branch/PR checks cannot
+deploy. No manual deployment, credential change or workflow permission change is part
+of this migration. Visual baselines and performance budgets remain deferred.

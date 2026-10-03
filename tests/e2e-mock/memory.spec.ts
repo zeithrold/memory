@@ -26,6 +26,7 @@ test('mocked session: accessible create/edit/search preserve mutation contracts'
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/memories')
+  await expect(page.locator('body')).toHaveCSS('color-scheme', 'dark')
   await expect(page.getByText('Original decision', { exact: true })).toBeVisible()
   await assertAccessible(page, info, { label: 'memory-list' })
   await createMemory(page, info)

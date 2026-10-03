@@ -41,7 +41,7 @@ export default async function ErrorDetail({ params }: PageProps): Promise<React.
     notFound()
   }
   return (
-    <main className="page">
+    <div className="page">
       <p className="eyebrow">
         {entry.status}
         {' · '}
@@ -62,11 +62,13 @@ export default async function ErrorDetail({ params }: PageProps): Promise<React.
       </section>
       <section className="connection-card">
         <h2>Example response</h2>
-        <pre>{JSON.stringify(exampleFor(entry), null, 2)}</pre>
+        <pre tabIndex={0} role="region" aria-label="Example response">
+          {JSON.stringify(exampleFor(entry), null, 2)}
+        </pre>
       </section>
       <p className="muted">
         <a href="/errors">← All API errors</a>
       </p>
-    </main>
+    </div>
   )
 }
