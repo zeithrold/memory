@@ -132,11 +132,11 @@ uses cookie recovery on focus/visibility and last-write-wins values.
 ## Verification and CI
 
 `pnpm install --frozen-lockfile` verifies the actual registry lock. `pnpm check` runs
-seven required native gates: strict lint, CSS, types, unit/integration, unsigned
+eight required native gates: strict lint, CSS, types, unit/integration, unsigned
 Worker build, unsigned browser checks and a separate configured-session browser
-build. The configured build uses synthetic APIs and an inert Access domain, then
-restores the unsigned artifact. No live auth/model service or production binding
-is exercised by these fixtures.
+build, and the final failure-evidence integration gate. The configured build uses
+synthetic APIs and an inert Access domain, then restores the unsigned artifact.
+No live auth/model service or production binding is exercised by these fixtures.
 
 Coverage includes parsing/isolation, current-format preservation, rejection of
 retired preferences, SSR/hydration, system media changes, all palettes in light/dark

@@ -13,7 +13,8 @@
           "unit",
           "build",
           "e2e",
-          "a11y"
+          "a11y",
+          "integration"
         ]
       },
       "commands": {
@@ -36,6 +37,11 @@
           "pnpm",
           "run",
           "test:a11y"
+        ],
+        "integration": [
+          "pnpm",
+          "run",
+          "test:artifacts"
         ]
       }
     }
