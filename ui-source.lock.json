@@ -184,5 +184,11 @@
       "sha256": "cf69376e373868580a6d54ee76b77a0cf279d69f464b85acbc7dd4d1991fdb2c"
     }
   ],
-  "adaptations": []
+  "adaptations": [
+    {
+      "path": "components/ui/ztd-me/README.md",
+      "sha256": "62ab293b26a69dbbbfe746a453d1c67c2ab6d132dfd50c2b013b1990ee3cc43d",
+      "reason": "Correct the example import order and declare React.JSX.Element for strict ESLint 0.1.2; runtime source is unchanged."
+    }
+  ]
 }

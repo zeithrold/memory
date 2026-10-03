@@ -19,6 +19,8 @@ export default config({
   },
 }, {
   files: ['**/*.ts', '**/*.tsx'],
+  // Virtual examples retain Markdown/React/syntax checks, without app type services.
+  ignores: ['**/*.md/**'],
   rules: {
     'ts/no-explicit-any': 'error',
     'ts/no-floating-promises': 'error',

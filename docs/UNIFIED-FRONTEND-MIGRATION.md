@@ -6,7 +6,10 @@ Memory owns the editable `@ztd-me/ui` files installed with the real
 The public recipe is [registry/README.md](https://github.com/zeithrold/tools/blob/7c708c0e0672a302cd751550276fb7a7a43cf1e5/registry/README.md).
 The owner supplied the completed upstream public-install gate (CI 37106842471).
 This consumer's public payload was independently compared with that checkout, and
-all 42 files installed byte-identically under `components/ui/ztd-me`.
+all 42 files initially installed byte-identically under `components/ui/ztd-me`.
+One reviewed README example adaptation sorts imports and declares `React.JSX.Element`
+for strict lint. The other 41 files, including runtime source, styles and notices,
+remain byte-identical.
 
 `components.json` pins the full source SHA. `ui-source.lock.json` is durable registry
 provenance, including the CLI, payload SHA256, dependency pins and per-file hashes;
@@ -67,7 +70,9 @@ in a temporary checkout. Compare incoming files with the last accepted source an
 local adaptations. Merge changes deliberately; do not overwrite this tree blindly.
 Refresh the reviewed source receipt, dependency pins and pnpm lock together, then
 repeat the complete native/browser gates. There is no automatic updater or new sync
-service. The current receipt has no local source adaptations.
+service. The receipt keeps original upstream hashes and records the README adaptation with
+its accepted hash and reason. Verification rejects missing, duplicate, unknown or
+unrecorded adaptations, and any later source change must be reviewed explicitly.
 
 ## Ownership
 
@@ -180,38 +185,28 @@ It leaves built/production CSS unchanged, has no TLS bypass and cannot verify re
 budgets. Reports mark preview-only results; setting this flag in CI throws. Normal CI
 requires actual Google Fonts browser delivery and the approved caps.
 
-Full native lint is blocked by the reproduced public ESLint Markdown/TS project bug
-recorded in [draft PR #5](https://github.com/zeithrold/memory/pull/5). No ignore, rule disable or
-parser/type-check bypass is applied. The required profile stops at this failure;
-later gates are run separately for review evidence. Acceptance requires an upstream
-fix, a green exact-head required profile with actual remote fonts, and owner visual/
-interaction review. No local preview can substitute for those gates.
+Public `@ztd-me/eslint@0.1.2` fixes the virtual Markdown/TS project boundary. Its
+registry tarball integrity and all 33 packed files match the tested upstream PR13
+candidate. Memory uses the exact normal registry dependency, with ESLint 10.11 and
+TypeScript 6.0.3 satisfying the published peers. No tarball/path dependency, new
+trust exception or release-age bypass is used.
 
-Executed consumer checks in the saved Memory Cloud environment:
+Memory's final typed-rule override applies to actual TS/TSX source. Its local
+`**/*.md/**` exclusion prevents reapplying type-dependent rules to generated code
+fences; Markdown markup, syntax, React semantics and strict array layout remain
+enforced. The complete resolved configuration for real application source is
+unchanged. Negative probes verify unsafe typed source, invalid Markdown TS syntax,
+Markdown array layout, invalid React hooks and rejection of real files outside the
+selected strict project.
 
-| Command/evidence | Result |
-| --- | --- |
-| Real public shadcn dry-run + install; source/dependency receipt | 42 byte-identical files, seven exact pins |
-| `pnpm install --frozen-lockfile` | Passed; no-downgrade policy retained, no new trust/age exception |
-| `pnpm lint:css` | Passed for app CSS and every installed source stylesheet |
-| `pnpm typecheck` | Passed application and strict UI projects |
-| `pnpm test` | 284 tests / 38 files passed |
-| `pnpm build` + `pnpm check:bundle` | Production build passed; Workflow exports verified |
-| `pnpm test:browser` with isolated font preview | 52 desktop/mobile tests passed, zero skips/flakes |
-| `pnpm test:a11y` with isolated font preview | 10 configured synthetic-session tests passed, zero skips/flakes |
-| Full-page Axe attachments across both suites | 100 scans, zero violations |
-| `pnpm test:artifacts` | Passed its deliberate one-failure evidence-retention probe |
-| `pnpm lint` / `pnpm check` | Failed only on the upstream README virtual TSX project diagnostic; zero warnings |
-| Later native profile entries after required lint failure | `not_run`; their independent commands are reported above |
-| Actual Google Fonts browser loading and remote byte caps | Cloud certificate failure; normal CI remains required |
+The complete native profile is required, alongside the independent actual-font
+workflow. `fonts.yml` verifies source/head metadata, builds the unsigned production
+Worker and runs actual Google Fonts desktop/mobile glyph, weight, complete-emoji,
+cold/warm transfer, motion, focus and Axe checks. It has no deployment, secrets or
+permissions changes. Cloud's isolated font preview cannot substitute for normal CI.
 
-The isolated preview verifies rendering/interaction, not remote transfers. Local
-transient reports/captures/logs remain under ignored `.zt/artifacts`; CI retains its
-own evidence. No screenshot, video, transient patch or review JSON is committed.
-
-`fonts.yml` runs focused font/chrome acceptance independently in normal CI, so the
-upstream lint failure cannot prevent actual Google Fonts evidence. It verifies the
-source receipt, builds the unsigned production Worker and runs desktop/mobile glyph,
-weight, complete-emoji, cold/warm transfer, motion and Axe checks. It has no deployment,
-secrets or permissions changes. The existing complete native profile stays required
-and unchanged; this independent evidence does not replace its failed lint gate.
+Acceptance requires green checks for the exact PR head, retained artifacts and owner
+visual/interaction review. Automated assertions and captures do not establish owner
+visual approval. Logs, reports, screenshots and videos remain in ignored artifacts
+and CI uploads; only durable source provenance and implementation documents are
+committed. The main-push-only production deploy guard remains unchanged.

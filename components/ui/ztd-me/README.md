@@ -75,14 +75,14 @@ stroke and alignment by role. Give icon-only controls an accessible name; decora
 `aria-hidden="true"`. Preserve prose, mathematics, user content and intentional Noto Color Emoji.
 
 ```tsx
-import { createPreferencePolicy, resolveInitialPreferences } from './components/ui/ztd-me/index.js'
 import { FrontendProvider, PublicShell } from './components/ui/ztd-me/client.js'
+import { createPreferencePolicy, resolveInitialPreferences } from './components/ui/ztd-me/index.js'
 import './components/ui/ztd-me/styles.css'
 
 const policy = createPreferencePolicy({ name: 'consumer.ui.v1', secure: true })
 const initialPreferences = resolveInitialPreferences({ policy })
 
-export function Example() {
+export function Example(): React.JSX.Element {
   return (
     <FrontendProvider initialPreferences={initialPreferences} policy={policy}>
       <PublicShell brand={{ label: 'Consumer', homeHref: '/' }}>

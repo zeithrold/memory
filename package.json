@@ -66,7 +66,7 @@
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitejs/plugin-rsc": "^0.5.35",
-    "@ztd-me/eslint": "0.1.1",
+    "@ztd-me/eslint": "0.1.2",
     "@ztd-me/frontend-checks": "0.1.1",
     "eslint": "^10.11.0",
     "playwright-core": "1.62.0",
