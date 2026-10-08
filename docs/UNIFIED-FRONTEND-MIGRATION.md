@@ -186,7 +186,7 @@ It leaves built/production CSS unchanged, has no TLS bypass and cannot verify re
 budgets. Reports mark preview-only results; setting this flag in CI throws. Normal CI
 requires actual Google Fonts browser delivery and the approved caps.
 
-Public `@ztd-me/eslint@0.1.4` supplies the shared type-alias rule and virtual
+Public `@ztd-me/eslint@0.1.5` supplies the shared type-alias rule and virtual
 Markdown/TS project boundary. Memory uses the exact normal registry dependency,
 with ESLint 10.11 and TypeScript 6.0.3 satisfying the published peers. The exact
 `@ztd-me/frontend-checks@0.1.3` release supplies Tailwind/CSS validation directly,

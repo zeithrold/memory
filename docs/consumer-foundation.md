@@ -20,7 +20,7 @@ that instance and the existing FrontendProvider locale. Server callers keep the
 pure `messages(locale)` API. Direct dependencies pin `i18next@26.4.2` and
 `react-i18next@17.0.15`.
 
-Consumer object contracts use TypeScript `type` aliases. The shared `@ztd-me/eslint@0.1.4` package enforces
+Consumer object contracts use TypeScript `type` aliases. The shared `@ztd-me/eslint@0.1.5` package enforces
 `ts/consistent-type-definitions: ["error", "type"]`. Handwritten declaration files
 retain interfaces where native/global declaration merging is required, with that
 rule enforced separately. Server and workflow conversions change declarations,
