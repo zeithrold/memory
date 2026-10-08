@@ -87,7 +87,7 @@ export function registerMemoryTools(
   )
 }
 
-interface RegisterContext { server: McpServer, env: Env, principal: Principal }
+type RegisterContext = { server: McpServer, env: Env, principal: Principal }
 
 function registerMemoryTool<S extends z.ZodObject>(
   context: RegisterContext,

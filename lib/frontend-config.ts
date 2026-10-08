@@ -1,4 +1,5 @@
 import type { Locale, SiteFooterProps } from '@/components/ui/ztd-me'
+import { messages } from './i18n/messages'
 
 export function memoryFooter(locale: Locale): SiteFooterProps {
   return {
@@ -7,7 +8,7 @@ export function memoryFooter(locale: Locale): SiteFooterProps {
       {
         label: 'GitHub',
         href: 'https://github.com/zeithrold/memory',
-        ariaLabel: locale === 'zh-CN' ? 'GitHub 仓库' : 'GitHub repository',
+        ariaLabel: messages(locale).repositoryLabel,
       },
       { label: 'hello@ztd.me', href: 'mailto:hello@ztd.me' },
     ],

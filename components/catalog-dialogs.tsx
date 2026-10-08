@@ -85,7 +85,7 @@ export function ProposalAdviceDialog(
   )
 }
 
-interface RunStartDialogProps {
+type RunStartDialogProps = {
   runDialog: { dryRun: boolean } | null
   setRunDialog: React.Dispatch<React.SetStateAction<{ dryRun: boolean } | null>>
   t: Messages
@@ -96,7 +96,7 @@ interface RunStartDialogProps {
   confirmStartRun: () => Promise<void>
 }
 
-interface ProposalAdviceDialogProps {
+type ProposalAdviceDialogProps = {
   adviceDialog: boolean
   setAdviceDialog: React.Dispatch<React.SetStateAction<boolean>>
   t: Messages

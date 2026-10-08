@@ -8,7 +8,7 @@ import { initialMemory, initialRun, initialSettings, timestamp } from './data'
 const create = memoryInputSchema.extend({ idempotencyKey: z.uuid() })
 const edit = memoryInputSchema.extend({ expectedVersion: z.number() })
 const settingsInput = z.object({ model: z.string() })
-export interface MockState {
+export type MockState = {
   memories: Memory[]
   settings: ReturnType<typeof initialSettings>
   run: ReturnType<typeof initialRun>

@@ -1,11 +1,11 @@
 import type { FrontendPreferences, Locale, Mode, Palette } from './types.js'
 
-export interface PreferenceSnapshot {
+export type PreferenceSnapshot = {
   preferences: FrontendPreferences
   resolvedMode: 'light' | 'dark'
   persistence: 'unchanged' | 'saved' | 'unavailable'
 }
-export interface PreferenceStore {
+export type PreferenceStore = {
   getSnapshot: () => PreferenceSnapshot
   getServerSnapshot: () => PreferenceSnapshot
   subscribe: (listener: () => void) => () => void

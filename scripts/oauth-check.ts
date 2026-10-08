@@ -7,7 +7,7 @@ import { accessIssuer } from '../lib/server/oauth'
 // client without a human copying credentials. Cloudflare Access Managed OAuth
 // advertises DCR and PKCE; this command reports what the configured team
 // actually exposes so a missing dashboard toggle is diagnosed instead of guessed.
-interface Discovery {
+type Discovery = {
   issuer?: string
   registration_endpoint?: string
   authorization_endpoint?: string

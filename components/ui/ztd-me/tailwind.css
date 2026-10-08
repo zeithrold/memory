@@ -1,0 +1,62 @@
+@import "./styles.css";
+
+@theme inline {
+  --color-background: var(--ztd-background);
+  --color-foreground: var(--ztd-foreground);
+  --color-surface: var(--ztd-surface);
+  --color-muted: var(--ztd-muted);
+  --color-muted-foreground: var(--ztd-muted-foreground);
+  --color-border: var(--ztd-border);
+  --color-accent: var(--ztd-accent);
+  --color-accent-foreground: var(--ztd-foreground);
+  --color-focus: var(--ztd-focus);
+  --color-input: var(--ztd-border);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --color-ring: var(--ztd-focus);
+  --color-primary: var(--ztd-action);
+  --color-primary-foreground: var(--ztd-action-foreground);
+  --color-secondary: var(--ztd-muted);
+  --color-secondary-foreground: var(--ztd-foreground);
+  --color-card: var(--ztd-surface);
+  --color-card-foreground: var(--ztd-foreground);
+  --color-popover: var(--ztd-surface);
+  --color-popover-foreground: var(--ztd-foreground);
+  --color-warning: var(--ztd-warning);
+  --color-success: var(--ztd-success);
+  --color-info: var(--ztd-info);
+  --color-destructive: var(--ztd-destructive);
+  --color-destructive-foreground: var(--ztd-destructive-foreground);
+  --color-backdrop: var(--ztd-backdrop);
+  --font-sans: var(--ztd-font-sans);
+  --font-serif: var(--ztd-font-serif);
+  --font-mono: var(--ztd-font-mono);
+  --font-emoji: var(--ztd-font-emoji);
+  --text-body: var(--ztd-font-body);
+  --text-body--line-height: var(--ztd-leading-body);
+  --text-control: var(--ztd-font-control);
+  --text-control--line-height: var(--ztd-leading-control);
+  --text-help: var(--ztd-font-help);
+  --text-help--line-height: var(--ztd-leading-help);
+  --text-heading: var(--ztd-font-heading);
+  --text-heading--line-height: 1.35;
+  --shadow-menu: 0 4px 16px color-mix(in srgb, var(--ztd-foreground) 10%, transparent);
+}
+
+@custom-variant dark {
+  :root[data-frontend-mode="dark"] & { @slot; }
+
+  @media (prefers-color-scheme: dark) {
+    :root[data-frontend-mode="system"] & { @slot; }
+  }
+}
+
+@utility scrollbar-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility safe-area-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}

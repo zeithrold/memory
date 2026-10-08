@@ -4,7 +4,7 @@ import { AppError } from '../errors'
 
 import { isoNow } from './query-common'
 
-interface RevertAction {
+type RevertAction = {
 
   id: number
   kind: string

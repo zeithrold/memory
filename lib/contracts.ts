@@ -162,7 +162,7 @@ export const deleteResultSchema = z.object({ deleted: z.boolean() })
 export type Scope = z.infer<typeof scopeSchema>
 export type MemoryInput = z.infer<typeof memoryInputSchema>
 export type Memory = z.infer<typeof memorySchema>
-export interface MemoryRevision {
+export type MemoryRevision = {
   version: number
   title: string
   content: string
@@ -171,7 +171,7 @@ export interface MemoryRevision {
   source: string
   created_at: string
 }
-export interface Principal {
+export type Principal = {
   ownerId: string
   tokenId: string | null
   scopes: Scope[]
@@ -179,7 +179,7 @@ export interface Principal {
   /** OAuth client identifier, recorded for usage attribution only. */
   clientId?: string
 }
-export interface TokenSummary {
+export type TokenSummary = {
   id: string
   name: string
   prefix: string
@@ -190,7 +190,7 @@ export interface TokenSummary {
   revoked_at: string | null
   last_used_at: string | null
 }
-export interface UsageSummary {
+export type UsageSummary = {
   operation: string
   calls: number
   errors: number

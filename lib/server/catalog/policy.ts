@@ -37,7 +37,7 @@ export type PolicyVerdict = { allowed: true } | { allowed: false, reason: string
 
 const ALLOWED: PolicyVerdict = { allowed: true }
 
-export interface PolicyInput {
+export type PolicyInput = {
   snapshot: CatalogSnapshot
   /** The agent's workspace: nothing outside the batch is addressable. */
   batchMemoryIds: Set<string>

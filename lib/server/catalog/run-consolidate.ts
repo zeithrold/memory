@@ -26,7 +26,7 @@ const categoryProposalSchema = z.looseObject({
   ]),
 })
 
-export interface ConsolidateResult {
+export type ConsolidateResult = {
   applied: number
   queued: number
   superseded: number
@@ -44,7 +44,7 @@ export interface ConsolidateResult {
  * for a human to approve.
  */
 
-interface ApplyStructuralProposalsContext {
+type ApplyStructuralProposalsContext = {
   proposals: D1Result<{
     id: string
     kind: string
@@ -64,7 +64,7 @@ interface ApplyStructuralProposalsContext {
   runId: string
 }
 
-interface ApplyStructuralProposalContext extends ApplyStructuralProposalsContext {
+type ApplyStructuralProposalContext = ApplyStructuralProposalsContext & {
   proposal: ApplyStructuralProposalsContext['proposals']['results'][number]
 }
 async function applyStructuralProposal(
@@ -125,7 +125,7 @@ async function applyStructuralProposals(
   }
 }
 
-interface ProposeUndersizedMergesContext {
+type ProposeUndersizedMergesContext = {
   categories: CategoryRow[]
   env: Env
   ownerId: string
@@ -133,7 +133,7 @@ interface ProposeUndersizedMergesContext {
   counters: ConsolidateResult
 }
 
-interface ProposeUndersizedMergeContext extends ProposeUndersizedMergesContext {
+type ProposeUndersizedMergeContext = ProposeUndersizedMergesContext & {
   category: CategoryRow
 }
 async function proposeUndersizedMerge(
@@ -241,7 +241,7 @@ rationale, evidence_runs
   return counters
 }
 
-interface RecordStructuralActionOptions {
+type RecordStructuralActionOptions = {
   runId: string
   kind: string
   decision: 'applied' | 'proposed'

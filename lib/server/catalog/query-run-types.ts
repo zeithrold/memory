@@ -1,4 +1,4 @@
-export interface RunSummary {
+export type RunSummary = {
   id: string
   trigger: string
   mode: string
@@ -22,7 +22,7 @@ export interface RunSummary {
   finishedAt: string | null
 }
 
-export interface RunRow {
+export type RunRow = {
   id: string
   trigger: string
   mode: string
@@ -44,7 +44,7 @@ export interface RunRow {
   finished_at: string | null
 }
 
-export interface TimelineEntry {
+export type TimelineEntry = {
   batch: number
   turn: number
   content: string | null
@@ -69,7 +69,7 @@ export interface TimelineEntry {
   }[]
 }
 
-export interface RunDetail {
+export type RunDetail = {
   run: RunSummary
   timeline: TimelineEntry[]
   totalActions: number
@@ -78,7 +78,7 @@ export interface RunDetail {
   operatorPrompt: string | null
 }
 
-export interface ActionRow {
+export type ActionRow = {
 
   id: number
   batch: number
@@ -99,7 +99,7 @@ export interface ActionRow {
 
 }
 
-export interface TurnMeta {
+export type TurnMeta = {
   batch: number
   turn: number
   content: string | null

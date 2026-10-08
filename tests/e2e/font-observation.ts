@@ -1,8 +1,5 @@
 import type { Page } from '@playwright/test'
 
-declare global {
-  interface Window { memoryFontCspViolations: string[] }
-}
 export async function observeFonts(page: Page): Promise<string[]> {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))

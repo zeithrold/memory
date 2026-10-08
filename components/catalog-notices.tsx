@@ -5,9 +5,18 @@ import { ShieldAlert } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
+const STATS_CLASS = [
+  'stats grid grid-cols-[repeat(3,_1fr)] gap-4 mb-6 [&_>_div]:bg-card [&_>_div]:border',
+  '[&_>_div]:border-border [&_>_div]:p-6 [&_>_div]:rounded-md [&_span]:block [&_span]:text-control',
+  '[&_span]:text-muted-foreground [&_strong]:block [&_strong]:mt-3 [&_strong]:font-medium',
+  '[&_strong]:text-[length:32px] max-[640px]:gap-2 max-[640px]:[&_>_div]:py-4 max-[640px]:[&_>_div]:px-3',
+  'max-[640px]:[&_span]:text-help max-[640px]:[&_strong]:text-[length:25px]',
+  'max-[640px]:grid-cols-[minmax(0,_1fr)]',
+].join(' ')
+
 export function CatalogStats({ t, catalog }: CatalogStatsProps): React.JSX.Element {
   return (
-    <div className="stats">
+    <div className={STATS_CLASS}>
       <div>
         <span>{t.categories}</span>
         <strong>{catalog?.categories.length ?? 0}</strong>
@@ -39,7 +48,7 @@ function CatalogBudgetNotice(
   )
 }
 
-interface PendingAdviceNoticeProps {
+type PendingAdviceNoticeProps = {
   t: Messages
   catalog: CatalogView
 }
@@ -90,17 +99,17 @@ export function CatalogNotices(
   )
 }
 
-interface CatalogStatsProps {
+type CatalogStatsProps = {
   t: Messages
   catalog: CatalogView | null
 }
 
-interface CatalogBudgetNoticeProps {
+type CatalogBudgetNoticeProps = {
   settings: CatalogSettings
   t: Messages
 }
 
-interface CatalogNoticesProps {
+type CatalogNoticesProps = {
   error: string
   t: Messages
   settings: CatalogSettings | null

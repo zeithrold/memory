@@ -16,7 +16,8 @@ export default defineConfig(
     use: { ...artifacts.use, baseURL: 'http://localhost:3100' },
     // Preview and unauthenticated API checks never need remote bindings or secrets.
     webServer: {
-      command: 'pnpm exec wrangler dev --config tests/e2e/wrangler.json --local --port 3100 --ip 127.0.0.1',
+      command: 'pnpm exec wrangler dev --config '
+        + 'tests/e2e/wrangler.json --local --inspector-port 0 --port 3100 --ip 127.0.0.1',
       url: 'http://localhost:3100',
       reuseExistingServer: false,
       timeout: 60000,

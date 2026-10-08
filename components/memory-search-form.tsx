@@ -10,7 +10,23 @@ import { perform } from './async-action'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 
-interface MemorySearchFormProps {
+const SEARCHBAR_CLASS = [
+  'searchbar flex items-center gap-3 bg-card p-3 border border-border rounded-[12px]',
+  'max-[640px]:flex-wrap',
+].join(' ')
+
+const SEARCH_INPUT_CLASS = [
+  'search-input flex flex-1 items-center gap-2 pl-2 min-w-[90px] text-muted-foreground rounded-md',
+  '[&_input]:border-0 [&_input]:shadow-none [&_input]:bg-transparent',
+  '[&:focus-within]:[outline:2px_solid_var(--ztd-focus)] [&:focus-within]:[outline-offset:2px]',
+  'max-[640px]:basis-full',
+].join(' ')
+
+const PROJECT_INPUT_CLASS = [
+  'project-input max-w-[150px] max-[640px]:max-w-none max-[640px]:flex-1 max-[640px]:w-20',
+].join(' ')
+
+type MemorySearchFormProps = {
   run: (action: () => Promise<void>) => Promise<void>
   query: string
   load: () => Promise<void>
@@ -31,7 +47,7 @@ export function MemorySearchForm(
 ): React.JSX.Element {
   return (
     <form
-      className="searchbar"
+      className={SEARCHBAR_CLASS}
       onSubmit={(
         event,
       ) => {
@@ -64,7 +80,7 @@ export function MemorySearchForm(
         )
       }}
     >
-      <div className="search-input">
+      <div className={SEARCH_INPUT_CLASS}>
         <Search size={18} />
         <Input
           aria-label={props.t.search}
@@ -75,7 +91,7 @@ export function MemorySearchForm(
         />
       </div>
       <Input
-        className="project-input"
+        className={PROJECT_INPUT_CLASS}
         aria-label={props.t.project}
         value={props.project}
         onChange={(event) => {

@@ -11,6 +11,17 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from './ui/card'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_2 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const PLACE_SELF_CLASS = [
+  '[place-self:start_start] p-0 border-0 bg-transparent text-primary text-control font-[550] text-left',
+  'hover:underline hover:underline-offset-[3px]',
+].join(' ')
+
 function CatalogRunTable({ t, runs, openRunDetail }: CatalogRunTableProps): React.JSX.Element {
   return (
     <Table>
@@ -32,7 +43,7 @@ function CatalogRunTable({ t, runs, openRunDetail }: CatalogRunTableProps): Reac
             <TableCell>
               <button
                 type="button"
-                className="text-button"
+                className={PLACE_SELF_CLASS}
                 onClick={() => perform(openRunDetail(row.id), t.loadError)}
               >
                 {new Date(row.startedAt).toLocaleString()}
@@ -42,7 +53,7 @@ function CatalogRunTable({ t, runs, openRunDetail }: CatalogRunTableProps): Reac
               <div className="flex items-center gap-2">
                 {row.mode === 'dry_run' && <Badge variant="outline">{t.dryRun}</Badge>}
                 <span>{row.status}</span>
-                {row.errorCode !== null && <span className="muted">{row.errorCode}</span>}
+                {row.errorCode !== null && <span className={MUTED_CLASS}>{row.errorCode}</span>}
               </div>
             </TableCell>
             <TableCell>{row.trigger}</TableCell>
@@ -52,7 +63,7 @@ function CatalogRunTable({ t, runs, openRunDetail }: CatalogRunTableProps): Reac
             <TableCell>{row.actionsApplied}</TableCell>
             <TableCell>
               {row.totalTokens?.toLocaleString() ?? '—'}
-              {!row.tokenUsageComplete && <span className="muted"> *</span>}
+              {!row.tokenUsageComplete && <span className={MUTED_CLASS_1}> *</span>}
             </TableCell>
           </TableRow>
         ))}
@@ -77,7 +88,7 @@ export function CatalogRunsCard(
       <CardContent className="flex flex-col gap-4">
         {props.runs.length === 0
 
-          ? <p className="muted">{props.t.noRuns}</p>
+          ? <p className={MUTED_CLASS_2}>{props.t.noRuns}</p>
 
           : (
               <CatalogRunTable t={props.t} runs={props.runs} openRunDetail={props.openRunDetail} />
@@ -85,7 +96,7 @@ export function CatalogRunsCard(
         {(props.runsOffset > 0 || props.runsOffset + props.runs.length < props.runsTotal)
 
           && (
-            <div className="pagination">
+            <div className="pagination flex justify-end gap-3 mt-8">
               <Button
                 variant="ghost"
                 disabled={props.runsOffset === 0 || props.busy}
@@ -107,13 +118,13 @@ export function CatalogRunsCard(
   )
 }
 
-interface CatalogRunTableProps {
+type CatalogRunTableProps = {
   t: Messages
   runs: RunSummary[]
   openRunDetail: (runId: string, offset?: number) => Promise<void>
 }
 
-interface CatalogRunsCardProps {
+type CatalogRunsCardProps = {
   t: Messages
   load: (nextRunsOffset: number) => Promise<void>
   runsOffset: number

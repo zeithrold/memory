@@ -14,7 +14,24 @@ import {
   DialogTitle,
 } from './ui/dialog'
 
-interface ChildCategoryCardProps {
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_2 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const CATALOG_CARD_GRID_CLASS = [
+  'catalog-card-grid grid gap-4 grid-cols-[repeat(auto-fill,_minmax(240px,_1fr))]',
+].join(' ')
+
+const CATALOG_CATEGORY_CARD_CLASS = [
+  'catalog-category-card flex flex-col gap-2 text-left bg-card border border-border rounded-md p-6',
+  'cursor-pointer text-inherit [font:inherit] [transition:border-color_120ms_ease,_box-shadow_120ms_ease]',
+  'hover:border-foreground hover:shadow-[0_8px_24px_var(--hover-shadow)] disabled:opacity-[0.6]',
+  'disabled:cursor-not-allowed [&_p]:m-0 [&_p]:text-body [&_p]:line-clamp-3 [&_p]:overflow-hidden',
+].join(' ')
+
+type ChildCategoryCardProps = {
   t: Messages
   detail: CategoryDetail
   busy: boolean
@@ -31,23 +48,23 @@ export function ChildCategoryCard(
       </CardHeader>
       <CardContent>
         {detail.children.length === 0
-          ? <p className="muted">{t.noCategories}</p>
+          ? <p className={MUTED_CLASS}>{t.noCategories}</p>
           : (
-              <div className="catalog-card-grid">
+              <div className={CATALOG_CARD_GRID_CLASS}>
                 {detail.children.map(child => (
                   <button
                     key={child.id}
                     type="button"
-                    className="catalog-category-card"
+                    className={CATALOG_CATEGORY_CARD_CLASS}
                     disabled={busy}
                     onClick={() => perform(openChild(child.id), t.loadError)}
                   >
-                    <div className="catalog-node-head">
+                    <div className="catalog-node-head flex items-center gap-3">
                       <strong>{child.label}</strong>
                       <Badge variant="secondary">{child.memberCount}</Badge>
                     </div>
-                    <p className="muted">{child.description}</p>
-                    <p className="muted">
+                    <p className={MUTED_CLASS_1}>{child.description}</p>
+                    <p className={MUTED_CLASS_2}>
                       <strong>{t.categoryBoundary}</strong>
                       {': '}
                       {child.boundary}
@@ -61,7 +78,7 @@ export function ChildCategoryCard(
   )
 }
 
-interface CategoryChildDialogProps {
+type CategoryChildDialogProps = {
   childDetail: CategoryDetail | null
   setChildDetail: React.Dispatch<React.SetStateAction<CategoryDetail | null>>
   t: Messages

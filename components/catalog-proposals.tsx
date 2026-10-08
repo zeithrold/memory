@@ -10,14 +10,31 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const CARD_ACTIONS_CLASS = ['card-actions flex items-center gap-1 flex-wrap'].join(' ')
+
+const CARD_ACTIONS_CLASS_1 = ['card-actions flex items-center gap-1 flex-wrap'].join(' ')
+
+const MUTED_CLASS_2 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const RUN_LIST_CLASS = [
+  'run-list list-none p-0 m-0 grid gap-4 [&_>_li]:bg-card [&_>_li]:border [&_>_li]:border-border',
+  '[&_>_li]:rounded-md [&_>_li]:p-6 [&_p]:my-2 [&_p]:mx-0 [&_p]:text-body',
+].join(' ')
+
+const CARD_META_CLASS = [
+  'card-meta flex items-center gap-2 text-help text-muted-foreground [&_time]:ml-auto wrap-anywhere',
+].join(' ')
+
 function CatalogProposalList(props: CatalogProposalListProps): React.JSX.Element {
   return (
-    <ul className="run-list">
+    <ul className={RUN_LIST_CLASS}>
       {props.proposals.map(proposal => (
         <li key={proposal.id}>
-          <div className="card-meta">
+          <div className={CARD_META_CLASS}>
             <Badge variant="outline">{proposal.kind}</Badge>
-            <span className="muted">
+            <span className={MUTED_CLASS}>
               {props.t.evidence}
               {': '}
               {proposal.evidenceRuns}
@@ -25,7 +42,7 @@ function CatalogProposalList(props: CatalogProposalListProps): React.JSX.Element
           </div>
           {proposal.rationale !== null && <p>{proposal.rationale}</p>}
           {props.proposalsSplit && (
-            <div className="card-actions">
+            <div className={CARD_ACTIONS_CLASS}>
               <Button
                 size="sm"
                 disabled={props.busy}
@@ -61,13 +78,13 @@ function CatalogProposalList(props: CatalogProposalListProps): React.JSX.Element
   )
 }
 
-interface ProposalPackageActionsProps {
+type ProposalPackageActionsProps = {
   props: CatalogProposalsCardProps
 }
 
 function ProposalPackageActions({ props }: ProposalPackageActionsProps): React.JSX.Element {
   return (
-    <div className="card-actions">
+    <div className={CARD_ACTIONS_CLASS_1}>
       <Button
         size="sm"
         disabled={props.busy}
@@ -120,7 +137,7 @@ export function CatalogProposalsCard(
       <CardContent className="flex flex-col gap-4">
         {props.proposals.length === 0
 
-          ? <p className="muted">{props.t.noProposals}</p>
+          ? <p className={MUTED_CLASS_2}>{props.t.noProposals}</p>
 
           : (
               <>
@@ -146,7 +163,7 @@ export function CatalogProposalsCard(
   )
 }
 
-interface CatalogProposalListProps {
+type CatalogProposalListProps = {
   proposals: Proposal[]
   t: Messages
   proposalsSplit: boolean
@@ -157,7 +174,7 @@ interface CatalogProposalListProps {
   runsOffset: number
 }
 
-interface CatalogProposalsCardProps {
+type CatalogProposalsCardProps = {
   t: Messages
   proposals: Proposal[]
   setProposalsSplit: React.Dispatch<React.SetStateAction<boolean>>

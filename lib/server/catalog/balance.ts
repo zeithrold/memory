@@ -22,7 +22,7 @@ import type { Env } from '../env'
 export type Balance = 'equal' | 'sqrt' | 'neyman'
 export const MAX_ROUTED_CATEGORIES = 3
 
-export interface AllocationInput {
+export type AllocationInput = {
   sizes: Map<string, number>
   /** Score spread per category, used by the Neyman rule. */
   deviations: Map<string, number>

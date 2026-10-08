@@ -12,7 +12,7 @@ import { runOwner } from './workflow-owner'
  * Parameters for a run. A scheduled firing carries its cadence-window time; a
  * manual run passes the owner, so the instance and audit record share one identity.
  */
-export interface CatalogWorkflowParams {
+export type CatalogWorkflowParams = {
   ownerId?: string
   /** Exact Cron window used to keep recurring runs on the cadence grid. */
   scheduledAt?: number

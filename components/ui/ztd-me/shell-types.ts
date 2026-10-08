@@ -1,6 +1,6 @@
 import type { ComponentProps, ComponentType, ReactNode } from 'react'
 
-export interface Brand {
+export type Brand = {
   label: string
   homeHref: string
   mark?: ReactNode
@@ -10,16 +10,21 @@ export type LinkProps = Omit<ComponentProps<'a'>, 'href' | 'children'> & {
   children: ReactNode
 }
 export type LinkComponent = ComponentType<LinkProps>
-export interface FooterLink {
+export type FooterLink = {
   label: string
   href: string
   ariaLabel?: string
 }
-export interface SiteFooterProps {
+export type SiteFooterProps = {
   copyright?: ReactNode
   links?: readonly FooterLink[]
 }
-export interface ShellProps {
+export type ShellProps = {
+  className?: string
+  appbarClassName?: string
+  chromeClassName?: string
+  brandClassName?: string
+  mainClassName?: string
   brand: Brand
   footer?: SiteFooterProps
   children: ReactNode
@@ -28,8 +33,8 @@ export interface ShellProps {
   mainId?: string
   linkComponent?: LinkComponent
 }
-export interface ApplicationShellProps extends ShellProps {
+export type ApplicationShellProps = {
   businessNavigation?: ReactNode
   contextSidebar?: ReactNode
   serviceNotice?: ReactNode
-}
+} & ShellProps

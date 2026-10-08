@@ -1,10 +1,10 @@
-export interface TenantIntegrityFinding {
+export type TenantIntegrityFinding = {
   relationship: string
   count: number
   sample_id: string
 }
 
-interface IntegrityCheck {
+type IntegrityCheck = {
   relationship: string
   from: string
   where: string

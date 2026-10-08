@@ -9,7 +9,7 @@ import { storageErrors } from './errors-storage'
  * one table means a documented error page and the response that points at it can
  * never disagree, and `ErrorCode` makes an undocumented code a compile error.
  */
-export interface ErrorDefinition {
+export type ErrorDefinition = {
   /** Path segment under `/errors`, stable and safe to bookmark. */
   readonly slug: string
   readonly status: number
@@ -27,7 +27,7 @@ export const ERROR_DEFINITIONS = { ...requestErrors, ...storageErrors, ...provid
 
 export type ErrorCode = keyof typeof ERROR_DEFINITIONS
 
-export interface CatalogEntry extends ErrorDefinition {
+export type CatalogEntry = ErrorDefinition & {
   readonly code: ErrorCode
 }
 export const ERROR_CODES = Object.keys(ERROR_DEFINITIONS).filter(

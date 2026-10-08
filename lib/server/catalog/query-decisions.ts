@@ -13,9 +13,9 @@ import { approveCategory, approveMerge, recordHumanDecision } from './query-appr
 import { isoNow } from './query-common'
 import { appendPendingAdvice, listProposals } from './query-proposals'
 
-interface DecisionEffects { catalogChanged: boolean, categoryCreated: boolean, mergeDecided: boolean }
+type DecisionEffects = { catalogChanged: boolean, categoryCreated: boolean, mergeDecided: boolean }
 
-interface DecisionProposalRow {
+type DecisionProposalRow = {
 
   id: string
   kind: string
@@ -39,7 +39,7 @@ interface DecisionProposalRow {
  * the agent itself can only ever propose one.
  */
 
-interface ApplyApprovedProposalContext {
+type ApplyApprovedProposalContext = {
   approve: boolean
   proposal: DecisionProposalRow
   env: Env
@@ -111,7 +111,7 @@ async function applyApprovedProposal(
   }
 }
 
-interface FinalizeProposalDecisionContext {
+type FinalizeProposalDecisionContext = {
   counters: DecisionEffects
   env: Env
   approve: boolean
@@ -145,7 +145,7 @@ async function finalizeProposalDecision(
     await recordHumanDecision(env, ownerId, proposal.last_run_id, action)
   }
 }
-interface DecideProposalOptions { ownerId: string, proposalId: string, approve: boolean, advice?: string | null }
+type DecideProposalOptions = { ownerId: string, proposalId: string, approve: boolean, advice?: string | null }
 
 export async function decideProposal(
   env: Env,

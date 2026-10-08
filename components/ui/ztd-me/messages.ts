@@ -1,6 +1,6 @@
 import type { Locale, Mode, Palette } from './types.js'
 
-interface ShellMessages {
+type ShellMessages = {
   appearance: string
   mode: string
   palette: string

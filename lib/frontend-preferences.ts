@@ -4,7 +4,7 @@ import {
   resolveInitialPreferences,
 } from '@/components/ui/ztd-me'
 
-export interface FrontendBootstrap {
+export type FrontendBootstrap = {
   initialPreferences: FrontendPreferences
   policy: PreferencePolicy
 }

@@ -14,7 +14,38 @@ import { formatDate } from './memory-format'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 
-interface MemoryCardActionsProps {
+const CARD_ACTIONS_CLASS = ['card-actions flex items-center gap-1 flex-wrap'].join(' ')
+
+const MEMORY_CARD_TITLE_CLASS = ['memory-card-title m-0 text-body leading-[1.4] wrap-anywhere'].join(' ')
+
+const TAGS_CLASS = ['tags flex gap-2 flex-wrap text-help text-muted-foreground m-0'].join(' ')
+
+const SOURCE_TEXT_CLASS = ['source-text whitespace-pre-wrap wrap-anywhere mt-2 mx-0 mb-0'].join(' ')
+
+const MEMORY_CARD_CLASS = [
+  'memory-card flex flex-col gap-4 p-6 bg-card border border-border rounded-[12px]',
+  'shadow-[0_2px_4px_var(--card-shadow)] wrap-anywhere',
+].join(' ')
+
+const CARD_META_CLASS = [
+  'card-meta flex items-center gap-2 text-help text-muted-foreground [&_time]:ml-auto wrap-anywhere',
+].join(' ')
+
+const MEMORY_TITLE_LINK_CLASS = [
+  'memory-title-link hover:text-primary hover:underline hover:underline-offset-[3px]',
+].join(' ')
+
+const MEMORY_CONTENT_CLASS = [
+  'memory-content memory-clamp text-body leading-[1.85] text-muted-foreground m-0 line-clamp-3',
+  '[line-clamp:4] overflow-hidden whitespace-normal wrap-anywhere',
+].join(' ')
+
+const MEMORY_CARD_FOOTER_CLASS = [
+  'memory-card-footer flex items-center justify-between gap-2 mt-auto pt-3 border-t border-border',
+  'text-help text-muted-foreground flex-wrap',
+].join(' ')
+
+type MemoryCardActionsProps = {
   memory: Memory
   t: Messages
   busy: boolean
@@ -29,7 +60,7 @@ function MemoryCardActions(
   props: MemoryCardActionsProps,
 ): React.JSX.Element {
   return (
-    <div className="card-actions">
+    <div className={CARD_ACTIONS_CLASS}>
       <Button asChild size="xs" variant="ghost">
         <Link href={`/memories/${props.memory.id}`}>
           {props.t.viewDetails}
@@ -91,7 +122,7 @@ function MemoryCardActions(
   )
 }
 
-interface MemoryCardProps {
+type MemoryCardProps = {
   memory: Memory
   t: Messages
   locale: Locale
@@ -105,25 +136,30 @@ interface MemoryCardProps {
 
 export function MemoryCard(props: MemoryCardProps): React.JSX.Element {
   return (
-    <article key={props.memory.id} className="memory-card">
-      <div className="card-meta">
+    <article
+      key={props.memory.id}
+      className={MEMORY_CARD_CLASS}
+    >
+      <div className={CARD_META_CLASS}>
         <Badge variant="secondary">{props.t[props.memory.kind]}</Badge>
-        <span className="card-version">
+        <span className="card-version tracking-[.4px]">
           v
           {props.memory.version}
         </span>
       </div>
-      <h2 className="memory-card-title">
+      <h2 className={MEMORY_CARD_TITLE_CLASS}>
         <Link
-          className="memory-title-link"
+          className={MEMORY_TITLE_LINK_CLASS}
           href={`/memories/${props.memory.id}`}
         >
           {props.memory.title}
         </Link>
       </h2>
-      <p className="memory-content memory-clamp">{props.memory.content}</p>
+      <p className={MEMORY_CONTENT_CLASS}>
+        {props.memory.content}
+      </p>
       {props.memory.tags.length > 0 && (
-        <div className="tags">
+        <div className={TAGS_CLASS}>
           {props.memory.tags.map(tag => (
             <span key={tag}>
               #
@@ -134,9 +170,9 @@ export function MemoryCard(props: MemoryCardProps): React.JSX.Element {
       )}
       <details>
         <summary>{props.t.source}</summary>
-        <p className="source-text">{props.memory.source}</p>
+        <p className={SOURCE_TEXT_CLASS}>{props.memory.source}</p>
       </details>
-      <footer className="memory-card-footer">
+      <footer className={MEMORY_CARD_FOOTER_CLASS}>
         <time dateTime={props.memory.updatedAt}>
           {formatDate(props.locale, props.memory.updatedAt)}
         </time>

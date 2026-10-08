@@ -16,7 +16,7 @@ export const OAUTH_SCOPES = [
 export const MCP_RESOURCE_PATH = '/mcp'
 export const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource'
 
-export interface ProtectedResourceMetadata {
+export type ProtectedResourceMetadata = {
   resource: string
   authorization_servers: string[]
   scopes_supported: string[]
@@ -78,7 +78,7 @@ export function protectedResourceMetadata(
 }
 
 /** RFC 9728 challenge that lets an unauthenticated client discover the metadata. */
-interface ChallengeOptions {
+type ChallengeOptions = {
   scopes?: readonly Scope[]
   error?: string
   description?: string

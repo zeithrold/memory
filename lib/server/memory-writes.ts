@@ -5,7 +5,7 @@ import { createSchema, projectSchema, updateSchema } from '../contracts'
 import { AppError, requirePermission } from './errors'
 import { fingerprint, getRow, searchText, serialize } from './memory-rows'
 
-interface FindCreatedMemoryContext {
+type FindCreatedMemoryContext = {
   env: Env
   principal: Principal
   input: {
@@ -165,7 +165,7 @@ export async function updateMemory(
  * The existing `memories_update` trigger queues a fresh index job, so the vector
  * is rewritten under the new project and the previous version is deleted.
  */
-interface MoveMemoryProjectOptions { id: string, expectedVersion: number, targetProject: string }
+type MoveMemoryProjectOptions = { id: string, expectedVersion: number, targetProject: string }
 
 export async function moveMemoryProject(
   env: Env,

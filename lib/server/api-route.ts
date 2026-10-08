@@ -7,20 +7,20 @@ import { secureResponse } from './http'
 import { recordUsage } from './usage'
 
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-export interface ApiRouteContext {
+export type ApiRouteContext = {
   request: Request
   env: Env
   principal: Principal
   params: Record<string, string>
 }
 type ApiHandler = (context: ApiRouteContext) => Promise<Response>
-interface NextContext {
+type NextContext = {
   params?: Promise<Record<string, string | string[] | undefined>>
   /** Test adapters may inject a binding set; Next only supplies params. */
   env?: Env
 }
 
-interface DefineApiRouteOptions { sessionOnly?: boolean, credentialKinds?: CredentialKind[] }
+type DefineApiRouteOptions = { sessionOnly?: boolean, credentialKinds?: CredentialKind[] }
 
 export function defineApiRoute(
   operation: string,

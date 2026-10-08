@@ -1,4 +1,4 @@
-export interface Env {
+export type Env = {
   DB: D1Database
   USAGE_ANALYTICS?: AnalyticsEngineDataset
   AUTH_RATE_LIMITER?: RateLimit

@@ -5,7 +5,7 @@ import { loadSettingsRow } from './settings'
 
 export type RunStatus = 'queued' | 'running' | 'succeeded' | 'partial' | 'failed' | 'skipped' | 'reverted'
 
-interface FinishRunOptions { runId: string, status: RunStatus, errorCode?: string, scheduledAt?: number }
+type FinishRunOptions = { runId: string, status: RunStatus, errorCode?: string, scheduledAt?: number }
 
 export async function finishRun(
   env: Env,

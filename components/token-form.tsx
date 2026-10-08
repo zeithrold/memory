@@ -6,14 +6,26 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 
-interface TokenFormFieldsProps {
+const EDITOR_CLASS = ['editor border border-border rounded-[12px] bg-card p-6 mb-6'].join(' ')
+
+const FORM_GRID_CLASS = [
+  'form-grid grid grid-cols-[repeat(auto-fit,_minmax(180px,_1fr))] gap-4',
+  'max-[640px]:grid-cols-[minmax(0,_1fr)]',
+].join(' ')
+
+const SCOPE_CHOICES_CLASS = [
+  'scope-choices border-0 p-0 mb-5 text-control [&_legend]:mb-3 [&_label]:inline-flex [&_label]:gap-2',
+  '[&_label]:items-center [&_label]:mr-5',
+].join(' ')
+
+type TokenFormFieldsProps = {
   t: Messages
 }
 
 function TokenFormFields({ t }: TokenFormFieldsProps): React.JSX.Element {
   return (
-    <div className="form-grid">
-      <div className="field">
+    <div className={FORM_GRID_CLASS}>
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="token-name">{t.tokenName}</Label>
         <Input
           id="token-name"
@@ -23,7 +35,7 @@ function TokenFormFields({ t }: TokenFormFieldsProps): React.JSX.Element {
           placeholder="Codex · Mac"
         />
       </div>
-      <div className="field">
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="token-project">{t.tokenProject}</Label>
         <Input
           id="token-project"
@@ -32,7 +44,7 @@ function TokenFormFields({ t }: TokenFormFieldsProps): React.JSX.Element {
           pattern="[A-Za-z0-9_.-]+"
         />
       </div>
-      <div className="field">
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="token-days">{t.days}</Label>
         <Input
           id="token-days"
@@ -48,7 +60,7 @@ function TokenFormFields({ t }: TokenFormFieldsProps): React.JSX.Element {
   )
 }
 
-interface TokenScopeChoicesProps {
+type TokenScopeChoicesProps = {
   t: Messages
   scopes: ('memory:read' | 'memory:write' | 'memory:delete')[]
   setScopes: React.Dispatch<React.SetStateAction<('memory:read' | 'memory:write' | 'memory:delete')[]>>
@@ -58,7 +70,7 @@ function TokenScopeChoices(
   { t, scopes, setScopes }: TokenScopeChoicesProps,
 ): React.JSX.Element {
   return (
-    <fieldset className="scope-choices">
+    <fieldset className={SCOPE_CHOICES_CLASS}>
       <legend>{t.tokenScope}</legend>
       {(
         [
@@ -88,7 +100,7 @@ function TokenScopeChoices(
   )
 }
 
-interface TokenCreationFormProps {
+type TokenCreationFormProps = {
   create: (form: HTMLFormElement) => Promise<void>
   t: Messages
   scopes: ('memory:read' | 'memory:write' | 'memory:delete')[]
@@ -102,7 +114,7 @@ export function TokenCreationForm(
 ): React.JSX.Element {
   return (
     <form
-      className="editor"
+      className={EDITOR_CLASS}
       onSubmit={(event) => {
         event.preventDefault()
         perform(create(event.currentTarget), t.loadError)
@@ -110,7 +122,7 @@ export function TokenCreationForm(
     >
       <TokenFormFields t={t} />
       <TokenScopeChoices t={t} scopes={scopes} setScopes={setScopes} />
-      <div className="form-actions">
+      <div className="form-actions flex justify-end gap-3">
         <Button disabled={!ready || busy || scopes.length === 0}>
           <KeyRound size={16} />
           {t.createToken}

@@ -3,7 +3,7 @@ import type { WorkflowContext } from './workflow-owner'
 import { finalizeBatch, MAX_BATCHES_PER_RUN, SCHEDULED_DRY_RUN_MAX_BATCH, startBatch } from './run'
 import { runTurns } from './workflow-turns'
 
-interface BatchOutcome {
+type BatchOutcome = {
   stats: BatchStats
   exhausted: boolean
   budgetStopped: boolean

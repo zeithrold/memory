@@ -275,7 +275,7 @@ source)
   },
 )
 
-interface StoreAssignmentInput { memoryId: string, categoryId: string, confidence: number }
+type StoreAssignmentInput = { memoryId: string, categoryId: string, confidence: number }
 
 async function storeAssignment(
   ctx: ToolContext,

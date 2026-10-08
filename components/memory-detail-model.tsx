@@ -15,7 +15,7 @@ import {
 import { perform } from './async-action'
 import { MemoryDetailContent } from './memory-detail-view'
 
-interface MemoryDetailProps {
+type MemoryDetailProps = {
   t: Messages
   locale: Locale
   memoryId: string
@@ -23,7 +23,7 @@ interface MemoryDetailProps {
   api: ReturnType<typeof useWorkspace>['api']
 }
 
-interface LoadMemoryDetailContext {
+type LoadMemoryDetailContext = {
   authState: 'ready' | 'unconfigured'
   setLoading: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string>>
@@ -60,7 +60,7 @@ async function loadMemoryDetail(context: LoadMemoryDetailContext): Promise<void>
   }
 }
 
-interface LoadMemoryHistoryContext {
+type LoadMemoryHistoryContext = {
   setHistoryBusy: React.Dispatch<React.SetStateAction<boolean>>
   api: Api
   memoryId: string
@@ -87,7 +87,7 @@ async function loadMemoryHistory(context: LoadMemoryHistoryContext): Promise<voi
   }
 }
 
-interface RunMemoryDetailActionContext {
+type RunMemoryDetailActionContext = {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string>>
   t: Messages

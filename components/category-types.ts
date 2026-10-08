@@ -1,6 +1,6 @@
 'use client'
 
-export interface CategoryView {
+export type CategoryView = {
   id: string
   parentId: string | null
   depth: number
@@ -15,7 +15,7 @@ export interface CategoryView {
   updatedAt: string
 }
 
-export interface CategoryDetail {
+export type CategoryDetail = {
   category: CategoryView
   children: CategoryView[]
   memories: {

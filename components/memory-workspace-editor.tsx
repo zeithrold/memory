@@ -9,7 +9,7 @@ import {
 import { perform } from './async-action'
 import { MemoryEditor } from './memory-editor'
 
-interface WorkspaceMemoryEditorProps {
+type WorkspaceMemoryEditorProps = {
   editing: Memory | 'new'
   t: Messages
   project: string

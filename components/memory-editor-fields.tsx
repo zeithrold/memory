@@ -6,8 +6,14 @@ import { memoryInputSchema } from '@/lib/contracts'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
+import { Select as NativeSelect } from './ui/ztd-me/ui/fields'
 
-interface MemoryBasicFieldsProps {
+const FORM_GRID_CLASS = [
+  'form-grid grid grid-cols-[repeat(auto-fit,_minmax(180px,_1fr))] gap-4',
+  'max-[640px]:grid-cols-[minmax(0,_1fr)]',
+].join(' ')
+
+type MemoryBasicFieldsProps = {
   t: Messages
   input: MemoryInput
   setInput: React.Dispatch<React.SetStateAction<MemoryInput>>
@@ -17,8 +23,8 @@ export function MemoryBasicFields(
   { t, input, setInput }: MemoryBasicFieldsProps,
 ): React.JSX.Element {
   return (
-    <div className="form-grid">
-      <div className="field">
+    <div className={FORM_GRID_CLASS}>
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="memory-title">{t.title}</Label>
         <Input
           id="memory-title"
@@ -29,9 +35,9 @@ export function MemoryBasicFields(
             setInput({ ...input, title: event.target.value })}
         />
       </div>
-      <div className="field">
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="memory-kind">{t.kind}</Label>
-        <select
+        <NativeSelect
           id="memory-kind"
           value={input.kind}
           onChange={event =>
@@ -52,13 +58,13 @@ export function MemoryBasicFields(
               </option>
             ),
           )}
-        </select>
+        </NativeSelect>
       </div>
     </div>
   )
 }
 
-interface MemoryTextFieldsProps {
+type MemoryTextFieldsProps = {
   t: Messages
   input: MemoryInput
   setInput: React.Dispatch<React.SetStateAction<MemoryInput>>
@@ -68,7 +74,7 @@ export function MemoryTextFields(
   { t, input, setInput }: MemoryTextFieldsProps,
 ): React.JSX.Element {
   return (
-    <div className="field">
+    <div className="field grid gap-2 mb-5">
       <Label htmlFor="memory-content">{t.content}</Label>
       <Textarea
         id="memory-content"
@@ -83,7 +89,7 @@ export function MemoryTextFields(
   )
 }
 
-interface MemoryEvidenceFieldsProps {
+type MemoryEvidenceFieldsProps = {
   t: Messages
   input: MemoryInput
   setInput: React.Dispatch<React.SetStateAction<MemoryInput>>
@@ -93,7 +99,7 @@ export function MemoryEvidenceFields(
   { t, input, setInput }: MemoryEvidenceFieldsProps,
 ): React.JSX.Element {
   return (
-    <div className="field">
+    <div className="field grid gap-2 mb-5">
       <Label htmlFor="memory-source">{t.source}</Label>
       <Input
         id="memory-source"

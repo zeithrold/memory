@@ -12,7 +12,29 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { SetupBanner } from './workspace-shell'
 
-export interface MemoryWorkspaceContentProps {
+const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
+
+const PAGE_HEADING_CLASS = [
+  'page-heading flex items-center justify-between gap-6 mb-8 max-[1000px]:items-start',
+  'max-[1000px]:flex-col max-[1000px]:gap-2 flex-wrap wrap-anywhere',
+].join(' ')
+
+const PAGE_CLASS = [
+  'page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
+  'max-[640px]:px-4',
+].join(' ')
+
+const ERROR_BANNER_CLASS = [
+  'error-banner py-4 px-5 bg-[var(--error-background)] text-destructive rounded-md text-control',
+  'wrap-anywhere mb-4',
+].join(' ')
+
+const LIST_META_CLASS = [
+  'list-meta flex justify-between gap-3 text-help text-muted-foreground py-4 px-1 max-[640px]:flex-col',
+  'max-[640px]:leading-[1.8]',
+].join(' ')
+
+export type MemoryWorkspaceContentProps = {
   t: Messages
   authState: 'ready' | 'unconfigured'
   busy: boolean
@@ -38,15 +60,15 @@ export interface MemoryWorkspaceContentProps {
   revisions: MemoryRevision[] | null
 }
 
-interface MemoryWorkspaceHeadingProps {
+type MemoryWorkspaceHeadingProps = {
   props: MemoryWorkspaceContentProps
 }
 
 function MemoryWorkspaceHeading({ props }: MemoryWorkspaceHeadingProps): React.JSX.Element {
   return (
-    <div className="page-heading">
+    <div className={PAGE_HEADING_CLASS}>
       <div>
-        <span className="eyebrow">{props.t.memories}</span>
+        <span className={EYEBROW_CLASS}>{props.t.memories}</span>
         <h1>{props.t.heading}</h1>
         <p>{props.t.intro}</p>
       </div>
@@ -60,36 +82,45 @@ function MemoryWorkspaceHeading({ props }: MemoryWorkspaceHeadingProps): React.J
     </div>
   )
 }
+function WorkspaceSearchForm({ props }: { props: MemoryWorkspaceContentProps }): React.JSX.Element {
+  return (
+    <MemorySearchForm
+      run={props.run}
+      query={props.query}
+      load={props.load}
+      api={props.api}
+      setMemories={props.setMemories}
+      setSearchMode={props.setSearchMode}
+      t={props.t}
+      setQuery={props.setQuery}
+      project={props.project}
+      setProject={props.setProject}
+      setOffset={props.setOffset}
+      busy={props.busy}
+      authState={props.authState}
+    />
+  )
+}
+
 export function MemoryWorkspaceContent(props: MemoryWorkspaceContentProps): React.JSX.Element {
   return (
-    <div className="page">
+    <div className={PAGE_CLASS}>
       <MemoryWorkspaceHeading props={props} />
       {props.authState === 'unconfigured' && <SetupBanner />}
       {(props.error.length > 0) && (
-        <div className="error-banner" role="alert">
+        <div
+          className={ERROR_BANNER_CLASS}
+          role="alert"
+        >
           {props.error}
         </div>
       )}
       <>
-        <MemorySearchForm
-          run={props.run}
-          query={props.query}
-          load={props.load}
-          api={props.api}
-          setMemories={props.setMemories}
-          setSearchMode={props.setSearchMode}
-          t={props.t}
-          setQuery={props.setQuery}
-          project={props.project}
-          setProject={props.setProject}
-          setOffset={props.setOffset}
-          busy={props.busy}
-          authState={props.authState}
-        />
-        <div className="list-meta">
+        <WorkspaceSearchForm props={props} />
+        <div className={LIST_META_CLASS}>
           <span>{props.t.scopeNote}</span>
           {(props.searchMode.length > 0) && (
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="max-w-full whitespace-normal">
               {props.searchMode === 'hybrid' ? props.t.hybrid : props.t.keyword}
             </Badge>
           )}

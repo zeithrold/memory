@@ -16,7 +16,7 @@ import { perform } from './async-action'
 import { ACTIVE_RUN_STATES, RUNS_PAGE } from './catalog-constants'
 import { formFrom } from './catalog-form'
 
-interface LoadCatalogContext {
+type LoadCatalogContext = {
   ready: boolean
   api: Api
   setSettings: React.Dispatch<React.SetStateAction<CatalogSettings | null>>

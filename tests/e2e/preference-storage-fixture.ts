@@ -7,16 +7,10 @@ export const retainedStorage = {
   'memory.auth.fixture': 'private auth retained',
 }
 
-interface StorageAccess { operation: 'read' | 'write' | 'remove' | 'clear', key: string | null }
-interface PreferenceProbe {
+type StorageAccess = { operation: 'read' | 'write' | 'remove' | 'clear', key: string | null }
+export type PreferenceProbe = {
   accesses: StorageAccess[]
   retained: () => Record<string, string | null>
-}
-declare global {
-  interface Window {
-    memoryPreferenceProbe: PreferenceProbe
-    memoryPreferenceCookieWrites: string[]
-  }
 }
 
 function installPreferenceProbe(entries: Record<string, string>): void {

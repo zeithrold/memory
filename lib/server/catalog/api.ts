@@ -208,7 +208,7 @@ export async function startCatalogRun(
   )
 }
 
-interface ReadCatalogRunOptions { rawId: unknown, rawOffset: string | null, rawLimit: string | null }
+type ReadCatalogRunOptions = { rawId: unknown, rawOffset: string | null, rawLimit: string | null }
 
 export async function readCatalogRun(
   env: Env,

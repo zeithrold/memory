@@ -8,7 +8,7 @@ import {
 
 let started = false
 
-interface BrowserObservabilityProps {
+type BrowserObservabilityProps = {
   dsn: string
   release: string
 }

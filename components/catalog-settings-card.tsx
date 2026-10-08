@@ -14,6 +14,16 @@ import { Label } from './ui/label'
 import { Separator } from './ui/separator'
 import { Switch } from './ui/switch'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_2 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_3 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_4 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
 function CatalogToggles(
   { toggles, form, switchToggle, t }: CatalogTogglesProps,
 ): React.JSX.Element {
@@ -32,12 +42,12 @@ function CatalogToggles(
           />
         </div>
       ))}
-      <p className="muted">{t.includeContentHint}</p>
+      <p className={MUTED_CLASS}>{t.includeContentHint}</p>
     </div>
   )
 }
 
-interface CatalogProbeBadgeProps {
+type CatalogProbeBadgeProps = {
   probe: ProbeResult
   t: Messages
 }
@@ -64,14 +74,14 @@ function CatalogSettingsForm(
       {props.settings !== null && props.settings.lastProbeAt !== null
         && props.settings.lastProbeError !== null
         && (
-          <p className="muted">{`${props.t.lastProbe}: ${props.settings.lastProbeError}`}</p>
+          <p className={MUTED_CLASS_1}>{`${props.t.lastProbe}: ${props.settings.lastProbeError}`}</p>
         )}
 
       <CatalogProviderFields t={props.t} form={props.form} patch={props.patch} settings={props.settings} />
 
       <div className="flex flex-col gap-2">
-        <p className="muted">{props.t.providerHint}</p>
-        <p className="muted">{props.t.providerNeedsPaid}</p>
+        <p className={MUTED_CLASS_2}>{props.t.providerHint}</p>
+        <p className={MUTED_CLASS_3}>{props.t.providerNeedsPaid}</p>
       </div>
 
       <Separator />
@@ -94,7 +104,7 @@ function CatalogSettingsForm(
           <CatalogProbeBadge probe={props.probe} t={props.t} />
         )}
       </div>
-      {props.probe !== null && <p className="muted">{props.probe.detail}</p>}
+      {props.probe !== null && <p className={MUTED_CLASS_4}>{props.probe.detail}</p>}
     </CardContent>
   )
 }
@@ -129,14 +139,14 @@ export function CatalogSettingsCard(props: CatalogSettingsCardProps): React.JSX.
   )
 }
 
-interface CatalogTogglesProps {
+type CatalogTogglesProps = {
   toggles: [string, string, boolean][]
   form: FormState
   switchToggle: (id: string, value: boolean) => void
   t: Messages
 }
 
-interface CatalogSettingsFormProps {
+type CatalogSettingsFormProps = {
   settings: CatalogSettings | null
   t: Messages
   form: FormState
@@ -149,7 +159,7 @@ interface CatalogSettingsFormProps {
   probe: ProbeResult | null
 }
 
-interface CatalogSettingsCardProps {
+type CatalogSettingsCardProps = {
   t: Messages
   setFormOpen: React.Dispatch<React.SetStateAction<boolean>>
   formOpen: boolean

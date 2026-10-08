@@ -8,7 +8,7 @@ import { errorResponse, requirePermission } from './errors'
 import { challenge, MCP_RESOURCE_PATH } from './oauth'
 import { recordUsage } from './usage'
 
-interface CallMemoryToolContext {
+type CallMemoryToolContext = {
   principal: Principal
   env: Env
 }

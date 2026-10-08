@@ -24,7 +24,7 @@ export async function embed(env: Env, text: string): Promise<number[]> {
   return vector
 }
 
-interface KeywordCandidatesContext {
+type KeywordCandidatesContext = {
   input: {
     query: string
     project: string
@@ -64,7 +64,7 @@ async function keywordCandidates(context: KeywordCandidatesContext): Promise<{
   return { explicitScope, keywords }
 }
 
-interface VectorCandidatesContext {
+type VectorCandidatesContext = {
   env: Env
   input: {
     query: string

@@ -23,7 +23,7 @@ import {
  */
 export type ToolEffect = 'read' | 'immediate' | 'proposal' | 'control'
 
-export interface ToolContext {
+export type ToolContext = {
   env: Env
   ownerId: string
   runId: string
@@ -40,7 +40,7 @@ export interface ToolContext {
 
 export type ActionDecision = 'applied' | 'proposed' | 'rejected_by_policy' | 'rejected_by_user' | 'skipped'
 
-export interface ActionRecord {
+export type ActionRecord = {
   kind: string
   effect: ToolEffect
   decision: ActionDecision
@@ -54,7 +54,7 @@ export interface ActionRecord {
   after?: unknown
 }
 
-export interface ToolOutcome {
+export type ToolOutcome = {
   /** What the model is told. A rejection is a result, not an exception. */
   result: Record<string, unknown>
   action?: ActionRecord
@@ -64,7 +64,7 @@ export interface ToolOutcome {
   finished?: boolean
 }
 
-export interface ToolDefinition {
+export type ToolDefinition = {
   name: string
   description: string
   effect: ToolEffect
@@ -115,7 +115,7 @@ export function memoryIdMembership(ctx: ToolContext, memoryId: string): string |
 }
 
 /** Keeps each implementation tied to the schema that validates its arguments. */
-interface DefineToolDefinition<S extends z.ZodType> {
+type DefineToolDefinition<S extends z.ZodType> = {
   name: string
   description: string
   effect: ToolEffect

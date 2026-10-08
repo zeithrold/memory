@@ -17,7 +17,34 @@ import { MemoryDetailSkeleton, RevisionListSkeleton } from './skeletons'
 import { Button } from './ui/button'
 import { SetupBanner } from './workspace-shell'
 
-interface MemoryHistoryProps {
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const DETAIL_HISTORY_CLASS = ['detail-history mt-8 [&_>_h2]:mt-0 [&_>_h2]:mx-0 [&_>_h2]:mb-4'].join(' ')
+
+const SECTION_HEADING_CLASS = ['section-heading flex justify-between gap-4 items-center mb-5 [&_h2]:m-0'].join(' ')
+
+const PAGE_CLASS = [
+  'page detail-page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6',
+  'max-[640px]:py-6 max-[640px]:px-4',
+].join(' ')
+
+const ERROR_BANNER_CLASS = [
+  'error-banner py-4 px-5 bg-[var(--error-background)] text-destructive rounded-md text-control',
+  'wrap-anywhere mb-4',
+].join(' ')
+
+const EMPTY_STATE_CLASS = [
+  'empty-state min-h-[330px] flex flex-col items-center justify-center text-center py-10 px-4 [&_h2]:mt-1',
+  '[&_h2]:mx-0 [&_h2]:mb-2 [&_h2]:text-[length:19px] [&_p]:text-muted-foreground [&_p]:text-body',
+  '[&_p]:leading-[1.9] [&_p]:max-w-[350px] [&_p]:mt-0 [&_p]:mx-0 [&_p]:mb-6 max-[640px]:min-h-70',
+].join(' ')
+
+const EMPTY_ICON_CLASS = [
+  'empty-icon h-19 w-19 border border-border rounded-[25px] bg-muted grid [place-items:center]',
+  'text-muted-foreground transform-[rotate(-6deg)] mb-5',
+].join(' ')
+
+type MemoryHistoryProps = {
   t: Messages
   revisions: MemoryRevision[] | null
   historyBusy: boolean
@@ -29,8 +56,8 @@ function MemoryHistory(
   { t, revisions, historyBusy, loadHistory, locale }: MemoryHistoryProps,
 ): React.JSX.Element {
   return (
-    <section className="detail-history">
-      <div className="section-heading">
+    <section className={DETAIL_HISTORY_CLASS}>
+      <div className={SECTION_HEADING_CLASS}>
         <h2>{t.revisions}</h2>
         {revisions === null && (
           <Button
@@ -47,7 +74,7 @@ function MemoryHistory(
       {revisions !== null
         && (revisions.length === 0
           ? (
-              <p className="muted">{t.noRevisions}</p>
+              <p className={MUTED_CLASS}>{t.noRevisions}</p>
             )
           : (
               <RevisionList revisions={revisions} t={t} locale={locale} />
@@ -56,7 +83,7 @@ function MemoryHistory(
   )
 }
 
-interface MemoryDetailEditorProps {
+type MemoryDetailEditorProps = {
   memory: Memory
   t: Messages
   busy: boolean
@@ -95,7 +122,7 @@ function MemoryDetailEditor(props: MemoryDetailEditorProps): React.JSX.Element {
   )
 }
 
-export interface MemoryDetailContentProps {
+export type MemoryDetailContentProps = {
   t: Messages
   memory: Memory | null
   editing: boolean
@@ -120,7 +147,7 @@ export function MemoryDetailContent(
   props: MemoryDetailContentProps,
 ): React.JSX.Element {
   return (
-    <div className="page detail-page">
+    <div className={PAGE_CLASS}>
       <MemoryToolbar
         t={props.t}
         memory={props.memory}
@@ -133,7 +160,10 @@ export function MemoryDetailContent(
       />
       {props.authState === 'unconfigured' && <SetupBanner />}
       {(props.error.length > 0) && (
-        <div className="error-banner" role="alert">
+        <div
+          className={ERROR_BANNER_CLASS}
+          role="alert"
+        >
           {props.error}
         </div>
       )}
@@ -173,8 +203,8 @@ function MemoryDetailStatus(
     <>
       {props.loading && props.memory === null && !props.missing && <MemoryDetailSkeleton />}
       {props.missing && (
-        <div className="empty-state">
-          <div className="empty-icon">
+        <div className={EMPTY_STATE_CLASS}>
+          <div className={EMPTY_ICON_CLASS}>
             <BookOpen size={34} strokeWidth={1.3} />
           </div>
           <h2>{props.t.missingMemory}</h2>

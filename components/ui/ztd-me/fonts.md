@@ -1,15 +1,13 @@
 # Noto typography through Google Fonts
 
 The source UI uses the Google Fonts CSS2 API directly. `styles/fonts.css` imports Noto Sans and
-Noto Sans SC/JP/KR at weights 400, 500, 600 and 700, plus **Noto Color Emoji** at its native weight 400.
+Noto Sans SC/JP/KR as a variable weight range from 400 through 700, plus **Noto Color Emoji** at its native weight 400.
 The owner selected color for all emoji. There is no monochrome-first fallback, bundled font binary or
 Fontsource dependency. The emoji token and ordinary Latin/CJK stacks use the same color family.
 
-An earlier monochrome candidate caused Chromium to use its platform color font for the VS16 heart
-(`❤️`) and rainbow flag (`🏳️‍🌈`). An isolated Chromium 151 preview tested official Google font bytes
-downloaded with normal TLS: Noto Color Emoji renders all six sample sequences as single custom-font
-glyphs. The production query now selects that family. The complete default and post-merge public gates
-must verify actual remote browser delivery; local preview evidence does not replace them.
+The complete default and public-install gates verify actual remote browser delivery, including six
+composed Noto Color Emoji samples rendered as single custom-font glyphs. Local preview evidence does
+not replace those gates. See [verification](https://github.com/zeithrold/tools/blob/main/packages/ui/docs/verification.md) for commands, evidence and limitations.
 
 Noto Sans handles English and Latin text. Simplified Chinese uses Noto Sans SC. Elements marked
 `lang="ja"` or `lang="ko"` prioritize the matching CJK family for regional glyph forms. Set the
@@ -19,7 +17,8 @@ coverage. Consumers adding other languages should verify the appropriate Noto va
 
 Noto Serif and its appropriate CJK variants are permitted for content that benefits from serif
 typography. The ordinary UI does not load unused Serif families. Add an explicit Google Fonts API
-request and semantic consumer token when introducing serif content; avoid a blanket body replacement.
+request by importing delivered `styles/fonts-serif.css`, then apply `font-serif` (or `.ztd-prose`)
+to reading content. `--ztd-font-serif` supplies the semantic stack, with matching CJK language forms.
 
 `--ztd-font-sans` and `--ztd-font-emoji` are the delivered font tokens. Latin and CJK precede emoji in the
 ordinary text stack, preserving normal digits and text symbols. Use `.ztd-emoji` for an explicitly composed emoji

@@ -8,7 +8,7 @@ import { REASSIGNMENT_AGE_DAYS } from './policy'
 import { isoNow } from './run-common'
 import { loadSettingsRow } from './settings'
 
-export interface BatchStart {
+export type BatchStart = {
   memoryIds: string[]
   maxTurns: number
   maxToolCalls: number
@@ -54,7 +54,7 @@ export async function startBatch(
   }
 }
 
-export interface BatchStats {
+export type BatchStats = {
   turns: number
   toolCalls: number
   rejected: number
@@ -70,7 +70,7 @@ export interface BatchStats {
  * runs, and an edit clears it.
  */
 
-interface RecordImplicitSkipsContext {
+type RecordImplicitSkipsContext = {
   mode: 'live' | 'dry_run'
   memoryIds: string[]
   statements: D1PreparedStatement[]
@@ -142,7 +142,7 @@ source, retry_after)
     }
   }
 }
-interface FinalizeBatchOptions { runId: string, memoryIds: string[], stats: BatchStats, mode?: 'live' | 'dry_run' }
+type FinalizeBatchOptions = { runId: string, memoryIds: string[], stats: BatchStats, mode?: 'live' | 'dry_run' }
 
 export async function finalizeBatch(
   env: Env,

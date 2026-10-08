@@ -6,7 +6,7 @@ const metadataSchema = z.object({
   dirty: z.literal(false),
   lockfileSha256: z.string().regex(/^[a-f0-9]{64}$/u),
 })
-interface DeploymentContext {
+type DeploymentContext = {
   eventName: string
   ref: string
   revision: string

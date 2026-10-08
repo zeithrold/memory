@@ -12,14 +12,14 @@ import {
 import { perform } from './async-action'
 import { MemoryWorkspaceContent } from './memory-workspace-view'
 
-interface WorkspaceProps {
+type WorkspaceProps = {
   t: Messages
   locale: Locale
   authState: 'ready' | 'unconfigured'
   api: ReturnType<typeof useWorkspace>['api']
 }
 
-interface LoadWorkspaceMemoriesContext {
+type LoadWorkspaceMemoriesContext = {
   authState: 'ready' | 'unconfigured'
   setLoading: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string>>
@@ -57,7 +57,7 @@ async function loadWorkspaceMemories(
   }
 }
 
-interface RunMemoryWorkspaceActionContext {
+type RunMemoryWorkspaceActionContext = {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string>>
   t: Messages

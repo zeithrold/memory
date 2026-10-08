@@ -1,0 +1,343 @@
+{
+  "consumer": "/home/runner/work/tools/tools/packages/ui/.artifacts/source-consumer-NCYeNI",
+  "cli": "shadcn@4.21.1",
+  "item": "@ztd-me/ui",
+  "payloadSha256": "0ea6c065dc4da6608fb8b2beb817b8607c03ad694f40af1a49160971c804ddd4",
+  "dependencies": [
+    "react@19.3.0",
+    "react-dom@19.3.0",
+    "@radix-ui/react-accordion@1.2.20",
+    "@radix-ui/react-alert-dialog@1.1.23",
+    "@radix-ui/react-checkbox@1.3.11",
+    "@radix-ui/react-collapsible@1.1.20",
+    "@radix-ui/react-dialog@1.1.23",
+    "@radix-ui/react-dropdown-menu@2.1.24",
+    "@radix-ui/react-scroll-area@1.2.18",
+    "@radix-ui/react-select@2.3.7",
+    "@radix-ui/react-slot@1.3.3",
+    "@radix-ui/react-tabs@1.1.21",
+    "@radix-ui/react-tooltip@1.2.16",
+    "get-nonce@1.0.1",
+    "lucide-react@1.49.0",
+    "vaul@1.1.2",
+    "tailwind-merge@3.7.0",
+    "@radix-ui/react-switch@1.3.7"
+  ],
+  "files": [
+    {
+      "installed": "components/ui/ztd-me/appbar.tsx",
+      "sha256": "854136d3a9902c477e958b5cc122945abbe8a54a5bec88714d9970f3bdea4cd3"
+    },
+    {
+      "installed": "components/ui/ztd-me/appearance.tsx",
+      "sha256": "ad193b7c7fa5c3ed97bb492ef942c266cefabd547dcefe01b93009fe95e3d7b0"
+    },
+    {
+      "installed": "components/ui/ztd-me/browser-environment.ts",
+      "sha256": "3a2dd07c834286fb48d02c32bf3b23a4079ef37f1bd11d0683e249de0ffbe7e5"
+    },
+    {
+      "installed": "components/ui/ztd-me/client.ts",
+      "sha256": "c1d6bb2b15b3eb8da49bfb13a57ed5bdad2197aec1a737d56a4e66049156c289"
+    },
+    {
+      "installed": "components/ui/ztd-me/context.ts",
+      "sha256": "ad910c31f89c9d9c115bec6362668ace97a35c5d273b3953e2e904bedf79fc4f"
+    },
+    {
+      "installed": "components/ui/ztd-me/cookies.ts",
+      "sha256": "543e375b1a6e1a6efefe3f6413de9cdea6281340880d8cfe80c5da15984e7f8b"
+    },
+    {
+      "installed": "components/ui/ztd-me/footer.tsx",
+      "sha256": "794e15b3ca0c72f0f4599bb19474ce945e3263f846aa40b51cf0641c47e9a1bb"
+    },
+    {
+      "installed": "components/ui/ztd-me/href.ts",
+      "sha256": "c3248535b2582a76f23ca8e9f1b2bf8360ba92e83a6a4f2a09f87782f07cce1a"
+    },
+    {
+      "installed": "components/ui/ztd-me/index.ts",
+      "sha256": "dd556cf96abb85ac3f4283258120c1d70c342359b57c012595b71846d0eecac7"
+    },
+    {
+      "installed": "components/ui/ztd-me/link.tsx",
+      "sha256": "cbb9ca6ca46b50c74e0ac4a63b2585c32ba50d6f99c224dff2c592c2dd70e77c"
+    },
+    {
+      "installed": "components/ui/ztd-me/locale-select.tsx",
+      "sha256": "fa29ba8b4ec9c0b885b2282295567761ef3467404dd59ea94899343017843f8d"
+    },
+    {
+      "installed": "components/ui/ztd-me/locale.ts",
+      "sha256": "a78d33ce3710c7896c5dc21e6ef69a74db657869f2cabcd355b7ca8eefa8ab9a"
+    },
+    {
+      "installed": "components/ui/ztd-me/messages.ts",
+      "sha256": "48e94cfa3dc31b3f4976eeb81b27e151a0d616e1f7c5a6e805923d733513cc66"
+    },
+    {
+      "installed": "components/ui/ztd-me/policy.ts",
+      "sha256": "5978110d3266bfefe6317f04e3ae8baf7ad25a9c0911b6b545cd674da0c831ae"
+    },
+    {
+      "installed": "components/ui/ztd-me/preferences.ts",
+      "sha256": "c73dbf5ec4c5d772e6cceb7d2fe7b8bc6febb01ac94cb175968fa7d1aa8a12f7"
+    },
+    {
+      "installed": "components/ui/ztd-me/provider.tsx",
+      "sha256": "2f74451decbcb0b50d5bd55777dc23d0e8664c36e26ba89dc75476a6b15c1bc8"
+    },
+    {
+      "installed": "components/ui/ztd-me/shell-types.ts",
+      "sha256": "3dd7e74b91d1b39eb9f5bda571f6b44123d1ebcbb8bb6cc31ca3b777dbd6deba"
+    },
+    {
+      "installed": "components/ui/ztd-me/shell.tsx",
+      "sha256": "9dcbe9e87af9f1d4addd184ff18e94a184371b41d2256847c27fe548d8fdb57b"
+    },
+    {
+      "installed": "components/ui/ztd-me/store-types.ts",
+      "sha256": "7f43bacf0bece40451e0bfbd1ce6a02251ced541fa8391544e62b78f1e7d90ec"
+    },
+    {
+      "installed": "components/ui/ztd-me/store.ts",
+      "sha256": "824bcd3e37a9b2f82c790a20534c02aa3021fd61b866ffc4827d935d98dbd963"
+    },
+    {
+      "installed": "components/ui/ztd-me/text.ts",
+      "sha256": "a31d90591246a8d3c9f40087138d926df2abfb9a2e47e4b6f166ed9c9873bc24"
+    },
+    {
+      "installed": "components/ui/ztd-me/types.ts",
+      "sha256": "35e45ba76e969ba5824bf108765415ba9359aa628ed6dad229ce33e85af7260d"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/button-variants.ts",
+      "sha256": "8338b08f6bbff36c4a43944daacfba27c0b367605dfdf21e96d0850780140cd6"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/button.tsx",
+      "sha256": "3903809f4ebae00f8cc74551d79ff7e8dc21bfa0b128ddaf15ac489c9b283627"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/inert.ts",
+      "sha256": "2212c3baa5d123cdf5ff2fcdff81ef038d006dd904e49b9d1f6bdede118d2ceb"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/menu-choice.tsx",
+      "sha256": "1d41ee2bec6c41da2ae0cb60d807d2aba749095278133416c6089a807b963759"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles.css",
+      "sha256": "c16be28174e840c6c0f353ac082a2b8d74fb6b151b74fb77bd68c68b740fd887"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/tokens.css",
+      "sha256": "a8697a72ae551a0291d5ee73587bb4630032e9655d048ad213ceec4d7a754ddb"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/shell.css",
+      "sha256": "c6a6fdd175916a9831153757ae26534efa1b2bf4040221806767a43b2f1e707d"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/motion.css",
+      "sha256": "fc51ea4c1f44871af23936010c43c8f0749316d0cf8a532239d2c707e2bc6bf6"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/fonts.css",
+      "sha256": "38b6e20b0eb0617b776a457d345a2a10341e270fdab5dd74aded87a3c543a8ad"
+    },
+    {
+      "installed": "components/ui/ztd-me/LICENSE",
+      "sha256": "97505f3d4a00e2a4f427e2f46d51f9da44a720a456ae79b70341b3d311bc201d"
+    },
+    {
+      "installed": "components/ui/ztd-me/THIRD_PARTY_NOTICES.md",
+      "sha256": "3be38b51e01957b87389e39cd3426eabc50190fb46ae85ebc58b48290718b1f2"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/SHADCN-MIT.txt",
+      "sha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f"
+    },
+    {
+      "installed": "components/ui/ztd-me/patches/@radix-ui__react-select@2.3.7.patch",
+      "sha256": "9ee07b67639018c5db90378f411f81e59de5f7a9865432af906b7e682fa9f24c"
+    },
+    {
+      "installed": "components/ui/ztd-me/README.md",
+      "sha256": "60fc88932685506d01aeab99bc65413526c02595f4024b62c4c35a4a4fd56b4d"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SANS-OFL.txt",
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SANS-SC-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SANS-JP-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SANS-KR-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-EMOJI-OFL.txt",
+      "sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-COLOR-EMOJI-OFL.txt",
+      "sha256": "ac564676d10054a8445923dfc2dfb13c042d97888bd27c1b6ec6dfe89a9d8d62"
+    },
+    {
+      "installed": "components/ui/ztd-me/fonts.md",
+      "sha256": "49a405c2aefa84ff1e9f3e4232f259759fc2e4ea1604483c80cc1350c5e1c709"
+    },
+    {
+      "installed": "components/ui/ztd-me/i18n.ts",
+      "sha256": "279fdbdb5365610427928c74764b243781dd4d0b3af6b3ca808d90336406afa2"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/primitives.css",
+      "sha256": "011617b8e6351955b99556358ad9bd073fba090096f8073c413043cd019d7579"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/accordion.tsx",
+      "sha256": "b4ad0e75746ef94ce89548d83f7aea40c059f11d2ea5d3d3371e972fd3e5afec"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/alert-dialog.tsx",
+      "sha256": "476d8ec41691e22dbc4fef31c776549adae8059ddd29a14fa63fd18dd5a50184"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/card.tsx",
+      "sha256": "46ff00d42c7d1b61056a36606b27c3958bb837266e47f87ba0fdc1d87413f0b8"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/checkbox.tsx",
+      "sha256": "f8e06548b1e99a4bafa003cf49853d028507a2ac6bab19b4ad519def48835320"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/collapsible.tsx",
+      "sha256": "c5f5a1bf9ea1d9dfccd87d174294328378185851270463aea2ce303718489b31"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/dialog.tsx",
+      "sha256": "545246025f0ab629d567638a1e5a85fd3daf04a9da0c192efb73068a4f6ae9f8"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/fields.tsx",
+      "sha256": "cf928ad9d6936809537c3c08a8ea5a18d47a9701c41813a65b41d3543befc72d"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/portal.ts",
+      "sha256": "3db9c440704893b4426d47eebd8ceeac45cddc13f2f31520f33c686ff9d3d820"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/scroll-area.tsx",
+      "sha256": "03345bc2fad9987afb77f2b51707edf7aefd3a03db3c1088d031fedd297ba05a"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/select.tsx",
+      "sha256": "d6fe0d0098b4b6be5ae10d5ca3c1183f78590f236429f86134e27fd8b8cf30ae"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/sheet.tsx",
+      "sha256": "46c5d5a70528739b2f9f6841da20f93eda774dd7bc4c86c8473264dadd3970de"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/tabs.tsx",
+      "sha256": "ebeae724c8a9c23063e0cb53abe05f7708c3b9b079c7ace4abcce6fb0a9f06ba"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/tooltip.tsx",
+      "sha256": "edf39f1acff3bcf48450db77e8835bd498296fdc1a6ef4cc0e8e913e2391df0d"
+    },
+    {
+      "installed": "components/ui/ztd-me/use-i18n.ts",
+      "sha256": "c324ab45b3449443a8f26239ec88f549544c794e72bfc0463639f9b819d5d2dd"
+    },
+    {
+      "installed": "components/ui/ztd-me/foundation.md",
+      "sha256": "d6f2aa5e712326a30ab5695228c2422fc154298559e83ac350b8012ceb2b5de2"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/RADIX-MIT.txt",
+      "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+    },
+    {
+      "installed": "components/ui/ztd-me/tailwind.css",
+      "sha256": "193945437dfa392c217f3857a9a745204bcec1e5a1c09859387b6c6538a948e2"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/classes.ts",
+      "sha256": "8a263a429086dfae699f96fdc6de822e6fc6881209c6acc83439645430a734f3"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/cn.ts",
+      "sha256": "9edd159815e66a464c4090922d85ea75a383778a5515b4f339015c93cdfebdd3"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/drawer.tsx",
+      "sha256": "588b99a88e559e4cfbd7f2431360480be15746fd511bb4a38ceaad7540bf2d02"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/color-grid.tsx",
+      "sha256": "41aae23b02702ca676276cae29b56ef78b63e290057ba4e4f747f59b0c27340c"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/setting-section.tsx",
+      "sha256": "76e22d252124affc615aa7ee92f3d7132ebb358f82607000e3f3accb0cacba0a"
+    },
+    {
+      "installed": "components/ui/ztd-me/ui/switch.tsx",
+      "sha256": "ba8cf39e29bd5ff7edbe431d5bebd27d05e60c199a80915efff55218d4123991"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/fonts-serif.css",
+      "sha256": "f6cd39e592ad002db35267e771d18a394c3e1829c4ba6a9326e4bb2d9cb4b916"
+    },
+    {
+      "installed": "components/ui/ztd-me/styles/drawer.css",
+      "sha256": "fc9e3ed2a1966d938b79040ad2994c864c7d509038edc4caa0d6a223bd46ecd7"
+    },
+    {
+      "installed": "components/ui/ztd-me/patches/vaul@1.1.2.patch",
+      "sha256": "60ec03db164a95a87e8d241a56a63464bbdadcac2d9ffbca933f0ab9586f7c19"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/VAUL-MIT.txt",
+      "sha256": "b09b9ccf866cc09b502d9cf4679e2461beb1469709ea0c6a30009766e10b3acf"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SERIF-OFL.txt",
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SERIF-SC-OFL.txt",
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SERIF-JP-OFL.txt",
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/NOTO-SERIF-KR-OFL.txt",
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    },
+    {
+      "installed": "components/ui/ztd-me/third-party/REACT-REMOVE-SCROLL-BAR-MIT.txt",
+      "sha256": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84"
+    }
+  ],
+  "requiredUiPackage": false,
+  "sourceSha": "9abea5a57b97f63109fb7dc5255543b53629c3ba",
+  "registryUrl": "https://raw.githubusercontent.com/zeithrold/tools/9abea5a57b97f63109fb7dc5255543b53629c3ba/registry/{name}.json",
+  "browserArtifacts": ".artifacts/browser/public-source",
+  "fontVerification": "google-fonts-api",
+  "cssVerification": "published-checker",
+  "publicInstallationVerified": true
+}

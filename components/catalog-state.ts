@@ -2,7 +2,7 @@
 import type * as CatalogTypes from './catalog-types'
 import { useRef, useState } from 'react'
 
-interface UseCatalogStateResult {
+type UseCatalogStateResult = {
   settings: CatalogTypes.CatalogSettings | null
   setSettings: React.Dispatch<React.SetStateAction<CatalogTypes.CatalogSettings | null>>
   catalog: CatalogTypes.CatalogView | null

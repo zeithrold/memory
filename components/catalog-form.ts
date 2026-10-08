@@ -20,7 +20,7 @@ export function formFrom(settings: CatalogSettings): FormState {
   }
 }
 
-interface PatchCatalogFormContext {
+type PatchCatalogFormContext = {
   setForm: React.Dispatch<React.SetStateAction<FormState | null>>
 }
 
@@ -33,7 +33,7 @@ export function patchCatalogForm(
   setForm(current => (current === null ? current : { ...current, ...next }))
 }
 
-interface ToggleCatalogSettingContext {
+type ToggleCatalogSettingContext = {
   patch: (next: Partial<FormState>) => void
 }
 

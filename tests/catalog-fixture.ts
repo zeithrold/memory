@@ -18,7 +18,7 @@ afterEach(() => {
   store.sqlite.close()
 })
 
-interface CategoryInput {
+type CategoryInput = {
   id: string
   ownerId?: string
   parentId?: string | null

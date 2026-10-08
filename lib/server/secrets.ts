@@ -22,7 +22,7 @@ const KEY_HEX_LENGTH = 64
 const IV_BYTES = 12
 const HINT_LENGTH = 4
 
-export interface SealedSecret {
+export type SealedSecret = {
   ciphertext: string
   iv: string
   /** Last characters of the plaintext, for telling two configured keys apart. */

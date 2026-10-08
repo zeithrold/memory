@@ -13,13 +13,25 @@ import { TokenList } from './token-list'
 import { tokenProject } from './token-project'
 import { Button } from './ui/button'
 
-interface TokenPanelProps {
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const ERROR_BANNER_CLASS = [
+  'error-banner py-4 px-5 bg-[var(--error-background)] text-destructive rounded-md text-control',
+  'wrap-anywhere mb-4',
+].join(' ')
+
+const SECRET_BOX_CLASS = [
+  'secret-box py-4 px-5 border border-border bg-muted mb-6 rounded-md text-control [&_code]:block',
+  '[&_code]:wrap-anywhere [&_code]:my-4 [&_code]:mx-0',
+].join(' ')
+
+type TokenPanelProps = {
   t: Messages
   api: Api
   ready: boolean
 }
 
-interface LoadTokensContext {
+type LoadTokensContext = {
   ready: boolean
   setLoading: React.Dispatch<React.SetStateAction<boolean>>
   setTokens: React.Dispatch<React.SetStateAction<TokenSummary[]>>
@@ -46,7 +58,7 @@ async function loadTokens(context: LoadTokensContext): Promise<void> {
   }
 }
 
-interface CreateTokenContext {
+type CreateTokenContext = {
   scopes: Scope[]
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   setError: React.Dispatch<React.SetStateAction<string>>
@@ -85,7 +97,7 @@ async function createToken(context: CreateTokenContext, form: HTMLFormElement): 
   }
 }
 
-interface TokenPanelContentProps {
+type TokenPanelContentProps = {
   error: string
   secret: string
   t: Messages
@@ -106,12 +118,18 @@ function TokenPanelContent(props: TokenPanelContentProps): React.JSX.Element {
   return (
     <>
       {(props.error.length > 0) && (
-        <p className="error-banner" role="alert">
+        <p
+          className={ERROR_BANNER_CLASS}
+          role="alert"
+        >
           {props.error}
         </p>
       )}
       {(props.secret.length > 0) && (
-        <div className="secret-box" role="status">
+        <div
+          className={SECRET_BOX_CLASS}
+          role="status"
+        >
           <strong>{props.t.tokenSecret}</strong>
           <code>{props.secret}</code>
           <CopyButton value={props.secret} t={props.t} />
@@ -197,7 +215,7 @@ function TokenResults(props: TokenPanelContentProps): React.JSX.Element {
     return <TokenListSkeleton />
   }
   if (props.tokens.length === 0) {
-    return <p className="muted">{props.t.noTokens}</p>
+    return <p className={MUTED_CLASS}>{props.t.noTokens}</p>
   }
   return (
     <TokenList

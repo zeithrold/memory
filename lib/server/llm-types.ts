@@ -1,4 +1,4 @@
-export interface ToolSpec {
+export type ToolSpec = {
   name: string
   description: string
   /** JSON Schema for the arguments object. */
@@ -18,7 +18,7 @@ export type JsonValue
     | JsonValue[]
     | { [key: string]: JsonValue }
 
-export interface LlmToolCall {
+export type LlmToolCall = {
   /** Synthesised when a backend omits the identifier. */
   id: string
   name: string
@@ -26,14 +26,14 @@ export interface LlmToolCall {
   arguments: JsonValue
 }
 
-export interface ModelMessage {
+export type ModelMessage = {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   toolCallId?: string
   toolCalls?: LlmToolCall[]
 }
 
-export interface LlmReply {
+export type LlmReply = {
   content: string | null
   toolCalls: LlmToolCall[]
   status: 'completed' | 'incomplete' | 'failed'
@@ -48,19 +48,19 @@ export type Provider
     | { kind: 'responses-api', model: string, baseUrl: string, apiKey: string }
     | { kind: 'workers-ai', model: string }
 
-export interface ModelOptions {
+export type ModelOptions = {
   maxOutputTokens?: number
   timeoutMs?: number
 }
 
-export interface ProbeResult {
+export type ProbeResult = {
   reachable: boolean
   modelOk: boolean
   toolCallingOk: boolean
   detail: string
 }
 
-export interface RequestFailure {
+export type RequestFailure = {
   code: 'PROVIDER_TIMEOUT' | 'PROVIDER_ERROR'
   message: string
   retryable: boolean

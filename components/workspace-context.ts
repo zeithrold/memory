@@ -4,7 +4,7 @@ import type { Api, AuthState } from './api-client'
 import type { Locale, Messages } from '@/lib/i18n/messages'
 import { createContext, use } from 'react'
 
-export interface WorkspaceValue {
+export type WorkspaceValue = {
   t: Messages
   locale: Locale
   authState: AuthState

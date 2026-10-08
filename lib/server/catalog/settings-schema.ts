@@ -39,7 +39,7 @@ export const settingsInputSchema = z
   })
   .strict()
 
-export interface CatalogSettingsRow {
+export type CatalogSettingsRow = {
   owner_id: string
   enabled: number
   provider: ProviderKind
@@ -63,7 +63,7 @@ export interface CatalogSettingsRow {
 }
 
 /** The shape the browser receives. Never carries the ciphertext or the key. */
-export interface CatalogSettingsView {
+export type CatalogSettingsView = {
   enabled: boolean
   provider: ProviderKind
   baseUrl: string | null
@@ -105,7 +105,7 @@ export const DEFAULT_MAX_TOOL_CALLS = 8
 
 export const DEFAULT_DAILY_TOKEN_BUDGET = 100000
 
-export interface CatalogRuntimeStatus {
+export type CatalogRuntimeStatus = {
   awaitingReview: boolean
   failureStreak: number
   todayTokens: number

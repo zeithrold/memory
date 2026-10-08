@@ -74,7 +74,7 @@ async function token(
   return secret
 }
 
-interface RequestOptions {
+type RequestOptions = {
   secret?: string
   accessJwt?: string
   cookie?: string

@@ -36,7 +36,7 @@ export async function authenticate(
   return principal
 }
 
-interface TokenRow {
+type TokenRow = {
   id: string
   owner_id: string
   scopes: string

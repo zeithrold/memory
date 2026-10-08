@@ -10,9 +10,22 @@ import { CategoryPageContent } from './category-page-view'
 
 import { useWorkspace } from './workspace-context'
 
-interface CatalogCategoryPageProps { categoryId: string }
+const PAGE_CLASS = [
+  'page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
+  'max-[640px]:px-4',
+].join(' ')
 
-interface LoadCategoryPageContext {
+const SKELETON_CLASS = [
+  'skeleton skeleton-heading relative overflow-hidden bg-muted rounded-[6px] h-8 w-[46%]',
+].join(' ')
+
+const SKELETON_CLASS_1 = [
+  'skeleton skeleton-line relative overflow-hidden bg-muted rounded-[6px] h-[11px] w-full',
+].join(' ')
+
+type CatalogCategoryPageProps = { categoryId: string }
+
+type LoadCategoryPageContext = {
   authState: ReturnType<typeof useWorkspace>['authState']
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   api: Api
@@ -53,7 +66,7 @@ async function loadCategoryPage(
   }
 }
 
-interface OpenChildCategoryContext {
+type OpenChildCategoryContext = {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   setChildDetail: React.Dispatch<React.SetStateAction<CategoryDetail | null>>
   api: Api
@@ -145,10 +158,10 @@ export default function CatalogCategoryPage(
   const model = useCategoryPageModel({ categoryId })
   if (model.authState === 'ready' && model.loading) {
     return (
-      <div className="page">
-        <div className="skeleton-stack">
-          <div className="skeleton skeleton-heading" />
-          <div className="skeleton skeleton-line" />
+      <div className={PAGE_CLASS}>
+        <div className="skeleton-stack grid gap-2">
+          <div className={SKELETON_CLASS} />
+          <div className={SKELETON_CLASS_1} />
         </div>
       </div>
     )

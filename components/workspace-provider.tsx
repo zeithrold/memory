@@ -6,7 +6,7 @@ import { useMemo } from 'react'
 import { createApi } from './api-client'
 import { WorkspaceContext } from './workspace-context'
 
-interface WorkspaceProviderProps {
+type WorkspaceProviderProps = {
   children: React.ReactNode
   t: Messages
   locale: Locale

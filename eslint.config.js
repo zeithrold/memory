@@ -7,6 +7,10 @@ export default config({
   ignores: [
     'dist/**',
     '.wrangler/**',
+    '.zt/**',
+    // Upstream documentation bytes are checked by the source receipt.
+    'components/ui/ztd-me/README.md',
+    'components/ui/ztd-me/foundation.md',
     '.vinext/**',
     'pnpm-lock.yaml',
     'next-env.d.ts',
@@ -31,4 +35,8 @@ export default config({
     'ts/no-unsafe-member-access': 'error',
     'ts/no-unsafe-return': 'error',
   },
+}, {
+  files: ['**/*.d.ts'],
+  // Native/global declaration merging requires interfaces, with the rule still enforced.
+  rules: { 'ts/consistent-type-definitions': ['error', 'interface'] },
 })

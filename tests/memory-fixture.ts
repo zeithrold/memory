@@ -124,7 +124,7 @@ function request(
   })
 }
 
-interface VectorsResult {
+type VectorsResult = {
   query: Mock<(...args: unknown[]) => Promise<unknown>>
   upsert: Mock<(...args: unknown[]) => Promise<unknown>>
   deleteByIds: Mock<(...args: unknown[]) => Promise<unknown>>

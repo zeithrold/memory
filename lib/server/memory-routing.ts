@@ -21,7 +21,7 @@ import { fuseRankings, terms } from './search'
  * slot.
  */
 
-interface RouteCategoryCandidatesContext {
+type RouteCategoryCandidatesContext = {
   env: Env
   principal: Principal
   selected: { id: string, label: string, description: string, boundary: string, member_count: number }[]
@@ -80,7 +80,7 @@ async function routeCategoryCandidates(
   }
   return { sizes, deviations, lists, reported }
 }
-interface RouteThroughCatalogPool { flat: string[], byId: Map<string, MemoryRow>, query: string }
+type RouteThroughCatalogPool = { flat: string[], byId: Map<string, MemoryRow>, query: string }
 
 export async function routeThroughCatalog(
   env: Env,

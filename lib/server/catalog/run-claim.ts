@@ -16,7 +16,7 @@ import { loadSettingsRow } from './settings'
  * step state never carries the user's text.
  */
 
-interface LoadOperatorPromptContext {
+type LoadOperatorPromptContext = {
   env: Env
   ownerId: string
   manualPrompt: string | undefined
@@ -42,7 +42,7 @@ async function loadOperatorPrompt(
   return { operatorPrompt }
 }
 
-interface RecordClaimedRunContext {
+type RecordClaimedRunContext = {
   env: Env
   ownerId: string
   manualPrompt: string | undefined
@@ -94,7 +94,7 @@ operator_prompt)
   }
   return { runId }
 }
-interface ClaimRunOptions { trigger: 'schedule' | 'manual', dryRun: boolean, manualPrompt?: string }
+type ClaimRunOptions = { trigger: 'schedule' | 'manual', dryRun: boolean, manualPrompt?: string }
 
 export async function claimRun(
   env: Env,
