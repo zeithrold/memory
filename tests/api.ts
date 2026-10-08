@@ -25,7 +25,7 @@ type Handler = (
   context?: { env?: Env, params?: Promise<Record<string, string>> },
 ) => Promise<Response>
 type Route = Partial<Record<ApiMethod, Handler>>
-interface Match { route: Route, params: Record<string, string> }
+type Match = { route: Route, params: Record<string, string> }
 const collections: Record<string, Route> = { memories, search, tokens, usage, status }
 const catalogCollections: Record<string, Route> = {
   search: catalogSearch,

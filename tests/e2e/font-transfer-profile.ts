@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test'
 import { z } from 'zod'
 
-interface Face { family: string, weight: string | undefined }
-export interface FontResource {
+type Face = { family: string, weight: string | undefined }
+export type FontResource = {
   url: string
   kind: 'font' | 'font-css'
   status: number
@@ -39,7 +39,7 @@ export function summarizeResources(resources: FontResource[]): {
   }
   return Array.from(rows.values())
 }
-interface Sample {
+type Sample = {
   phase: string
   responses: Map<string, FontResource>
   cached: Set<string>

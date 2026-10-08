@@ -17,7 +17,7 @@ const workerAiReplySchema = z.object({
   }).nullish(),
 })
 
-interface CallWorkersAiRequest { messages: ModelMessage[], tools: ToolSpec[], options: ModelOptions }
+type CallWorkersAiRequest = { messages: ModelMessage[], tools: ToolSpec[], options: ModelOptions }
 
 export async function callWorkersAi(
   env: Env,

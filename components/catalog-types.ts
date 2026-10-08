@@ -12,7 +12,7 @@
  * components. They are not form elements, so an uncontrolled form would submit
  * nothing for them.
  */
-export interface CatalogSettings {
+export type CatalogSettings = {
   enabled: boolean
   provider: 'none' | 'responses-api' | 'workers-ai'
   baseUrl: string | null
@@ -38,7 +38,7 @@ export interface CatalogSettings {
   canStoreKey: boolean
 }
 
-export interface CategoryView {
+export type CategoryView = {
   id: string
   parentId: string | null
   depth: number
@@ -52,7 +52,7 @@ export interface CategoryView {
   createdBy: string
 }
 
-export interface CatalogView {
+export type CatalogView = {
   version: number
   updatedAt: string | null
   categories: CategoryView[]
@@ -63,7 +63,7 @@ export interface CatalogView {
   pendingAdvice: string | null
 }
 
-export interface RunSummary {
+export type RunSummary = {
   id: string
   trigger: string
   mode: string
@@ -87,7 +87,7 @@ export interface RunSummary {
   finishedAt: string | null
 }
 
-interface TimelineAction {
+type TimelineAction = {
   id: number
   tool: string
   kind: string
@@ -102,7 +102,7 @@ interface TimelineAction {
   targetProject: string | null
 }
 
-export interface RunDetail {
+export type RunDetail = {
   run: RunSummary
   timeline: { batch: number, turn: number, content: string | null, actions: TimelineAction[] }[]
   totalActions: number
@@ -111,7 +111,7 @@ export interface RunDetail {
   operatorPrompt: string | null
 }
 
-export interface Proposal {
+export type Proposal = {
   id: string
   kind: string
   status: string
@@ -121,7 +121,7 @@ export interface Proposal {
   targetProject: string | null
 }
 
-export interface Metrics {
+export type Metrics = {
   totals: Record<string, number>
   daily: {
     day: string
@@ -136,14 +136,14 @@ export interface Metrics {
   }[]
 }
 
-export interface ProbeResult {
+export type ProbeResult = {
   reachable: boolean
   modelOk: boolean
   toolCallingOk: boolean
   detail: string
 }
 
-export interface FormState {
+export type FormState = {
   provider: CatalogSettings['provider']
   baseUrl: string
   model: string

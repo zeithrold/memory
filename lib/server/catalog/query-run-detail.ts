@@ -12,7 +12,7 @@ const ACTION_PAGE_SIZE = 40
  * timelines.
  */
 
-interface LoadRunForReplayContext {
+type LoadRunForReplayContext = {
   env: Env
   runId: string
   ownerId: string

@@ -8,7 +8,7 @@ import { useWorkspace } from './workspace-context'
  * `/memories/[id]` renders the detail page; every other view keeps the tabbed
  * workspace, so a nav click always returns to the list route's own content.
  */
-interface MemoriesPageProps { memoryId?: string }
+type MemoriesPageProps = { memoryId?: string }
 
 export function MemoriesPage(
   { memoryId }: MemoriesPageProps,

@@ -6,7 +6,13 @@ import { X } from 'lucide-react'
 import { RevisionList } from './memory-revisions'
 import { Button } from './ui/button'
 
-interface WorkspaceHistoryProps {
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const DETAIL_HISTORY_CLASS = ['detail-history mt-8 [&_>_h2]:mt-0 [&_>_h2]:mx-0 [&_>_h2]:mb-4'].join(' ')
+
+const SECTION_HEADING_CLASS = ['section-heading flex justify-between gap-4 items-center mb-5 [&_h2]:m-0'].join(' ')
+
+type WorkspaceHistoryProps = {
   t: Messages
   setRevisions: React.Dispatch<React.SetStateAction<MemoryRevision[] | null>>
   revisions: MemoryRevision[]
@@ -17,8 +23,8 @@ export function WorkspaceHistory(
   { t, setRevisions, revisions, locale }: WorkspaceHistoryProps,
 ): React.JSX.Element {
   return (
-    <section className="detail-history">
-      <div className="section-heading">
+    <section className={DETAIL_HISTORY_CLASS}>
+      <div className={SECTION_HEADING_CLASS}>
         <h2>{t.revisions}</h2>
         <Button
           variant="ghost"
@@ -30,7 +36,7 @@ export function WorkspaceHistory(
       </div>
       {revisions.length === 0
         ? (
-            <p className="muted">{t.noRevisions}</p>
+            <p className={MUTED_CLASS}>{t.noRevisions}</p>
           )
         : (
             <RevisionList revisions={revisions} t={t} locale={locale} />

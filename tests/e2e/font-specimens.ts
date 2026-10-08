@@ -86,7 +86,16 @@ export async function renderedWeight(page: Page): Promise<{
       canvas.font = `${weight} 24px "Noto Sans"`
       return canvas.measureText('English Noto weight').width
     })
-    const faces = Array.from(document.fonts).filter(face => face.weight === '600' && face.status === 'loaded')
+    const faces = Array.from(document.fonts).filter((face) => {
+      if (face.status !== 'loaded') {
+        return false
+      }
+      // Variable FontFace descriptors expose a range, such as "400 700".
+      const weights = face.weight.trim().split(/\s+/u).map(Number)
+      const minimum = weights[0] ?? Number.NaN
+      const maximum = weights[1] ?? minimum
+      return minimum <= 600 && maximum >= 600
+    })
     return {
       weight: getComputedStyle(node).fontWeight,
       synthesis: getComputedStyle(node).fontSynthesis,

@@ -8,7 +8,7 @@ import { PreferenceContext } from './context.js'
 import { frontendRootAttributes } from './cookies.js'
 import { createPreferenceStore } from './store.js'
 
-export interface FrontendProviderProps {
+export type FrontendProviderProps = {
   initialPreferences: FrontendPreferences
   policy: PreferencePolicy
   children: ReactNode

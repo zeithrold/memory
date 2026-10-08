@@ -20,27 +20,50 @@ import {
   DialogTitle,
 } from './ui/dialog'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const MUTED_CLASS_2 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const TIMELINE_TURN_CLASS = [
+  'timeline-turn border-l-2 border-border pl-4 [&_>_p]:mt-0 [&_>_p]:mx-0 [&_>_p]:mb-3 [&_>_p]:text-body',
+  '[&_>_p]:text-muted-foreground',
+].join(' ')
+
+const TIMELINE_CALL_CLASS = [
+  'timeline-call border border-border rounded-md p-3 mb-2 bg-card [&_p]:mt-2 [&_p]:mx-0 [&_p]:mb-0',
+  '[&_p]:text-body [&_p]:flex [&_p]:items-center [&_p]:gap-2 [&_code]:text-control',
+].join(' ')
+
+const CARD_META_CLASS = [
+  'card-meta flex items-center gap-2 text-help text-muted-foreground [&_time]:ml-auto wrap-anywhere',
+].join(' ')
+
 function CatalogTimeline(
   { detail }: CatalogTimelineProps,
 ): React.JSX.Element {
   return (
-    <ol className="timeline">
+    <ol className="timeline list-none p-0 m-0 grid gap-4">
       {detail.timeline.map(
         turn => (
-          <li key={`${detail.run.id}:${turn.batch}:${turn.turn}`} className="timeline-turn">
+          <li
+            key={`${detail.run.id}:${turn.batch}:${turn.turn}`}
+            className={TIMELINE_TURN_CLASS}
+          >
             {turn.content !== null && turn.content.length > 0 && <p>{turn.content}</p>}
             {turn.actions.map(
 
               action => (
                 <div
                   key={action.id}
-                  className={`timeline-call${REFUSED_DECISIONS.has(action.decision,
+                  className={`${TIMELINE_CALL_CLASS} ${REFUSED_DECISIONS.has(action.decision,
 
                   )
-                    ? ' call-rejected'
+                    ? 'call-rejected border-destructive bg-[var(--rejected-background)]'
                     : ''}`}
                 >
-                  <div className="card-meta">
+                  <div className={CARD_META_CLASS}>
                     <code>{action.tool}</code>
                     <Badge variant="outline">{action.decision}</Badge>
                     {action.memoryTitle !== null && <span>{action.memoryTitle}</span>}
@@ -48,9 +71,9 @@ function CatalogTimeline(
                     {action.targetCategoryLabel !== null && <span>{`-> ${action.targetCategoryLabel}`}</span>}
                     {action.targetProject !== null && <span>{`-> ${action.targetProject}`}</span>}
                   </div>
-                  {action.rationale !== null && <p className="muted">{action.rationale}</p>}
+                  {action.rationale !== null && <p className={MUTED_CLASS}>{action.rationale}</p>}
                   {action.policyReason !== null && (
-                    <p className="muted">
+                    <p className={MUTED_CLASS_1}>
                       <ShieldAlert size={14} />
                       {' '}
                       {action.policyReason}
@@ -67,7 +90,7 @@ function CatalogTimeline(
   )
 }
 
-interface RunTimelinePaginationProps {
+type RunTimelinePaginationProps = {
   detail: RunDetail
   busy: boolean
   openRunDetail: (runId: string, offset?: number) => Promise<void>
@@ -78,7 +101,7 @@ function RunTimelinePagination(
   { detail, busy, openRunDetail, t }: RunTimelinePaginationProps,
 ): React.JSX.Element {
   return (
-    <div className="pagination">
+    <div className="pagination flex justify-end gap-3 mt-8">
       <Button
 
         variant="ghost"
@@ -105,7 +128,7 @@ function RunTimelinePagination(
   )
 }
 
-interface RunRevertActionProps {
+type RunRevertActionProps = {
   props: RunTimelineDialogProps
   detail: RunDetail
 }
@@ -166,7 +189,7 @@ export function RunTimelineDialog(
                 <DialogDescription>{new Date(detail.run.startedAt).toLocaleString()}</DialogDescription>
               </DialogHeader>
               {detail.operatorPrompt !== null && detail.operatorPrompt.length > 0 && (
-                <p className="muted">{detail.operatorPrompt}</p>
+                <p className={MUTED_CLASS_2}>{detail.operatorPrompt}</p>
               )}
               {detail.run.status !== 'running' && detail.run.mode === 'live' && detail.run.actionsApplied > 0
 
@@ -194,11 +217,11 @@ export function RunTimelineDialog(
   )
 }
 
-interface CatalogTimelineProps {
+type CatalogTimelineProps = {
   detail: RunDetail
 }
 
-interface RunTimelineDialogProps {
+type RunTimelineDialogProps = {
   detail: RunDetail | null
   setDetail: React.Dispatch<React.SetStateAction<RunDetail | null>>
   t: Messages

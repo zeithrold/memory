@@ -88,7 +88,7 @@ batch = -3),
     )
 }
 
-interface ApproveMergeOptions {
+type ApproveMergeOptions = {
   proposalId: string
   runId: string
   action: ActionRecord

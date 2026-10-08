@@ -5,7 +5,7 @@ import { LogOut } from 'lucide-react'
 import { accessLogoutUrl } from '@/lib/access-logout'
 import { Button } from './ui/button'
 
-interface WorkspaceAccountControlProps { accessTeamDomain: string, t: Messages }
+type WorkspaceAccountControlProps = { accessTeamDomain: string, t: Messages }
 
 export function WorkspaceAccountControl(
   { accessTeamDomain, t }: WorkspaceAccountControlProps,
@@ -18,13 +18,14 @@ export function WorkspaceAccountControl(
       variant="ghost"
       size="sm"
       type="button"
+      aria-label={t.signOut}
       onClick={() => {
         const returnTo = typeof window === 'undefined' ? '/' : window.location.origin
         window.location.href = accessLogoutUrl(accessTeamDomain, returnTo)
       }}
     >
-      <LogOut size={16} />
-      {t.signOut}
+      <LogOut size={16} aria-hidden="true" />
+      <span className="max-sm:sr-only">{t.signOut}</span>
     </Button>
   )
 }

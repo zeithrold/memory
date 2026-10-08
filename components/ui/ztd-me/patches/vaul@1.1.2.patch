@@ -1,0 +1,38 @@
+diff --git a/dist/index.js b/dist/index.js
+index 7f343be1fafe1cf302ee6afc7268c29490895e34..584ef3fdd9044f0454213a864e6a0d5ff8b0b206 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,12 +1,6 @@
+ 'use client';
+-function __insertCSS(code) {
+-  if (!code || typeof document == 'undefined') return
+-  let head = document.head || document.getElementsByTagName('head')[0]
+-  let style = document.createElement('style')
+-  style.type = 'text/css'
+-  head.appendChild(style)
+-  ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))
+-}
++// Behavioral CSS is delivered as a static stylesheet by the consumer.
++function __insertCSS() {}
+ 
+ Object.defineProperty(exports, '__esModule', { value: true });
+ 
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 0dbbce5526681925a81804ced237a045a53c0355..030bde94fb1b39f556102f0aec2ad27bc5241113 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1,12 +1,6 @@
+ 'use client';
+-function __insertCSS(code) {
+-  if (!code || typeof document == 'undefined') return
+-  let head = document.head || document.getElementsByTagName('head')[0]
+-  let style = document.createElement('style')
+-  style.type = 'text/css'
+-  head.appendChild(style)
+-  ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))
+-}
++// Behavioral CSS is delivered as a static stylesheet by the consumer.
++function __insertCSS() {}
+ 
+ import * as DialogPrimitive from '@radix-ui/react-dialog';
+ import * as React from 'react';

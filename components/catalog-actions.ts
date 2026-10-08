@@ -13,7 +13,7 @@ import {
 import { STEPS_PAGE } from './catalog-constants'
 import { formFrom } from './catalog-form'
 
-interface RunCatalogActionContext {
+type RunCatalogActionContext = {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
   t: Messages
 }
@@ -40,7 +40,7 @@ export async function runCatalogAction(
   }
 }
 
-interface SaveCatalogSettingsContext {
+type SaveCatalogSettingsContext = {
   form: FormState | null
   run: (action: () => Promise<void>, done?: string) => Promise<void>
   api: Api
@@ -83,7 +83,7 @@ export async function saveCatalogSettings(context: SaveCatalogSettingsContext): 
   }, t.settingsSaved)
 }
 
-interface ProbeCatalogProviderContext {
+type ProbeCatalogProviderContext = {
   setProbe: React.Dispatch<React.SetStateAction<ProbeResult | null>>
   run: (action: () => Promise<void>, done?: string) => Promise<void>
   api: Api
@@ -106,7 +106,7 @@ export async function probeCatalogProvider(
   })
 }
 
-interface StartCatalogRunContext {
+type StartCatalogRunContext = {
   runDialog: { dryRun: boolean } | null
   runPrompt: string
   setRunDialog: React.Dispatch<React.SetStateAction<{ dryRun: boolean } | null>>
@@ -142,7 +142,7 @@ export async function startCatalogRun(context: StartCatalogRunContext): Promise<
   }, t.runStarted)
 }
 
-interface ShowCatalogRunContext {
+type ShowCatalogRunContext = {
   run: (action: () => Promise<void>, done?: string) => Promise<void>
   setDetail: React.Dispatch<React.SetStateAction<RunDetail | null>>
   api: Api
@@ -163,7 +163,7 @@ export async function showCatalogRun(
   })
 }
 
-interface DecideCatalogProposalsContext {
+type DecideCatalogProposalsContext = {
   run: (action: () => Promise<void>, done?: string) => Promise<void>
   api: Api
   setAdviceDialog: React.Dispatch<React.SetStateAction<boolean>>

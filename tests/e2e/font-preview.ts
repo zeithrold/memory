@@ -19,7 +19,7 @@ export async function configureFontPreview(context: BrowserContext): Promise<voi
     return
   }
   const source = await readFile('components/ui/ztd-me/styles/fonts.css', 'utf8')
-  const apiUrl = source.match(/@import url\("([^"]+)"\)/u)?.[1]
+  const apiUrl = source.match(/@import (?:url\()?"([^"]+)"/u)?.[1]
   if (apiUrl === undefined) {
     throw new Error('No delivered Google Fonts query')
   }

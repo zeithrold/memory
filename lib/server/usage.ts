@@ -12,7 +12,7 @@ const analyticsRows = z.array(z.looseObject({
   average_ms: z.coerce.number(),
 }))
 
-interface AnalyticsRow {
+type AnalyticsRow = {
   day: string
   token_id: string
   client_id: string
@@ -94,7 +94,7 @@ client_id, operation ORDER BY day DESC, calls DESC LIMIT 500`
   return analyticsRows.parse(body.data)
 }
 
-interface LoadUsageTokenNamesContext {
+type LoadUsageTokenNamesContext = {
   analytics: AnalyticsRow[]
   env: Env
   ownerId: string
@@ -119,7 +119,7 @@ async function loadUsageTokenNames(
   return { tokenNames }
 }
 
-interface MergeUsageSourcesContext {
+type MergeUsageSourcesContext = {
   legacy: D1Result<UsageSummary>
   analytics: AnalyticsRow[]
   tokenNames: Map<string, string>

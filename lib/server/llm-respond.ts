@@ -4,7 +4,7 @@ import { AppError } from './errors'
 import { callResponsesApi } from './llm-response'
 import { callWorkersAi } from './llm-workers'
 
-interface RespondWithToolsRequest { messages: ModelMessage[], tools: ToolSpec[], options?: ModelOptions }
+type RespondWithToolsRequest = { messages: ModelMessage[], tools: ToolSpec[], options?: ModelOptions }
 
 export async function respondWithTools(
   env: Env,

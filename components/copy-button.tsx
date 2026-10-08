@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from './ui/button'
 
-interface CopyButtonProps { value: string, t: Messages }
+type CopyButtonProps = { value: string, t: Messages }
 
 export function CopyButton({ value, t }: CopyButtonProps): React.JSX.Element {
   const [copied, setCopied] = useState(false)

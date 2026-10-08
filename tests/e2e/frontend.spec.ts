@@ -48,6 +48,9 @@ test('appearance and language keyboard controls restore focus and preserve choic
   const appearance = page.getByRole('button', { name: 'Appearance', exact: true })
   await appearance.press('Enter')
   await expect(page.getByRole('menu')).toBeVisible()
+  await page.getByRole('menu').evaluate(async (element) => {
+    await Promise.all(element.getAnimations({ subtree: true }).map(async animation => await animation.finished))
+  })
   await assertAccessible(page, info, { label: 'appearance-menu' })
   await page.keyboard.press('Escape')
   await expect(appearance).toBeFocused()

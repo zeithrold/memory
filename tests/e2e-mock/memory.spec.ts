@@ -3,6 +3,7 @@ import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
 import { test } from '../e2e/font-preview'
 import { mockWorkspace } from './fixture'
+import { verifyAndDismissToast } from './toast-assertions'
 
 async function createMemory(page: Page, info: TestInfo): Promise<void> {
   await page.getByRole('button', { name: 'New memory', exact: true }).click()
@@ -12,6 +13,7 @@ async function createMemory(page: Page, info: TestInfo): Promise<void> {
   await assertAccessible(page, info, { label: 'memory-editor' })
   await page.getByRole('button', { name: 'Save memory', exact: true }).click()
   await expect(page.getByText('New context', { exact: true })).toBeVisible()
+  await verifyAndDismissToast(page, info, 'Memory saved.')
 }
 async function editMemory(page: Page, info: TestInfo): Promise<void> {
   await page.getByRole('link', { name: 'Original decision', exact: true }).click()
@@ -21,6 +23,7 @@ async function editMemory(page: Page, info: TestInfo): Promise<void> {
   await page.locator('#memory-title').fill('Edited decision')
   await page.getByRole('button', { name: 'Save memory', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edited decision', exact: true })).toBeVisible()
+  await verifyAndDismissToast(page, info, 'Memory saved.')
 }
 test('mocked session: accessible create/edit/search preserve mutation contracts', async ({ page }, info) => {
   const state = await mockWorkspace(page)

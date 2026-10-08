@@ -2,14 +2,13 @@
 
 Memory owns the editable `@ztd-me/ui` files installed with the real
 `shadcn@4.21.1` CLI from approved tools source
-[`7c708c0e0672a302cd751550276fb7a7a43cf1e5`](https://github.com/zeithrold/tools/tree/7c708c0e0672a302cd751550276fb7a7a43cf1e5).
-The public recipe is [registry/README.md](https://github.com/zeithrold/tools/blob/7c708c0e0672a302cd751550276fb7a7a43cf1e5/registry/README.md).
-The owner supplied the completed upstream public-install gate (CI 37106842471).
-This consumer's public payload was independently compared with that checkout, and
-all 42 files initially installed byte-identically under `components/ui/ztd-me`.
-One reviewed README example adaptation sorts imports and declares `React.JSX.Element`
-for strict lint. The other 41 files, including runtime source, styles and notices,
-remain byte-identical.
+[`9abea5a57b97f63109fb7dc5255543b53629c3ba`](https://github.com/zeithrold/tools/tree/9abea5a57b97f63109fb7dc5255543b53629c3ba).
+The public recipe is [registry/README.md](https://github.com/zeithrold/tools/blob/9abea5a57b97f63109fb7dc5255543b53629c3ba/registry/README.md).
+The upstream public-install gate [CI 37713345587](https://github.com/zeithrold/tools/actions/runs/37713345587)
+verified the actual 77-file CLI install, source bytes, licenses and real browser
+behavior. This consumer's complete inventory matches that public graph without
+local source adaptations. The receipt, hashes and acceptance boundary are recorded
+in [the consumer foundation contract](consumer-foundation.md).
 
 `components.json` pins the full source SHA. `ui-source.lock.json` is durable registry
 provenance, including the CLI, payload SHA256, dependency pins and per-file hashes;
@@ -17,7 +16,7 @@ it is not a transient review report. `scripts/verify-ui-source.ts` verifies that
 receipt before every native profile. Source, MIT/shadcn/Noto notices, pnpm dependency
 pins and the native lock are committed together. No `@ztd-me/frontend` runtime,
 source tarball dependency or font binary is required. Verification helpers remain
-`@ztd-me/frontend-checks@0.1.1`.
+`@ztd-me/frontend-checks@0.1.3`.
 
 The installed source provides compact 44px control hit targets, smaller visible
 hover surfaces, soft borders and menu enter/exit motion. Reduced motion removes
@@ -92,7 +91,9 @@ unrecorded adaptations, and any later source change must be reviewed explicitly.
 Memory retains its five business destinations, nested-route selection, content,
 assets and controls. The footer remains © Zeithrold, this repository's GitHub link
 and `hello@ztd.me`, without a year or added service navigation. Native framework
-links retain `prefetch={false}`. Shared source CSS is byte-identical to the pinned registry revision.
+links retain `prefetch={false}`. The original public receipt stays pinned; current
+shared-source bytes are independently verified against the complete public-source
+inventory rather than being presented as the old public payload.
 
 ## Preferences and boundaries
 
@@ -185,11 +186,12 @@ It leaves built/production CSS unchanged, has no TLS bypass and cannot verify re
 budgets. Reports mark preview-only results; setting this flag in CI throws. Normal CI
 requires actual Google Fonts browser delivery and the approved caps.
 
-Public `@ztd-me/eslint@0.1.2` fixes the virtual Markdown/TS project boundary. Its
-registry tarball integrity and all 33 packed files match the tested upstream PR13
-candidate. Memory uses the exact normal registry dependency, with ESLint 10.11 and
-TypeScript 6.0.3 satisfying the published peers. No tarball/path dependency, new
-trust exception or release-age bypass is used.
+Public `@ztd-me/eslint@0.1.4` supplies the shared type-alias rule and virtual
+Markdown/TS project boundary. Memory uses the exact normal registry dependency,
+with ESLint 10.11 and TypeScript 6.0.3 satisfying the published peers. The exact
+`@ztd-me/frontend-checks@0.1.3` release supplies Tailwind/CSS validation directly,
+with no checker patch or package extension. No tarball/path dependency, new trust
+exception or release-age bypass is used.
 
 Memory's final typed-rule override applies to actual TS/TSX source. Its local
 `**/*.md/**` exclusion prevents reapplying type-dependent rules to generated code

@@ -9,7 +9,7 @@ import type { Env } from '../env'
  */
 export type CategoryState = 'active' | 'pending_merge' | 'retired'
 
-export interface CategoryRow {
+export type CategoryRow = {
   id: string
   owner_id: string
   parent_id: string | null
@@ -26,7 +26,7 @@ export interface CategoryRow {
   updated_at: string
 }
 
-export interface MembershipRow {
+export type MembershipRow = {
   memory_id: string
   category_id: string
   is_primary: number
@@ -34,7 +34,7 @@ export interface MembershipRow {
   updated_at: string
 }
 
-export interface BatchMemory {
+export type BatchMemory = {
   id: string
   project: string
   title: string
@@ -45,7 +45,7 @@ export interface BatchMemory {
   content?: string
 }
 
-export interface CatalogSnapshot {
+export type CatalogSnapshot = {
   categories: CategoryRow[]
   memories: BatchMemory[]
   memberships: Map<string, MembershipRow[]>
@@ -263,7 +263,7 @@ export async function selectBatch(
   return rows.results.map(row => row.id)
 }
 
-export interface CatalogStateRow {
+export type CatalogStateRow = {
   owner_id: string
   version: number
   last_run_at: string | null
@@ -285,7 +285,7 @@ export async function loadState(env: Env, ownerId: string): Promise<CatalogState
 }
 
 /** Trusted identities for one account, used by the structural tools. */
-export interface OwnerScope {
+export type OwnerScope = {
   ownerId: string
   /** Memory ids the agent is allowed to touch in this batch. */
   batchMemoryIds: Set<string>

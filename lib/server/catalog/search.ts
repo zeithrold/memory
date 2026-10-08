@@ -5,7 +5,7 @@ import { requirePermission } from '../errors'
 import { terms } from '../search'
 import { scoreCategories } from './balance'
 
-interface CatalogSearchRow {
+type CatalogSearchRow = {
   id: string
   parent_id: string | null
   depth: number
@@ -18,7 +18,7 @@ interface CatalogSearchRow {
   visible_member_count: number
 }
 
-export interface CatalogSearchCategory {
+export type CatalogSearchCategory = {
   id: string
   parentId: string | null
   depth: number
@@ -36,7 +36,7 @@ export interface CatalogSearchCategory {
  * the principal may read in the requested project.
  */
 
-interface LoadVisibleCatalogContext {
+type LoadVisibleCatalogContext = {
   env: Env
   input: { query: string, project: string, limit: number }
   principal: Principal

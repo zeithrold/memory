@@ -1,181 +1,59 @@
 'use client'
 
+import type { ComponentProps } from 'react'
 import { X } from 'lucide-react'
-import { Dialog as DialogPrimitive } from 'radix-ui'
-import * as React from 'react'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { useRef } from 'react'
+import { Button } from './button'
+import { DialogClose, DialogContent as SharedDialogContent } from './ztd-me/ui/dialog'
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>): React.JSX.Element {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+export {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ztd-me/ui/dialog'
+
+type ContentProps = ComponentProps<typeof SharedDialogContent> & {
+  showCloseButton?: boolean
+  closeLabel: string
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>): React.JSX.Element {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
-}
-
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>): React.JSX.Element {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
-}
-
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>): React.JSX.Element {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
-}
-
-function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>): React.JSX.Element {
-  return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        ('fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out '
-          + 'data-[state=closed]:fade-out-0 data-[state=open]:animate-in '
-          + 'data-[state=open]:fade-in-0'),
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-type AutoFocusHandler = React.ComponentProps<typeof DialogPrimitive.Content>['onOpenAutoFocus']
-
-function useDialogFocus(onOpen?: AutoFocusHandler, onClose?: AutoFocusHandler) {
-  const previousFocusRef = React.useRef<HTMLElement | null>(null)
-  return {
-    onOpenAutoFocus(event: Event) {
-      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      onOpen?.(event)
-    },
-    onCloseAutoFocus(event: Event) {
-      onClose?.(event)
-      if (!event.defaultPrevented && previousFocusRef.current?.isConnected === true) {
-        event.preventDefault()
-        previousFocusRef.current.focus({ preventScroll: true })
-      }
-    },
-  }
-}
-
-function DialogContent({
-  className,
+export function DialogContent({
   children,
   showCloseButton = true,
   closeLabel,
   onOpenAutoFocus,
   onCloseAutoFocus,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
-  closeLabel: string
-}): React.JSX.Element {
-  const focus = useDialogFocus(onOpenAutoFocus, onCloseAutoFocus)
+}: ContentProps): React.JSX.Element {
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   return (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          ('fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] '
-            + 'translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background '
-            + 'p-6 shadow-lg duration-200 data-[state=closed]:animate-out '
-            + 'data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 '
-            + 'data-[state=open]:animate-in data-[state=open]:fade-in-0 '
-            + 'data-[state=open]:zoom-in-95 sm:max-w-2xl'),
-          className,
-        )}
-        {...props}
-        {...focus}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-3 right-3"
-              aria-label={closeLabel}
-            >
-              <X size={16} />
-            </Button>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  )
-}
-
-function DialogHeader({
-  className,
-  ...props
-}: React.ComponentProps<'div'>): React.JSX.Element {
-  return (
-    <div
-      data-slot="dialog-header"
-      className={cn('flex flex-col gap-1.5 pr-8 text-left', className)}
+    <SharedDialogContent
+      data-slot="dialog-content"
       {...props}
-    />
+      onOpenAutoFocus={(event) => {
+        previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        onOpenAutoFocus?.(event)
+      }}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event)
+        if (!event.defaultPrevented && previousFocusRef.current?.isConnected === true) {
+          event.preventDefault()
+          previousFocusRef.current.focus({ preventScroll: true })
+        }
+      }}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogClose asChild>
+          <Button variant="ghost" size="icon" className="absolute top-2 right-2" aria-label={closeLabel}>
+            <X size={16} aria-hidden="true" />
+          </Button>
+        </DialogClose>
+      )}
+    </SharedDialogContent>
   )
-}
-
-function DialogFooter({
-  className,
-  ...props
-}: React.ComponentProps<'div'>): React.JSX.Element {
-  return (
-    <div
-      data-slot="dialog-footer"
-      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
-      {...props}
-    />
-  )
-}
-
-function DialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>): React.JSX.Element {
-  return (
-    <DialogPrimitive.Title
-      data-slot="dialog-title"
-      className={cn('text-lg font-semibold leading-none', className)}
-      {...props}
-    />
-  )
-}
-
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>): React.JSX.Element {
-  return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn('text-sm text-muted-foreground', className)}
-      {...props}
-    />
-  )
-}
-
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
 }

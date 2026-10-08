@@ -18,7 +18,7 @@ import { loadSnapshot } from './model'
  * That is also why a decrypted credential never leaves the step: it is read and
  * used inside `think`, and only the model's reply is returned.
  */
-export interface TurnInput {
+export type TurnInput = {
   env: Env
   ownerId: string
   runId: string
@@ -35,7 +35,7 @@ export interface TurnInput {
   memoryIds: string[]
 }
 
-export interface ThinkResult {
+export type ThinkResult = {
   turn: number
   /** The model's free-form reasoning, shown in the run timeline. */
   content: string | null
@@ -54,7 +54,7 @@ export interface ThinkResult {
   model: string | null
 }
 
-export interface ActResult {
+export type ActResult = {
   turn: number
   finished: boolean
   applied: number
@@ -65,7 +65,7 @@ export interface ActResult {
   stalled: boolean
 }
 
-interface TurnRow {
+type TurnRow = {
   turn: number
   content: string | null
   tool_calls_json: string | null
@@ -74,7 +74,7 @@ interface TurnRow {
   finish_reason: string | null
 }
 
-export interface ToolResultRow {
+export type ToolResultRow = {
   toolCallId: string
   name: string
   content: string
@@ -121,7 +121,7 @@ export async function loadTurnContext(input: TurnInput): Promise<CatalogSnapshot
   return await loadSnapshot(input.env, input.ownerId, input.memoryIds, input.includeContent)
 }
 
-interface RecordedAction {
+type RecordedAction = {
   result_json: string | null
   decision: string
 }
@@ -145,7 +145,7 @@ export async function loadAction(
     .first<RecordedAction>()
 }
 
-interface RecordActionOptions {
+type RecordActionOptions = {
   callIndex: number
   tool: string
   argumentsJson: string

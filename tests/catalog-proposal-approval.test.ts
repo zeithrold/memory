@@ -45,7 +45,7 @@ it.each([
   },
 )
 
-interface MergeEvidence {
+type MergeEvidence = {
   into: string
   from: string
   other: string

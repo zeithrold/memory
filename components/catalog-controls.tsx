@@ -24,7 +24,7 @@ export function CatalogRunControls(
   )
 }
 
-interface CatalogRunControlsProps {
+type CatalogRunControlsProps = {
   busy: boolean
   setRunDialog: React.Dispatch<React.SetStateAction<{ dryRun: boolean } | null>>
   t: Messages

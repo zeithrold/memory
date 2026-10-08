@@ -13,7 +13,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 
 import { PageHeading, SetupBanner } from './workspace-shell'
 
-export interface CategoryPageContentProps {
+const PAGE_CLASS = [
+  'page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
+  'max-[640px]:px-4',
+].join(' ')
+
+const ERROR_BANNER_CLASS = [
+  'error-banner py-4 px-5 bg-[var(--error-background)] text-destructive rounded-md text-control',
+  'wrap-anywhere mb-4',
+].join(' ')
+
+const EMPTY_STATE_CLASS = [
+  'empty-state min-h-[330px] flex flex-col items-center justify-center text-center py-10 px-4 [&_h2]:mt-1',
+  '[&_h2]:mx-0 [&_h2]:mb-2 [&_h2]:text-[length:19px] [&_p]:text-muted-foreground [&_p]:text-body',
+  '[&_p]:leading-[1.9] [&_p]:max-w-[350px] [&_p]:mt-0 [&_p]:mx-0 [&_p]:mb-6 max-[640px]:min-h-70',
+].join(' ')
+
+export type CategoryPageContentProps = {
   t: Messages
   detail: CategoryDetail | null
   authState: ReturnType<typeof useWorkspace>['authState']
@@ -26,7 +42,7 @@ export interface CategoryPageContentProps {
   setChildDetail: React.Dispatch<React.SetStateAction<CategoryDetail | null>>
 }
 
-interface CategoryMembersProps {
+type CategoryMembersProps = {
   detail: CategoryDetail
   t: Messages
   busy: boolean
@@ -72,11 +88,14 @@ function CategoryMembers(
 }
 export function CategoryPageContent(props: CategoryPageContentProps): React.JSX.Element {
   return (
-    <div className="page">
+    <div className={PAGE_CLASS}>
       <CategoryHeading t={props.t} detail={props.detail} />
       {props.authState === 'unconfigured' && <SetupBanner />}
       {props.error.length > 0 && (
-        <div className="error-banner" role="alert">
+        <div
+          className={ERROR_BANNER_CLASS}
+          role="alert"
+        >
           <ShieldAlert size={16} />
           {' '}
           {props.error}
@@ -93,7 +112,7 @@ export function CategoryPageContent(props: CategoryPageContentProps): React.JSX.
         />
       )}
       {props.detail === null && props.error.length === 0 && props.authState === 'ready' && (
-        <div className="empty-state">
+        <div className={EMPTY_STATE_CLASS}>
           <FolderTree size={28} />
           <h2>{props.t.categoryMissing}</h2>
         </div>

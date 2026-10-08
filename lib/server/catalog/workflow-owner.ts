@@ -4,7 +4,7 @@ import { AppError } from '../errors'
 import { claimRun, consolidate, finishRun } from './run'
 import { runBatches } from './workflow-batches'
 
-export interface RunOwnerOptions {
+export type RunOwnerOptions = {
   trigger: 'schedule' | 'manual'
   dryRun: boolean
   prefix: string
@@ -12,7 +12,7 @@ export interface RunOwnerOptions {
   scheduledAt?: number
 }
 
-export interface WorkflowContext {
+export type WorkflowContext = {
   env: Env
   step: WorkflowSteps
   ownerId: string
@@ -69,7 +69,7 @@ function failureCode(error: unknown): string {
 }
 
 /** The journal operations this workflow uses; Cloudflare supplies this interface. */
-export interface WorkflowSteps {
+export type WorkflowSteps = {
   do: (<T extends Rpc.Serializable<T>>(name: string, operation: () => Promise<T>) => Promise<T>)
     & (<T extends Rpc.Serializable<T>>(
       name: string,

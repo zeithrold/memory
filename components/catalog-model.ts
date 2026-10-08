@@ -15,13 +15,13 @@ import { patchCatalogForm, toggleCatalogSetting } from './catalog-form'
 import { useCatalogLoader } from './catalog-loader'
 import { useCatalogState } from './catalog-state'
 
-interface UseCatalogModelContext {
+type UseCatalogModelContext = {
   ready: boolean
   api: Api
   t: Messages
 }
 
-interface UseCatalogModelResult {
+type UseCatalogModelResult = {
   patch: (next: Partial<CatalogTypes.FormState>) => void
   switchToggle: (id: string, value: boolean) => void
   save: () => Promise<void>

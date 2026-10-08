@@ -87,7 +87,7 @@ export function buildBatchMessage(
   return `Classify this batch of ${memories.length} memories:\n${lines.join('\n')}`
 }
 
-export interface TurnRow {
+export type TurnRow = {
   turn: number
   content: string | null
   tool_calls_json: string | null

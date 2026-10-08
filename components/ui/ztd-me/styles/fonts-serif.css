@@ -1,0 +1,19 @@
+@import "https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400..700&family=Noto+Serif+SC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+KR:wght@400..700&display=swap";
+
+@layer base {
+  .ztd-prose,
+  .ztd-font-serif {
+    font-family: var(--ztd-font-serif);
+    font-synthesis: none;
+  }
+
+  .ztd-prose:lang(ja),
+  .ztd-font-serif:lang(ja) {
+    --ztd-font-serif: "Noto Serif", "Noto Serif JP", "Noto Serif SC", "Noto Serif KR", "Noto Color Emoji", serif;
+  }
+
+  .ztd-prose:lang(ko),
+  .ztd-font-serif:lang(ko) {
+    --ztd-font-serif: "Noto Serif", "Noto Serif KR", "Noto Serif SC", "Noto Serif JP", "Noto Color Emoji", serif;
+  }
+}

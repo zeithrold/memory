@@ -7,7 +7,7 @@ import { now } from './tool-common'
  * touch `categories` or `memory_categories`. Equivalent proposals accumulate
  * evidence across runs instead of piling up as duplicates.
  */
-interface RecordProposalProposal {
+type RecordProposalProposal = {
   kind: 'create_category' | 'merge_category' | 'retire_category' | 'project_move'
   categoryId?: string
   targetCategoryId?: string
@@ -53,7 +53,7 @@ export async function recordProposal(
   return await createProposal(ctx, proposal, action, timestamp)
 }
 
-interface StructuralProposal extends ProposalCandidate { rationale: string }
+type StructuralProposal = ProposalCandidate & { rationale: string }
 async function supportExistingProposal(
   ctx: ToolContext,
   proposal: StructuralProposal,
@@ -137,7 +137,7 @@ status, created_at)
   }
 }
 
-interface ProposalCandidate {
+type ProposalCandidate = {
   kind: 'create_category' | 'merge_category' | 'retire_category' | 'project_move'
   categoryId?: string
   targetCategoryId?: string

@@ -2,9 +2,6 @@ import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
 import { test } from './font-preview'
 
-declare global {
-  interface Window { memoryMenuAnimations: { name: string, pointerEvents: string }[] }
-}
 test('compact controls retain hit targets and entering/exiting menu behavior', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/memories')
@@ -27,6 +24,9 @@ test('compact controls retain hit targets and entering/exiting menu behavior', a
   const menu = page.getByRole('menu')
   await expect(menu).toBeVisible()
   expect(await menu.evaluate(node => getComputedStyle(node).animationDuration)).toBe('0.15s')
+  await menu.evaluate(async (element) => {
+    await Promise.all(element.getAnimations({ subtree: true }).map(async animation => await animation.finished))
+  })
   await assertAccessible(page, info, { label: 'compact-appearance-menu' })
   await captureState(page, info, 'compact-appearance-menu')
   await page.keyboard.press('Escape')

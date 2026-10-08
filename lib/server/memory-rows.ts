@@ -5,7 +5,7 @@ import { digest } from './crypto'
 import { AppError, requirePermission } from './errors'
 import { terms } from './search'
 
-export interface MemoryRow {
+export type MemoryRow = {
   id: string
   owner_id: string
   project: string

@@ -9,7 +9,11 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 
-interface MemoryEditorProps {
+const EDITOR_CLASS = ['editor border border-border rounded-[12px] bg-card p-6 mb-6'].join(' ')
+
+const SECTION_HEADING_CLASS = ['section-heading flex justify-between gap-4 items-center mb-5 [&_h2]:m-0'].join(' ')
+
+type MemoryEditorProps = {
   t: Messages
   memory: Memory | 'new'
   project: string
@@ -18,7 +22,7 @@ interface MemoryEditorProps {
   onSave: (input: MemoryInput) => void
 }
 
-interface MemoryEditorFormProps {
+type MemoryEditorFormProps = {
   onSave: (input: MemoryInput) => void
   input: MemoryInput
   tags: string
@@ -33,7 +37,7 @@ interface MemoryEditorFormProps {
 function MemoryEditorForm(props: MemoryEditorFormProps): React.JSX.Element {
   return (
     <form
-      className="editor"
+      className={EDITOR_CLASS}
       onSubmit={(event) => {
         event.preventDefault()
         props.onSave({
@@ -53,13 +57,13 @@ function MemoryEditorForm(props: MemoryEditorFormProps): React.JSX.Element {
         })
       }}
     >
-      <div className="section-heading">
+      <div className={SECTION_HEADING_CLASS}>
         <h2>{props.memory === 'new' ? props.t.newMemory : props.t.edit}</h2>
         <Badge variant="outline">{props.input.project}</Badge>
       </div>
       <MemoryBasicFields t={props.t} input={props.input} setInput={props.setInput} />
       <MemoryTextFields t={props.t} input={props.input} setInput={props.setInput} />
-      <div className="field">
+      <div className="field grid gap-2 mb-5">
         <Label htmlFor="memory-tags">{props.t.tags}</Label>
         <Input
           id="memory-tags"
@@ -68,7 +72,7 @@ function MemoryEditorForm(props: MemoryEditorFormProps): React.JSX.Element {
         />
       </div>
       <MemoryEvidenceFields t={props.t} input={props.input} setInput={props.setInput} />
-      <div className="form-actions">
+      <div className="form-actions flex justify-end gap-3">
         <Button
           type="button"
           variant="ghost"

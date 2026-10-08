@@ -153,27 +153,27 @@ export function CatalogBudgetFields(
   )
 }
 
-interface CatalogCredentialFieldProps {
+type CatalogCredentialFieldProps = {
   t: Messages
   form: FormState
   settings: CatalogSettings | null
   patch: (next: Partial<FormState>) => void
 }
 
-interface CatalogProviderFieldsProps {
+type CatalogProviderFieldsProps = {
   t: Messages
   form: FormState
   patch: (next: Partial<FormState>) => void
   settings: CatalogSettings | null
 }
 
-interface CatalogTokenBudgetFieldProps {
+type CatalogTokenBudgetFieldProps = {
   t: Messages
   form: FormState
   patch: (next: Partial<FormState>) => void
 }
 
-interface CatalogBudgetFieldsProps {
+type CatalogBudgetFieldsProps = {
   t: Messages
   form: FormState
   patch: (next: Partial<FormState>) => void

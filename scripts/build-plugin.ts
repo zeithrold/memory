@@ -25,19 +25,19 @@ const manifestSchema = z
   })
   .loose()
 
-export interface BuildPluginOptions {
+export type BuildPluginOptions = {
   origin: string
   outDir?: string
   root?: string
 }
 
-export interface BuiltPlugin {
+export type BuiltPlugin = {
   directory: string
   marketplace: string
   origin: string
 }
 
-interface CopyPluginSkillContext {
+type CopyPluginSkillContext = {
   base: string
   out: string
   directory: string

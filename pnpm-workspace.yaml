@@ -13,6 +13,7 @@ shellEmulator: true
 
 patchedDependencies:
   '@radix-ui/react-select@2.3.7': components/ui/ztd-me/patches/@radix-ui__react-select@2.3.7.patch
+  vaul@1.1.2: components/ui/ztd-me/patches/vaul@1.1.2.patch
 
 allowBuilds:
   '@sentry/cli': false

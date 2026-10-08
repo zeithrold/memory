@@ -13,7 +13,7 @@ import {
 } from './ui/alert-dialog'
 import { Button } from './ui/button'
 
-interface ConfirmActionProps {
+type ConfirmActionProps = {
   label: string
   description: string
   cancel: string

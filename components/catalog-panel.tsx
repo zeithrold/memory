@@ -25,6 +25,16 @@ import { CatalogSettingsCard } from './catalog-settings-card'
 import { RunTimelineDialog } from './catalog-timeline'
 import { CatalogTreeCard } from './catalog-tree'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
+const SKELETON_CLASS = [
+  'skeleton skeleton-heading relative overflow-hidden bg-muted rounded-[6px] h-8 w-[46%]',
+].join(' ')
+
+const SKELETON_CLASS_1 = [
+  'skeleton skeleton-line relative overflow-hidden bg-muted rounded-[6px] h-[11px] w-full',
+].join(' ')
+
 function CatalogPanelContent(props: CatalogPanelContentProps): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6">
@@ -32,7 +42,7 @@ function CatalogPanelContent(props: CatalogPanelContentProps): React.JSX.Element
       <CatalogSettingsCard {...props} />
 
       <CatalogRunControls {...props} />
-      <p className="muted">{props.t.budgetNote}</p>
+      <p className={MUTED_CLASS}>{props.t.budgetNote}</p>
 
       <CatalogStats {...props} />
 
@@ -61,9 +71,9 @@ export function CatalogPanel(
   const model = useCatalogModel({ ready, api, t })
   if (ready && model.loading) {
     return (
-      <div className="skeleton-stack">
-        <div className="skeleton skeleton-heading" />
-        <div className="skeleton skeleton-line" />
+      <div className="skeleton-stack grid gap-2">
+        <div className={SKELETON_CLASS} />
+        <div className={SKELETON_CLASS_1} />
       </div>
     )
   }
@@ -84,7 +94,7 @@ export function CatalogPanel(
   )
 }
 
-interface CatalogPanelContentProps {
+type CatalogPanelContentProps = {
   error: string
   t: Messages
   settings: CatalogSettings | null
@@ -127,4 +137,4 @@ interface CatalogPanelContentProps {
   setDetail: React.Dispatch<React.SetStateAction<RunDetail | null>>
 }
 
-interface CatalogPanelProps { t: Messages, api: Api, ready: boolean }
+type CatalogPanelProps = { t: Messages, api: Api, ready: boolean }

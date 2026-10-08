@@ -58,7 +58,7 @@ export function createPreferenceStore(initial: FrontendPreferences, policy: Pref
     connect,
   }
 }
-interface BrowserActions {
+type BrowserActions = {
   restore: () => void
   setSystem: (dark: boolean) => void
 }

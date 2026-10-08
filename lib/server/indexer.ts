@@ -26,7 +26,7 @@ export async function processIndexJobs(
   }
 }
 
-interface IndexJob { id: number, memory_id: string, version: number, attempts: number }
+type IndexJob = { id: number, memory_id: string, version: number, attempts: number }
 async function processIndexJob(
   env: Env,
   vectorize: NonNullable<Env['VECTORIZE']>,

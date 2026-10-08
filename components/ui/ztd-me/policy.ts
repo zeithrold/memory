@@ -58,10 +58,14 @@ function notificationKey(mirrorKey: unknown): string | undefined {
   return mirrorKey
 }
 
-export function createPreferencePolicy(options: PreferencePolicyOptions = {}): PreferencePolicy {
+function validateOptions(options: unknown): void {
   if (!isPreferenceRecord(options) || Object.keys(options).some(key => !optionKeys.has(key))) {
     throw new TypeError('Preference policy accepts only name, domain, secure and mirrorKey')
   }
+}
+
+export function createPreferencePolicy(options: PreferencePolicyOptions = {}): PreferencePolicy {
+  validateOptions(options)
   const name = cookieName(options.name)
   const secure = cookieSecure(options.secure)
   const domain = options.domain === undefined ? undefined : cookieDomain(options.domain)

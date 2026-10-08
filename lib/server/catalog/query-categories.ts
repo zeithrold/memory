@@ -6,7 +6,7 @@ import {
   loadState,
 } from './model'
 
-export interface CategoryView {
+export type CategoryView = {
   id: string
   parentId: string | null
   depth: number
@@ -21,7 +21,7 @@ export interface CategoryView {
   updatedAt: string
 }
 
-export interface CatalogView {
+export type CatalogView = {
   version: number
   updatedAt: string | null
   categories: CategoryView[]
@@ -93,7 +93,7 @@ function catalogSummary(
 
 const CATEGORY_PAGE_SIZE = 30
 
-export interface CategoryDetailView {
+export type CategoryDetailView = {
   category: CategoryView
   children: CategoryView[]
   memories: {
@@ -108,7 +108,7 @@ export interface CategoryDetailView {
   offset: number
 }
 
-interface CategoryMemoryRow {
+type CategoryMemoryRow = {
 
   id: string
   title: string

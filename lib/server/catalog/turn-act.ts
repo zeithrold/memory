@@ -5,7 +5,7 @@ import { AppError } from '../errors'
 import { executeTool } from './tools'
 import { loadAction, loadTurn, loadTurnContext, recordAction } from './turn-store'
 
-interface ExecuteTurnCallsContext {
+type ExecuteTurnCallsContext = {
   executable: { [x: string]: unknown, id: string, name: string, arguments: z.core.util.JSONType }[]
   input: TurnInput
   results: ToolResultRow[]
@@ -14,7 +14,7 @@ interface ExecuteTurnCallsContext {
   snapshot: ToolContext['snapshot']
 }
 
-interface ExecuteTurnCallContext extends ExecuteTurnCallsContext {
+type ExecuteTurnCallContext = ExecuteTurnCallsContext & {
   callIndex: number
   call: ExecuteTurnCallsContext['executable'][number]
 }
@@ -74,7 +74,7 @@ async function executeTurnCalls(context: ExecuteTurnCallsContext): Promise<void>
   }
 }
 
-interface RejectOverflowCallsContext {
+type RejectOverflowCallsContext = {
   overflow: { [x: string]: unknown, id: string, name: string, arguments: z.core.util.JSONType }[]
   input: TurnInput
   counters: Pick<ActResult, 'applied' | 'rejected' | 'finished' | 'reassignments'>

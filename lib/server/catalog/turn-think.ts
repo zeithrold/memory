@@ -8,7 +8,7 @@ import { providerForOwner } from './settings'
 import { toolsFor } from './tools'
 import { loadTurn, loadTurnContext, loadTurns, now } from './turn-store'
 
-interface PrepareTurnConversationContext {
+type PrepareTurnConversationContext = {
   input: TurnInput
 }
 async function prepareTurnConversation(
@@ -35,7 +35,7 @@ async function prepareTurnConversation(
   return { messages }
 }
 
-interface PersistModelTurnContext {
+type PersistModelTurnContext = {
   input: TurnInput
   reply: LlmReply
   started: number

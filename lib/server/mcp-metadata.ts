@@ -27,7 +27,7 @@ const IDEMPOTENT_WRITE: ToolAnnotations = {
 
 const DESTRUCTIVE_WRITE: ToolAnnotations = { destructiveHint: true }
 
-export interface ToolMetadata {
+export type ToolMetadata = {
   name: string
   scope: Scope
   description: string

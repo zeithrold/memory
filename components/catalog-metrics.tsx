@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
+const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+
 function CatalogMetricsTable({ t, metrics }: CatalogMetricsTableProps): React.JSX.Element {
   return (
     <Table>
@@ -29,7 +31,7 @@ function CatalogMetricsTable({ t, metrics }: CatalogMetricsTableProps): React.JS
             <TableCell>{row.orphan_count}</TableCell>
             <TableCell>
               {(row.prompt_tokens + row.completion_tokens).toLocaleString()}
-              {row.usage_missing_turns > 0 && <span className="muted"> *</span>}
+              {row.usage_missing_turns > 0 && <span className={MUTED_CLASS}> *</span>}
             </TableCell>
           </TableRow>
         ))}
@@ -54,12 +56,12 @@ export function CatalogMetricsCard(
   )
 }
 
-interface CatalogMetricsTableProps {
+type CatalogMetricsTableProps = {
   t: Messages
   metrics: Metrics
 }
 
-interface CatalogMetricsCardProps {
+type CatalogMetricsCardProps = {
   t: Messages
   metrics: Metrics
 }

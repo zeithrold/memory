@@ -24,7 +24,7 @@ export class AppError extends Error {
  * and `status` come from the catalog, `detail` is this occurrence, and `code` is
  * the stable machine identifier clients should branch on.
  */
-export interface ProblemDocument {
+export type ProblemDocument = {
   type: string
   title: string
   status: number
@@ -33,7 +33,7 @@ export interface ProblemDocument {
   code: ErrorCode
   fields?: { path: (number | string)[], message: string }[]
 }
-export interface ProblemContext {
+export type ProblemContext = {
   /** The deployment origin that produced the response. */
   origin: string
   /** Path of the request, without a query string. */

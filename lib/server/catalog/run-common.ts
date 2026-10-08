@@ -46,12 +46,12 @@ export function minutesAgo(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
-export interface DueOwner {
+export type DueOwner = {
   ownerId: string
   dryRun: boolean
 }
 
-export interface DailyCatalogUsage {
+export type DailyCatalogUsage = {
   tokens: number
   turns: number
   missingTurns: number

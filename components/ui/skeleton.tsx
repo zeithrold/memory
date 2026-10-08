@@ -10,7 +10,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<'div'>): React.J
     <div
       data-slot="skeleton"
       aria-hidden="true"
-      className={cn('skeleton', className)}
+      className={cn('skeleton relative overflow-hidden bg-muted rounded-[6px]', className)}
       {...props}
     />
   )

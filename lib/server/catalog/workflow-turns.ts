@@ -6,7 +6,7 @@ import { AppError } from '../errors'
 import { automaticTurnAllowed } from './run'
 import { actTurn, thinkTurn } from './turn'
 
-interface TurnOutcome {
+type TurnOutcome = {
   stats: BatchStats
   exhausted: boolean
   budgetStopped: boolean

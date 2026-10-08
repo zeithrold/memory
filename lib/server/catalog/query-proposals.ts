@@ -6,7 +6,7 @@ import {
 } from './model'
 import { decideProposal } from './query-decisions'
 
-export interface ProposalView {
+export type ProposalView = {
   id: string
   kind: string
   status: string
@@ -94,7 +94,7 @@ export async function appendPendingAdvice(
     .run()
 }
 
-export interface BulkDecisionResult {
+export type BulkDecisionResult = {
   decided: number
   failed: { id: string, code: string, detail: string }[]
 }
@@ -103,7 +103,7 @@ export interface BulkDecisionResult {
  * Decides many pending proposals in one request. Approve runs create → move →
  * merge → retire so a package that both creates and folds stays coherent.
  */
-interface DecideProposalsOptions {
+type DecideProposalsOptions = {
   ownerId: string
   approve: boolean
   ids: string[] | undefined
