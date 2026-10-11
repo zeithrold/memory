@@ -44,7 +44,7 @@ const DETAIL_TITLE_CLASS = [
 ].join(' ')
 
 const DETAIL_CONTENT_CLASS = [
-  'detail-content m-0 max-w-[76ch] whitespace-pre-wrap text-body leading-[1.9] text-foreground',
+  'detail-content m-0 max-w-[76ch] whitespace-pre-wrap text-reading leading-[1.9] text-foreground',
   'wrap-anywhere',
 ].join(' ')
 

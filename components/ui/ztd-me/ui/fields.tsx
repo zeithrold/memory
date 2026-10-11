@@ -6,13 +6,13 @@ import { fieldClass, helpClass } from './classes.js'
 import { cn } from './cn.js'
 
 export function Input({ className = '', ...props }: ComponentProps<'input'>): React.JSX.Element {
-  return <input data-slot="input" className={cn(`ztd-input ${fieldClass} ${className}`)} {...props} />
+  return <input data-slot="input" className={cn('ztd-input', fieldClass, 'text-editable', className)} {...props} />
 }
 export function Textarea({ className = '', ...props }: ComponentProps<'textarea'>): React.JSX.Element {
   return (
     <textarea
       data-slot="textarea"
-      className={cn(`ztd-textarea min-h-25 resize-y ${fieldClass} ${className}`)}
+      className={cn('ztd-textarea min-h-25 resize-y', fieldClass, 'text-editable', className)}
       {...props}
     />
   )

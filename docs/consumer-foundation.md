@@ -6,8 +6,12 @@ and responsive rules live in component utilities. The thin application styleshee
 retains product-specific headings, catalog children and skeleton animation; shared
 tokens, typography, controls, overlays and motion belong to Tools.
 
-Ordinary Noto text uses shared configurable roles: `--ztd-font-body` (18px),
-`--ztd-font-control` (16px), and `--ztd-font-help` (14px). `app/styles/typography.css`
+Ordinary Noto text uses shared configurable roles: `--ztd-font-body` (15px),
+`--ztd-font-control` (13px), and `--ztd-font-help` (12px). Card and modal titles
+use `--ztd-font-heading` (19px); full memory details and revision prose use
+`text-reading` with `--ztd-font-reading` (17px). List previews remain `text-body`.
+Editable Input and Textarea retain `--ztd-font-input` (16px), independently of
+compact controls and touch targets. `app/styles/typography.css`
 records that these roles come from the shared Tailwind entry. Existing app roots,
 routing, persistence authority, main landmarks and palette policy are retained.
 Local dialog, alert-dialog, select, switch, card and button modules delegate to
@@ -42,11 +46,16 @@ the checked-in receipt hash.
 The source guard checks that receipt, upstream and installed hashes, the complete
 inventory digest, reviewed adaptations, atomic delivery and exact dependency pins.
 It rejects altered bytes, extra files, changed inventory digests and unverified
-installation claims. The installed graph is a verified public source rather than a
-local candidate. Source updates require a new verified full commit and reviewed
-inventory; normal checks use the committed evidence without network access.
+installation claims. The accepted public source pin and its CI receipt remain
+unchanged. The requested typography update is a local Tools candidate recorded as seven consumer adaptations
+with exact installed hashes and reasons; it has no new public installation claim.
+Public source updates require a new verified full commit and reviewed inventory;
+normal checks use the committed evidence without network access.
 
-All 77 installed files match the public graph without local adaptations.
+The seven local adaptations are `styles/tokens.css`, `styles/primitives.css`,
+`ui/fields.tsx`, `tailwind.css`, `ui/cn.ts`, `foundation.md` and `README.md`. Each
+uses the current Tools registry mapping; the other 70 installed files match the
+accepted public graph.
 
 The exact published `@ztd-me/frontend-checks@0.1.3` package supplies CSS imports,
 Tailwind custom variants and application utility inspection. Its TypeScript runtime

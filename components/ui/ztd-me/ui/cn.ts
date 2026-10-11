@@ -10,6 +10,8 @@ const merge = extendTailwindMerge({
           'control',
           'help',
           'heading',
+          'reading',
+          'editable',
         ] },
       ],
       'font-family': [

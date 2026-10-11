@@ -11,7 +11,7 @@ export async function verifyAndDismissToast(page: Page, info: TestInfo, message:
   await expect(toast).toHaveAttribute('data-removed', 'false')
   await expect(toast).toHaveCSS('opacity', '1')
   const title = toast.locator('[data-title]')
-  await expect(title).toHaveCSS('font-size', '16px')
+  await expect(title).toHaveCSS('font-size', '13px')
   const foreground = await page.locator('body').evaluate(node => getComputedStyle(node).color)
   await expect(title).toHaveCSS('color', foreground)
   expect(await title.evaluate(node => getComputedStyle(node).fontFamily)).toMatch(/^"Noto Sans"/u)

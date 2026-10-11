@@ -18,7 +18,7 @@ const CARD_META_CLASS = [
 ].join(' ')
 
 const MEMORY_CONTENT_CLASS = [
-  'memory-content whitespace-pre-wrap text-body leading-[1.85] text-muted-foreground m-0 wrap-anywhere',
+  'memory-content whitespace-pre-wrap text-reading leading-[1.85] text-muted-foreground m-0 wrap-anywhere',
 ].join(' ')
 
 const PLACE_SELF_CLASS = [

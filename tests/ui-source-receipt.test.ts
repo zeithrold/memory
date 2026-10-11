@@ -45,11 +45,11 @@ function verify(): void {
   ], { cwd: root, stdio: 'pipe' })
 }
 
-it('accepts all 77 public source files with the genuine verified installation receipt', () => {
+it('accepts the 77-file public graph with recorded typography adaptations and its genuine receipt', () => {
   expect(receipt.files).toHaveLength(77)
   expect(receipt.installation.files).toHaveLength(77)
   expect(receipt.installation.publicInstallationVerified).toBe(true)
-  expect(receipt.adaptations).toHaveLength(0)
+  expect(receipt.adaptations).toHaveLength(7)
   expect(() => verify()).not.toThrow()
 })
 
@@ -58,7 +58,11 @@ function adaptReadme(): void {
   writeFileSync(join(root, filename), '# Reviewed consumer documentation\n')
   const sha256 = createHash('sha256').update(readFileSync(join(root, filename))).digest('hex')
   const reason = 'Reviewed consumer documentation example'
-  receipt.adaptations.push({ path: filename, sha256, reason })
+  const adaptation = receipt.adaptations.find(file => file.path === filename)
+  if (adaptation === undefined) {
+    throw new Error('README must have a recorded typography adaptation')
+  }
+  Object.assign(adaptation, { sha256, reason })
   const entry = receipt.installation.files.find(file => file.path === filename)
   if (entry === undefined) {
     throw new Error('README must be in the public inventory')

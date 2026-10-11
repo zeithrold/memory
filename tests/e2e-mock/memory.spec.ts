@@ -7,6 +7,10 @@ import { verifyAndDismissToast } from './toast-assertions'
 
 async function createMemory(page: Page, info: TestInfo): Promise<void> {
   await page.getByRole('button', { name: 'New memory', exact: true }).click()
+  await expect(page.locator('#memory-title')).toHaveCSS('font-size', '16px')
+  await expect(page.locator('#memory-content')).toHaveCSS('font-size', '16px')
+  await expect(page.locator('#memory-kind')).toHaveCSS('font-size', '13px')
+  await expect(page.locator('label[for="memory-title"]')).toHaveCSS('font-size', '12px')
   await page.locator('#memory-title').fill('New context')
   await page.locator('#memory-content').fill('Remember the new context.')
   await page.locator('#memory-source').fill('https://example.com/new')
@@ -18,6 +22,7 @@ async function createMemory(page: Page, info: TestInfo): Promise<void> {
 async function editMemory(page: Page, info: TestInfo): Promise<void> {
   await page.getByRole('link', { name: 'Original decision', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Original decision', exact: true })).toBeVisible()
+  await expect(page.locator('.detail-content')).toHaveCSS('font-size', '17px')
   await assertAccessible(page, info, { label: 'memory-detail' })
   await page.getByRole('button', { name: 'Edit', exact: true }).click()
   await page.locator('#memory-title').fill('Edited decision')
@@ -32,6 +37,8 @@ test('mocked session: accessible create/edit/search preserve mutation contracts'
   await page.goto('/memories')
   await expect(page.locator('body')).toHaveCSS('color-scheme', 'dark')
   await expect(page.getByText('Original decision', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'New memory', exact: true })).toHaveCSS('font-size', '13px')
+  await expect(page.getByRole('textbox', { name: 'Search your memories' })).toHaveCSS('font-size', '16px')
   await assertAccessible(page, info, { label: 'memory-list' })
   await createMemory(page, info)
   await editMemory(page, info)

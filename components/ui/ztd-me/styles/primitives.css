@@ -1,4 +1,4 @@
-/* Modal presence uses native Radix lifecycle; Tailwind owns the surfaces and layout. */
+/* Tailwind owns centering; native Radix lifecycle animates opacity and scale. */
 .ztd-modal-overlay[data-state="open"] { animation: ztd-overlay-enter 150ms ease-out; }
 .ztd-modal-overlay[data-state="closed"] { animation: ztd-overlay-exit 100ms ease-in; }
 .ztd-dialog[data-state="open"] { animation: ztd-dialog-enter 150ms ease-out; }
@@ -11,24 +11,24 @@
 @keyframes ztd-dialog-enter {
   from {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.98);
+    transform: scale(0.98);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes ztd-dialog-exit {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 
   to {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.98);
+    transform: scale(0.98);
   }
 }
 
