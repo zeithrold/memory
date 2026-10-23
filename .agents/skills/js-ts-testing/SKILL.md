@@ -1,6 +1,7 @@
 ---
 name: js-ts-testing
 description: Verify JavaScript and TypeScript projects through their declared package scripts, type checks, unit tests, and browser tests.
+license: MIT
 ---
 
 # JavaScript and TypeScript testing

@@ -41,7 +41,7 @@ The skill supplies the retrieval and bounded automatic-capture policy. Its `scri
 Install the pinned CLI (requires Go >=1.24) and Chromium once, then run the aggregate:
 
 ```sh
-go install github.com/zeithrold/tools/cmd/zt@3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f
+go install github.com/zeithrold/tools/cmd/zt@405d732ed93488ff08568751e522c42537480752
 pnpm exec playwright install chromium
 pnpm check
 pnpm test:artifacts
@@ -55,8 +55,14 @@ browser variants when run separately. Builds clear Access/Sentry credentials; mo
 session affordances use a synthetic public domain and intercepted APIs, not real auth.
 See [the frontend contract](DESIGN.md) for state coverage and artifact boundaries.
 
-`zt sync --root . --plan` previews managed Skills before `zt sync --root .` and protects
-local edits. CI retains zt reports, CSS findings, full Axe scans and browser captures in
+The five development Skills selected in `zt.json` are pinned to Tools
+`405d732ed93488ff08568751e522c42537480752` with directory hashes in `zt.lock.json`.
+`zt sync --root . --plan` previews updates before `zt sync --root .` and protects local edits.
+The product's `skills/shared-memory` Skill has separate ownership and is outside this sync.
+Read [DESIGN.md](DESIGN.md) and the installed
+[visual review workflow](.agents/skills/ui-foundation/references/visual-design.md) for UI work.
+CI's check runner stays pinned to `3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`; it does not sync Skills.
+CI retains zt reports, CSS findings, full Axe scans and browser captures in
 `.zt/artifacts`, including failure traces/screenshots/videos. `pnpm test:artifacts`
 verifies these files using one deliberate Axe failure in an isolated consumer probe.
 

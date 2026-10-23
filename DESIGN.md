@@ -40,10 +40,12 @@ shared tokens. Static CSS checking includes all installed styles, Tailwind decla
 and only the exact Radix runtime custom properties. Verify actual palette contrast,
 keyboard focus, inert cleanup, motion and narrow reflow; token inventory is insufficient.
 
-Use pnpm 11.22.0, `@ztd-me/eslint@0.1.1`, `@ztd-me/frontend-checks@0.1.1` and matching
-Playwright 1.62.0. Existing CLI/managed Skills stay pinned to
-`3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`; authoring also follows the updated frontend
-Skills at the approved UI source SHA. Preserve release-age gates, no-downgrade trust,
+Use pnpm 11.22.0, `@ztd-me/eslint@0.1.5`, `@ztd-me/frontend-checks@0.1.3` and matching
+Playwright 1.62.0. The managed development Skills are pinned to Tools
+`405d732ed93488ff08568751e522c42537480752` in `zt.lock.json`; CI's check runner remains at
+`3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`. These pins are separate from the installed UI source.
+Use the installed [eight-dimension visual review](.agents/skills/ui-foundation/references/visual-design.md)
+with this contract's local role budgets and real workspace states. Preserve release-age gates, no-downgrade trust,
 the exact semver@6.3.1 exception and existing build grants. The Radix Select patch is
 declaration-only. Strict UI library checking is required alongside application types.
 
@@ -59,5 +61,5 @@ Retain transient JSON, captures, traces, videos and CSS/check reports only under
 A deliberate expected-failure probe verifies evidence retention. Visual captures support
 owner review, not automatic visual approval. Authenticated production CSP, real Access,
 remote models/bindings and deployment are not established by local synthetic checks.
-Production deployment is eligible only after green checks on a main push; this branch
-must not merge or manually deploy. See the upstream lint blocker before acceptance.
+Production deployment follows the existing main-push workflow after green checks.
+Manual deployments retain the project's release authorization boundary.

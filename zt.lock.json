@@ -2,24 +2,24 @@
   "schemaVersion": 1,
   "skills": {
     "frontend-engineering": {
-      "version": "v0.0.0-20261002102310-3f9a3a7d33be",
-      "sha256": "4f3229ad963febf9596898bfd033e1644212b42e153228ed4d676cbe84b2ca07"
+      "version": "v0.0.0-20261023135626-405d732ed934",
+      "sha256": "3f93cd34901080c1cd1fac43edf85cc5860af679ded3ea36639ec7a0a82ad2ee"
     },
     "frontend-verification": {
-      "version": "v0.0.0-20261002102310-3f9a3a7d33be",
-      "sha256": "105365b1fbaa924bf4d8641ce85829ff001b9cc344903fe88c6c021f88586de6"
+      "version": "v0.0.0-20261023135626-405d732ed934",
+      "sha256": "0743bdd79dd0bb17aaa0ca23eb9825bb76c6906fe5c8ab0275072a1d9f25a183"
     },
     "js-ts-testing": {
-      "version": "v0.0.0-20261002102310-3f9a3a7d33be",
-      "sha256": "32b75d845199ef6c446d1b9570c920f3b177424a6d630177f4c38caddf2dfab7"
+      "version": "v0.0.0-20261023135626-405d732ed934",
+      "sha256": "3f692344475f0e5338104fecafc4341924b973c76735ae1ce90f217c1c206191"
     },
     "ui-foundation": {
-      "version": "v0.0.0-20261002102310-3f9a3a7d33be",
-      "sha256": "3d0e4b0d22fbfd9b9d999a3c7143fcd36e35bacd5f3354ff9df072150ed0cea0"
+      "version": "v0.0.0-20261023135626-405d732ed934",
+      "sha256": "496db0a64ac569f0fafc01656f2792ae2cea445b4f89e0074a09fcbafc611741"
     },
     "ui-web": {
-      "version": "v0.0.0-20261002102310-3f9a3a7d33be",
-      "sha256": "d8fdf4accf5be89f06c52682ef933ce530c710f6bd0309db9522b62c2d8ccbf1"
+      "version": "v0.0.0-20261023135626-405d732ed934",
+      "sha256": "a211da30514cc7628d1679f2373418896038cc34ca9bd0ddb674d2eed8418b1a"
     }
   }
 }
