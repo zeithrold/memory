@@ -5,14 +5,16 @@ import Link from 'next/link'
 import { isWorkspaceRouteActive, workspaceNavigation } from './workspace-navigation-model'
 
 const WORKSPACE_NAVIGATION_CLASS = [
-  'workspace-navigation flex flex-wrap gap-1 max-w-320 mx-auto py-2 px-8 max-[640px]:px-4',
+  'workspace-navigation flex flex-wrap gap-x-5 gap-y-1 w-full max-w-292 mx-auto pt-2 px-12 border-b',
+  'border-border max-[1000px]:px-6 max-[640px]:px-4 max-[640px]:gap-x-3',
 ].join(' ')
 
 const NAV_ITEM_CLASS = [
-  'nav-item flex items-center gap-3 py-3 px-4 border-0 rounded-[8px] text-muted-foreground bg-transparent',
-  'text-left text-control hover:bg-muted hover:text-foreground [&.active]:bg-muted',
-  '[&.active]:text-foreground [&.active]:font-[650] max-[640px]:py-3 max-[640px]:px-2 max-[640px]:gap-2',
-  'max-[640px]:text-help max-[640px]:flex-[1_1_auto] max-[640px]:justify-center',
+  'nav-item relative inline-flex items-center justify-center gap-2 min-h-12 px-1 border-b-2',
+  'border-transparent text-muted-foreground text-control transition-colors hover:text-foreground',
+  '[&.active]:border-accent [&.active]:text-foreground [&.active]:font-semibold',
+  'focus-visible:outline-offset-[-2px] motion-reduce:transition-none max-[640px]:text-help',
+  'max-[640px]:gap-1.5',
 ].join(' ')
 
 type WorkspaceNavigationProps = { t: Messages, pathname: string }
@@ -31,7 +33,7 @@ export function WorkspaceNavigation({ t, pathname }: WorkspaceNavigationProps): 
             className={`${NAV_ITEM_CLASS} ${active ? 'active' : ''}`}
             aria-current={active ? 'page' : undefined}
           >
-            <Icon size={18} />
+            <Icon size={16} aria-hidden="true" />
             {t[item.id]}
           </Link>
         )

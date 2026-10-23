@@ -17,18 +17,20 @@ import { WorkspaceProvider } from './workspace-provider'
 const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
 
 const WORKSPACE_SECURITY_NOTE_CLASS = [
-  'workspace-security-note flex items-center gap-2 max-w-320 mx-auto py-2 px-8 text-muted-foreground',
-  'text-control max-[640px]:px-4 flex-wrap',
+  'workspace-security-note flex items-center gap-2 w-full max-w-292 mx-auto pt-3 px-12 pb-0',
+  'text-muted-foreground text-help max-[1000px]:px-6 max-[640px]:px-4 flex-wrap',
 ].join(' ')
 
 const PAGE_HEADING_CLASS = [
-  'page-heading flex items-center justify-between gap-6 mb-8 max-[1000px]:items-start',
-  'max-[1000px]:flex-col max-[1000px]:gap-2 flex-wrap wrap-anywhere',
+  'page-heading flex flex-wrap items-end justify-between gap-x-6 gap-y-4 mb-7 pb-6 border-b',
+  'border-border wrap-anywhere max-[640px]:items-start',
 ].join(' ')
 
 const SETUP_BANNER_CLASS = [
-  'setup-banner bg-muted border border-border rounded-md py-4 px-5 mb-6 text-foreground text-body',
-  '[&_p]:my-2 [&_p]:mx-0 [&_small]:text-body',
+  'setup-banner grid grid-cols-[18px_minmax(0,1fr)] items-start gap-3 bg-muted/50 border',
+  'border-border rounded-sm p-4 mb-6 text-foreground text-control [&_p]:my-2',
+  '[&_p]:text-muted-foreground [&_p]:leading-[1.8] [&_small]:text-help',
+  '[&_small]:text-muted-foreground',
 ].join(' ')
 
 export type { Api } from './api-client'
@@ -55,6 +57,7 @@ export default function WorkspaceShell(
         brandClassName="max-sm:text-control max-sm:[&_>_svg]:hidden max-sm:[&_>_span]:wrap-normal"
         footer={memoryFooter(preferences.locale)}
         mainId="workspace-content"
+        mainClassName="mx-auto w-full max-w-292"
         linkComponent={FrontendLink}
         identity={<WorkspaceAccountControl accessTeamDomain={accessTeamDomain} t={t} />}
         businessNavigation={<WorkspaceNavigation t={t} pathname={pathname} />}
@@ -96,9 +99,12 @@ export function SetupBanner(): React.JSX.Element {
       className={SETUP_BANNER_CLASS}
       role="status"
     >
-      <strong>{t.setup}</strong>
-      <p>{t.setupBody}</p>
-      <small>{t.setupHelp}</small>
+      <LockKeyhole size={17} className="mt-0.5 text-muted-foreground" aria-hidden="true" />
+      <div>
+        <strong className="font-semibold">{t.setup}</strong>
+        <p>{t.setupBody}</p>
+        <small>{t.setupHelp}</small>
+      </div>
     </div>
   )
 }

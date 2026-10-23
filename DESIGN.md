@@ -31,6 +31,10 @@ Use Lucide SVGs for actions/navigation/status with consistent role sizes, decora
 `aria-hidden` and named icon-only controls; preserve prose, mathematics and user content.
 Third-party network/privacy/mutability/CSP boundaries are documented in the migration.
 
+The workspace uses left-aligned navigation with an explicit active underline, a compact task heading and a bounded search surface. Setup, empty and populated states use real product information; the empty library illustration carries no fictitious records. Empty initial results omit unavailable pagination while preserving navigation from later pages. Main content and navigation share one alignment grid.
+
+Body/control/help roles are 15/13/12px; editable fields stay 16px. Page titles cap at 32px on wide layouts and 26px on narrow layouts, with 18px empty-state headings. Type size changes preserve 44px controls, wrapping translations and 200% text reflow. Keep review captures in ignored artifacts and distinguish synthetic-session coverage from actual authentication or live service evidence.
+
 Paint literals belong in semantic token declarations. App roles reference installed
 shared tokens. Static CSS checking includes all installed styles, Tailwind declarations
 and only the exact Radix runtime custom properties. Verify actual palette contrast,

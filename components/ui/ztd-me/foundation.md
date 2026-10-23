@@ -36,10 +36,25 @@ root. The host still owns CSP and must retain the documented Radix style-attribu
 
 ## Typography
 
-Defaults are `--ztd-font-body:18px`, `--ztd-font-control:16px`, `--ztd-font-help:14px` and
-`--ztd-font-heading:22px`. Related body/control/help line-height tokens are 1.65/1.5/1.5. Reading content,
-controls and supporting copy consume the appropriate role; consumers may override these tokens in their
-own source contract. No project-name branch chooses a scale. Noto Sans/CJK and Noto Color Emoji continue
+The generic interface scale keeps reading prose and editable fields separate from compact controls:
+
+| Role | Default | Line height | Utility and use |
+| --- | --- | --- | --- |
+| `--ztd-font-body` | 15px | `--ztd-leading-body:1.65` | `text-body` for ordinary cards and modal content |
+| `--ztd-font-control` | 13px | `--ztd-leading-control:1.5` | `text-control` for buttons, menus, selectors and tabs |
+| `--ztd-font-help` | 12px | `--ztd-leading-help:1.5` | `text-help` for labels, descriptions and badges |
+| `--ztd-font-heading` | 19px | 1.35 | `text-heading` for card and modal titles |
+| `--ztd-font-reading` | 17px | `--ztd-leading-reading:1.65` | `text-reading` for long prose and document canvases |
+| `--ztd-font-input` | 16px | `--ztd-leading-input:1.5` | `text-editable` for Input and Textarea, including mobile |
+
+Native and Radix selectors use the control role; editable inputs retain 16px independently of the
+control token. Default Button and field targets remain at least 44px, and compact controls and menu
+choices retain their 44px coarse-pointer targets. Font roles do not change root/rem sizing or spacing.
+All six utilities ship in packed CSS as well as the source theme bridge, including reading content
+that is composed only by a consumer. Shared `cn` merges these font-size roles separately from font
+family and color so explicit class overrides remain effective. Consumers may override tokens in their
+own source contract; a hardcoded `text-lg` does not reference the reading token. No project-name branch
+chooses a scale. Noto Sans/CJK and Noto Color Emoji continue
 to load through Google Fonts, with the existing nonce and license mechanisms intact. Destructive actions
 and modal backdrop use explicit semantic color tokens.
 
@@ -95,7 +110,9 @@ Import Tailwind CSS 4.3.3 first, then the installed `tailwind.css`, and include 
 in Tailwind's source detection. The entry maps runtime tokens to semantic utilities and provides the
 explicit/system dark variant. Runtime palettes and typography live in base; native overlay motion
 and Vaul behavioral adaptation live in components. Consumer utilities can override components.
-All component className props use the shared `cn`, including text body/control/help/heading roles.
+All component className props use the shared `cn`, including text body/control/help/heading/reading/editable roles.
+Dialog and AlertDialog retain Tailwind positioning throughout native enter/exit opacity and scale motion;
+keyframes do not repeat the centering translate. Reduced-motion preferences keep immediate dismissal and focus restoration.
 The private packed verification artifact compiles the same source classes with native Tailwind;
 source consumers own compilation. Do not copy the compiled verification artifact into a registry item.
 

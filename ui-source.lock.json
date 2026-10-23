@@ -335,13 +335,49 @@
       "sha256": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84"
     }
   ],
-  "adaptations": [],
+  "adaptations": [
+    {
+      "path": "components/ui/ztd-me/styles/tokens.css",
+      "sha256": "4c1306b5e7e9d78b4b7c514e80fb4896d0b3db2e815a5dc11ecf576bc96f234e",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/README.md",
+      "sha256": "7ca306f42d55c389a8aec6742e02c0c471f203ff3f33418695a30ac3063a5676",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/styles/primitives.css",
+      "sha256": "05357285b78ea8a4bb10b0b68c66611e20b28bed02070d1cf6d0e6b17be0b492",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/ui/fields.tsx",
+      "sha256": "96b59b1290b4792eeeff87b9e2d891cfc806da1ae4220576bd3fcb697aafa73e",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/foundation.md",
+      "sha256": "68388f10ee0f4fc3e23bb2463bf11bc572777360d9292ad1d20cb29df163552f",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/tailwind.css",
+      "sha256": "104aa8ce55035c874e7736f6b1a7594e7fd62b2f16412a9ff0940cc0ae273b04",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    },
+    {
+      "path": "components/ui/ztd-me/ui/cn.ts",
+      "sha256": "655fa933d16370a0251046b40fd3e8e65f5ed7a3f491369cd3f33709591b19e2",
+      "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
+    }
+  ],
   "installedDelivery": "verified-public-source",
   "installation": {
     "kind": "verified-public-source",
     "sourceSha": "9abea5a57b97f63109fb7dc5255543b53629c3ba",
     "registryItemSha256": "0ea6c065dc4da6608fb8b2beb817b8607c03ad694f40af1a49160971c804ddd4",
-    "inventorySha256": "7942773fb2398868803eb26bdd3d8feeb13fb96805d12d39c08c3564e7b71807",
+    "inventorySha256": "9a86bb4a27b2a2a2443a1f8774c1b539deb037de3c185de2fd882183fb7963bf",
     "publicInstallationVerified": true,
     "dependencies": [
       "react@19.3.0",
@@ -502,7 +538,8 @@
       {
         "path": "components/ui/ztd-me/styles/tokens.css",
         "upstreamSha256": "a8697a72ae551a0291d5ee73587bb4630032e9655d048ad213ceec4d7a754ddb",
-        "sha256": "a8697a72ae551a0291d5ee73587bb4630032e9655d048ad213ceec4d7a754ddb"
+        "sha256": "4c1306b5e7e9d78b4b7c514e80fb4896d0b3db2e815a5dc11ecf576bc96f234e",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/styles/shell.css",
@@ -542,7 +579,8 @@
       {
         "path": "components/ui/ztd-me/README.md",
         "upstreamSha256": "60fc88932685506d01aeab99bc65413526c02595f4024b62c4c35a4a4fd56b4d",
-        "sha256": "60fc88932685506d01aeab99bc65413526c02595f4024b62c4c35a4a4fd56b4d"
+        "sha256": "7ca306f42d55c389a8aec6742e02c0c471f203ff3f33418695a30ac3063a5676",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/third-party/NOTO-SANS-OFL.txt",
@@ -587,7 +625,8 @@
       {
         "path": "components/ui/ztd-me/styles/primitives.css",
         "upstreamSha256": "011617b8e6351955b99556358ad9bd073fba090096f8073c413043cd019d7579",
-        "sha256": "011617b8e6351955b99556358ad9bd073fba090096f8073c413043cd019d7579"
+        "sha256": "05357285b78ea8a4bb10b0b68c66611e20b28bed02070d1cf6d0e6b17be0b492",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/ui/accordion.tsx",
@@ -622,7 +661,8 @@
       {
         "path": "components/ui/ztd-me/ui/fields.tsx",
         "upstreamSha256": "cf928ad9d6936809537c3c08a8ea5a18d47a9701c41813a65b41d3543befc72d",
-        "sha256": "cf928ad9d6936809537c3c08a8ea5a18d47a9701c41813a65b41d3543befc72d"
+        "sha256": "96b59b1290b4792eeeff87b9e2d891cfc806da1ae4220576bd3fcb697aafa73e",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/ui/portal.ts",
@@ -662,7 +702,8 @@
       {
         "path": "components/ui/ztd-me/foundation.md",
         "upstreamSha256": "d6f2aa5e712326a30ab5695228c2422fc154298559e83ac350b8012ceb2b5de2",
-        "sha256": "d6f2aa5e712326a30ab5695228c2422fc154298559e83ac350b8012ceb2b5de2"
+        "sha256": "68388f10ee0f4fc3e23bb2463bf11bc572777360d9292ad1d20cb29df163552f",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/third-party/RADIX-MIT.txt",
@@ -672,7 +713,8 @@
       {
         "path": "components/ui/ztd-me/tailwind.css",
         "upstreamSha256": "193945437dfa392c217f3857a9a745204bcec1e5a1c09859387b6c6538a948e2",
-        "sha256": "193945437dfa392c217f3857a9a745204bcec1e5a1c09859387b6c6538a948e2"
+        "sha256": "104aa8ce55035c874e7736f6b1a7594e7fd62b2f16412a9ff0940cc0ae273b04",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/ui/classes.ts",
@@ -682,7 +724,8 @@
       {
         "path": "components/ui/ztd-me/ui/cn.ts",
         "upstreamSha256": "9edd159815e66a464c4090922d85ea75a383778a5515b4f339015c93cdfebdd3",
-        "sha256": "9edd159815e66a464c4090922d85ea75a383778a5515b4f339015c93cdfebdd3"
+        "sha256": "655fa933d16370a0251046b40fd3e8e65f5ed7a3f491369cd3f33709591b19e2",
+        "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {
         "path": "components/ui/ztd-me/ui/drawer.tsx",

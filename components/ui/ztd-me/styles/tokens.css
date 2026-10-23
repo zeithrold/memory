@@ -1,11 +1,15 @@
 :root {
-  --ztd-font-body: 18px;
-  --ztd-font-control: 16px;
-  --ztd-font-help: 14px;
-  --ztd-font-heading: 22px;
+  --ztd-font-body: 15px;
+  --ztd-font-control: 13px;
+  --ztd-font-help: 12px;
+  --ztd-font-heading: 19px;
+  --ztd-font-reading: 17px;
+  --ztd-font-input: 16px;
   --ztd-leading-body: 1.65;
   --ztd-leading-control: 1.5;
   --ztd-leading-help: 1.5;
+  --ztd-leading-reading: 1.65;
+  --ztd-leading-input: 1.5;
   --ztd-warning: #a16207;
   --ztd-success: #166534;
   --ztd-info: #075985;

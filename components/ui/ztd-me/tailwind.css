@@ -1,5 +1,7 @@
 @import "./styles.css";
 
+@source inline("text-body text-control text-help text-heading text-reading text-editable");
+
 @theme inline {
   --color-background: var(--ztd-background);
   --color-foreground: var(--ztd-foreground);
@@ -42,6 +44,10 @@
   --text-help--line-height: var(--ztd-leading-help);
   --text-heading: var(--ztd-font-heading);
   --text-heading--line-height: 1.35;
+  --text-reading: var(--ztd-font-reading);
+  --text-reading--line-height: var(--ztd-leading-reading);
+  --text-editable: var(--ztd-font-input);
+  --text-editable--line-height: var(--ztd-leading-input);
   --shadow-menu: 0 4px 16px color-mix(in srgb, var(--ztd-foreground) 10%, transparent);
 }
 

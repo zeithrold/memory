@@ -11,7 +11,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 
 const SEARCHBAR_CLASS = [
-  'searchbar flex items-center gap-3 bg-card p-3 border border-border rounded-[12px]',
+  'searchbar flex items-center gap-3 bg-card p-2 border border-border rounded-md',
   'max-[640px]:flex-wrap',
 ].join(' ')
 
@@ -81,7 +81,7 @@ export function MemorySearchForm(
       }}
     >
       <div className={SEARCH_INPUT_CLASS}>
-        <Search size={18} />
+        <Search size={18} aria-hidden="true" />
         <Input
           aria-label={props.t.search}
           placeholder={props.t.searchHint}
