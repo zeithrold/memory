@@ -1,6 +1,9 @@
 export const en = {
   preferencePersistenceError: 'Your preferences work for this visit, but the browser could not save them. '
     + 'Reloading may reset them.',
+  notFoundTitle: 'Not found',
+  notFoundDescription: 'That path does not exist. API failures are documented one page per error code.',
+  browseApiErrors: 'Browse API errors',
   brand: 'Shared Memory',
   repositoryLabel: 'GitHub repository',
   tagline: 'A little context. Everywhere.',

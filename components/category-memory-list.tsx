@@ -7,20 +7,19 @@ import { Button } from './ui/button'
 
 const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
 
-const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+const MUTED_CLASS_1 = ['muted text-muted-foreground text-help leading-[1.9]'].join(' ')
 
 const RUN_LIST_CLASS = [
-  'run-list list-none p-0 m-0 grid gap-4 [&_>_li]:bg-card [&_>_li]:border [&_>_li]:border-border',
-  '[&_>_li]:rounded-md [&_>_li]:p-6 [&_p]:my-2 [&_p]:mx-0 [&_p]:text-body',
+  'run-list list-none p-0 m-0 border-y border-border divide-y divide-border [&_>_li]:py-4',
 ].join(' ')
 
 const CARD_META_CLASS = [
-  'card-meta flex items-center gap-2 text-help text-muted-foreground [&_time]:ml-auto wrap-anywhere',
+  'card-meta mt-2 flex flex-wrap items-center gap-2 text-help text-muted-foreground wrap-anywhere',
 ].join(' ')
 
 const PLACE_SELF_CLASS = [
-  '[place-self:start_start] p-0 border-0 bg-transparent text-primary text-control font-[550] text-left',
-  'hover:underline hover:underline-offset-[3px]',
+  'flex min-h-11 items-center text-body font-medium leading-[1.6] text-foreground no-underline',
+  'wrap-anywhere hover:underline hover:underline-offset-4',
 ].join(' ')
 
 type MemoryListProps = {
@@ -50,14 +49,14 @@ export function MemoryList(
 
                 memory => (
                   <li key={memory.id}>
+                    <Link
+                      href={`/memories/${memory.id}`}
+                      prefetch={false}
+                      className={PLACE_SELF_CLASS}
+                    >
+                      {memory.title}
+                    </Link>
                     <div className={CARD_META_CLASS}>
-                      <Link
-                        href={`/memories/${memory.id}`}
-                        prefetch={false}
-                        className={PLACE_SELF_CLASS}
-                      >
-                        {memory.title}
-                      </Link>
                       {memory.isPrimary && <Badge variant="secondary">{t.primaryBadge}</Badge>}
                       <Badge variant="outline">{memory.kind}</Badge>
                       <span className={MUTED_CLASS_1}>{memory.project}</span>

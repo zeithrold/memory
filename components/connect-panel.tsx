@@ -1,10 +1,8 @@
 'use client'
 
 import type { Messages } from '@/lib/i18n/messages'
-import { Copy } from 'lucide-react'
-import { useState, useSyncExternalStore } from 'react'
-import { toast } from 'sonner'
-import { Button } from './ui/button'
+import { useSyncExternalStore } from 'react'
+import { CopyButton } from './copy-button'
 
 const CONNECT_GRID_CLASS = [
   'connect-grid grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_320px),_1fr))] gap-4 items-stretch',
@@ -53,29 +51,6 @@ const CONNECTION_CARD_CLASS_7 = [
   '[&_>_h2]:mb-5 [&_>_:last-child]:mb-0 [&_p]:text-body [&_p]:text-muted-foreground [&_p]:leading-[1.8]',
   '[&_>_code]:text-control [&_>_code]:wrap-anywhere',
 ].join(' ')
-
-type CopyButtonProps = { value: string, t: Messages }
-
-function CopyButton(
-  { value, t }: CopyButtonProps,
-) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        void navigator.clipboard.writeText(value).then(() => setCopied(true)).catch(
-          () => toast.error(t.copyFailed),
-        )
-      }}
-    >
-      <Copy size={14} />
-      {copied ? t.copied : t.copy}
-    </Button>
-  )
-}
 
 type ConnectPanelProps = { t: Messages }
 

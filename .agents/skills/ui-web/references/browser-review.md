@@ -8,6 +8,6 @@ Use semantic native controls and translated accessible/error/dialog names. Test 
 
 Full-page Axe scans cover page-level issues; targeted scans supplement them. Findings must fail the check. Explain reviewed exclusions in project-owned tests with a reason/follow-up rather than globally hiding failures. JSX a11y lint is disabled for ESLint 10 compatibility; browser accessibility work remains required. Axe covers only selected rules and the current DOM state.
 
-Review narrow/wide viewports, large text, long translations, themes and reduced motion. Check hidden actions, clipping and unexpected overflow. Test deterministic preference hydration separately from appearance.
+Review narrow/wide viewports, large text, long translations, themes and reduced motion. Check hidden actions, clipping and unexpected overflow. On emulated mobile, compare the document width with the requested viewport as well as the layout and visual viewports: overflowing content can expand `innerWidth` and make a `scrollWidth <= innerWidth` check pass incorrectly. Confirm the captured image retains the requested width. Test deterministic preference hydration separately from appearance.
 
 Capture screenshots as named attachments and retain failure traces/reports. Record browser, viewport, locale, theme, route and state in test names or metadata. Captures are review evidence; they are not maintained visual baselines or automatic design approval.

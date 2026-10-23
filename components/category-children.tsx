@@ -27,8 +27,9 @@ const CATALOG_CARD_GRID_CLASS = [
 const CATALOG_CATEGORY_CARD_CLASS = [
   'catalog-category-card flex flex-col gap-2 text-left bg-card border border-border rounded-md p-6',
   'cursor-pointer text-inherit [font:inherit] [transition:border-color_120ms_ease,_box-shadow_120ms_ease]',
-  'hover:border-foreground hover:shadow-[0_8px_24px_var(--hover-shadow)] disabled:opacity-[0.6]',
-  'disabled:cursor-not-allowed [&_p]:m-0 [&_p]:text-body [&_p]:line-clamp-3 [&_p]:overflow-hidden',
+  'hover:border-foreground hover:shadow-[0_8px_24px_var(--hover-shadow)] aria-disabled:opacity-60',
+  'aria-disabled:cursor-not-allowed aria-disabled:hover:border-border aria-disabled:shadow-none',
+  '[&_p]:m-0 [&_p]:text-body [&_p]:line-clamp-3 [&_p]:overflow-hidden',
 ].join(' ')
 
 type ChildCategoryCardProps = {
@@ -56,8 +57,13 @@ export function ChildCategoryCard(
                     key={child.id}
                     type="button"
                     className={CATALOG_CATEGORY_CARD_CLASS}
-                    disabled={busy}
-                    onClick={() => perform(openChild(child.id), t.loadError)}
+                    aria-disabled={busy}
+                    aria-busy={busy}
+                    onClick={() => {
+                      if (!busy) {
+                        perform(openChild(child.id), t.loadError)
+                      }
+                    }}
                   >
                     <div className="catalog-node-head flex items-center gap-3">
                       <strong>{child.label}</strong>
@@ -103,8 +109,8 @@ export function CategoryChildDialog(
 
           && (
             <>
-              <DialogHeader>
-                <DialogTitle>{childDetail.category.label}</DialogTitle>
+              <DialogHeader className="pr-12">
+                <DialogTitle className="wrap-anywhere">{childDetail.category.label}</DialogTitle>
                 <DialogDescription>{childDetail.category.slug}</DialogDescription>
               </DialogHeader>
               <CategoryFields category={childDetail.category} t={t} />

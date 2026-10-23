@@ -1,25 +1,27 @@
-const MUTED_CLASS = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
+'use client'
 
-const MUTED_CLASS_1 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
-const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
+import { ArrowLeft } from 'lucide-react'
+import { useMessages } from './i18n/use-messages'
+
 const PAGE_CLASS = [
   'page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
   'max-[640px]:px-4',
 ].join(' ')
+
 export function NotFoundContent(): React.JSX.Element {
+  const t = useMessages()
   return (
-    <div className={PAGE_CLASS}>
-      <p className={EYEBROW_CLASS}>404</p>
-      <h1>Not found</h1>
-      <p className={MUTED_CLASS}>
-        That path does not exist. API failures are documented one page per error code, and
-        the catalog lists every one of them.
-      </p>
-      <p className={MUTED_CLASS_1}>
-        <a href="/errors">Browse API errors</a>
-        {' · '}
-        <a href="/">Shared Memory</a>
-      </p>
-    </div>
+    <section className={PAGE_CLASS} aria-labelledby="not-found-heading">
+      <p className="text-help tracking-[.14em] font-semibold text-muted-foreground">404</p>
+      <h1 id="not-found-heading">{t.notFoundTitle}</h1>
+      <p className="max-w-[54ch] text-body leading-[1.8] text-muted-foreground">{t.notFoundDescription}</p>
+      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-control">
+        <a className="inline-flex min-h-11 items-center gap-2 font-medium" href="/memories">
+          <ArrowLeft size={16} aria-hidden="true" />
+          {t.back}
+        </a>
+        <a className="inline-flex min-h-11 items-center" href="/errors">{t.browseApiErrors}</a>
+      </div>
+    </section>
   )
 }

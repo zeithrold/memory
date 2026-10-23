@@ -8,20 +8,23 @@ import { Button } from './ui/button'
 type CopyButtonProps = { value: string, t: Messages }
 
 export function CopyButton({ value, t }: CopyButtonProps): React.JSX.Element {
-  const [copied, setCopied] = useState(false)
+  const [copiedValue, setCopiedValue] = useState<string | null>(null)
+  const copied = copiedValue === value
+  const copy = async (): Promise<void> => {
+    setCopiedValue(null)
+    await navigator.clipboard.writeText(value)
+    setCopiedValue(value)
+  }
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
       onClick={() => {
-        void navigator.clipboard
-          .writeText(value)
-          .then(() => setCopied(true))
-          .catch(() => toast.error(t.copyFailed))
+        copy().catch(() => toast.error(t.copyFailed))
       }}
     >
-      <Copy size={14} />
+      <Copy size={14} aria-hidden="true" />
       {copied ? t.copied : t.copy}
     </Button>
   )

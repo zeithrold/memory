@@ -2,6 +2,9 @@ import type { Messages } from './messages-types'
 
 export const zh: Messages = {
   preferencePersistenceError: '偏好设置在本次访问中有效，但浏览器无法保存。重新加载后可能恢复默认设置。',
+  notFoundTitle: '没有找到这一页',
+  notFoundDescription: '这个地址没有对应页面。每一种 API 错误都有独立的说明页面。',
+  browseApiErrors: '查看 API 错误说明',
   brand: 'Shared Memory',
   repositoryLabel: 'GitHub 仓库',
   tagline: '让上下文随你同行。',

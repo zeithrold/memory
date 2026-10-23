@@ -52,3 +52,27 @@ test('reduced motion removes menu animations and preserves keyboard focus', asyn
   await expect(appearance).toBeFocused()
   await expect(page.locator('[inert]')).toHaveCount(0)
 })
+
+test('public recovery keeps the compact brand and translated keyboard return at 320px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  const response = await page.goto('/missing-memory-page')
+  expect(response?.status()).toBe(404)
+  await page.getByRole('combobox', { name: 'Language', exact: true }).click()
+  await page.getByRole('option', { name: '简体中文', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('没有找到这一页')
+  await page.evaluate(async () => await document.fonts.ready)
+  const lines = await page.locator('.ztd-brand > span').evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    return new Set([
+      ...range.getClientRects(),
+    ].map(rect => Math.round(rect.y))).size
+  })
+  expect(lines).toBe(1)
+  await assertAccessible(page, info, { label: 'public-recovery-zh' })
+  await captureState(page, info, 'public-recovery-zh')
+  const back = page.getByRole('link', { name: '返回记忆', exact: true })
+  await back.focus()
+  await back.press('Enter')
+  await expect(page).toHaveURL(/\/memories$/u)
+})

@@ -7,19 +7,13 @@ import { memoryFooter } from '@/lib/frontend-config'
 import { FrontendLink } from './frontend-link'
 import { FrontendPersistenceNotice } from './frontend-persistence-notice'
 import { useMessages } from './i18n/use-messages'
+import { MEMORY_BRAND_CLASS, MEMORY_CHROME_CLASS } from './memory-chrome'
 import { BrowserObservability } from './observability'
 import { Toaster } from './ui/sonner'
 import { WorkspaceAccountControl } from './workspace-account-control'
 import { useWorkspace } from './workspace-context'
 import { WorkspaceNavigation } from './workspace-navigation'
 import { WorkspaceProvider } from './workspace-provider'
-
-const WORKSPACE_BRAND_CLASS = [
-  'max-sm:text-control max-sm:[&_>_svg]:hidden max-sm:[&_>_span]:whitespace-nowrap',
-  'max-[360px]:min-h-11',
-].join(' ')
-
-const WORKSPACE_CHROME_CLASS = ['max-[360px]:gap-1 max-[360px]:[&_.ztd-actions]:gap-1'].join(' ')
 
 const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
 
@@ -61,8 +55,8 @@ export default function WorkspaceShell(
       <Toaster theme={resolvedMode} containerAriaLabel={t.notifications} />
       <ApplicationShell
         brand={{ label: t.brand, homeHref: '/memories', mark: <Brain size={23} /> }}
-        brandClassName={WORKSPACE_BRAND_CLASS}
-        chromeClassName={WORKSPACE_CHROME_CLASS}
+        brandClassName={MEMORY_BRAND_CLASS}
+        chromeClassName={MEMORY_CHROME_CLASS}
         footer={memoryFooter(preferences.locale)}
         mainId="workspace-content"
         mainClassName="mx-auto w-full max-w-292"
@@ -92,7 +86,7 @@ export function PageHeading(
     <div className={PAGE_HEADING_CLASS}>
       <div>
         <span className={EYEBROW_CLASS}>{section}</span>
-        <h1>{title}</h1>
+        <h1 className="text-balance">{title}</h1>
         <p>{intro}</p>
       </div>
       {action}

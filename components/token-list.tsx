@@ -8,7 +8,7 @@ import { ConfirmAction } from './confirm-action'
 import { Badge } from './ui/badge'
 
 const TOKEN_ROW_CLASS = [
-  'token-row py-5 px-0 border-b border-border flex items-center justify-between gap-3 text-control',
+  'token-row grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 py-5 border-b border-border text-control',
   '[&_p]:text-muted-foreground [&_p]:wrap-anywhere [&_small]:text-muted-foreground',
   '[&_small]:wrap-anywhere',
 ].join(' ')
@@ -34,7 +34,7 @@ type TokenRowProps = {
 function TokenRow({ token, t, busy, setBusy, api, load }: TokenRowProps): React.JSX.Element {
   return (
     <div key={token.id} className={TOKEN_ROW_CLASS}>
-      <div>
+      <div className="min-w-0 wrap-anywhere">
         <strong>{token.name}</strong>
         <p>
           <code>
