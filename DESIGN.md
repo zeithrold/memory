@@ -33,7 +33,7 @@ Third-party network/privacy/mutability/CSP boundaries are documented in the migr
 
 The workspace uses left-aligned navigation with an explicit active underline, a compact task heading and a bounded search surface. Setup, empty and populated states use real product information; the empty library illustration carries no fictitious records. Empty initial results omit unavailable pagination while preserving navigation from later pages. Main content and navigation share one alignment grid. Catalog empty states use a bounded 224/192px minimum region with control-sized explanatory text. Normal resource notices use the semantic border and a polite status role; exceeded budgets retain the destructive alert treatment. Alert titles wrap so translated status text remains available.
 
-Body/control/help roles are 15/13/12px; editable fields stay 16px. Page titles cap at 32px on wide layouts and 26px on narrow layouts, with 18px empty-state headings. Type size changes preserve 44px controls, wrapping translations and 200% text reflow. Keep review captures in ignored artifacts and distinguish synthetic-session coverage from actual authentication or live service evidence.
+Body/control/help roles are 15/13/12px; editable fields stay 16px. Page titles cap at 32px on wide layouts and 26px on narrow layouts, with 18px empty-state headings. Type size changes preserve 44px controls, wrapping translations and 200% text reflow. At 360px and below, the signed-in appbar tightens spacing to keep the brand on one line while retaining 44px touch targets for appearance, language and account controls. Keep review captures in ignored artifacts and distinguish synthetic-session coverage from actual authentication or live service evidence.
 
 Paint literals belong in semantic token declarations. App roles reference installed
 shared tokens. Static CSS checking includes all installed styles, Tailwind declarations
@@ -42,7 +42,7 @@ keyboard focus, inert cleanup, motion and narrow reflow; token inventory is insu
 
 Use pnpm 11.22.0, `@ztd-me/eslint@0.1.5`, `@ztd-me/frontend-checks@0.1.3` and matching
 Playwright 1.62.0. The managed development Skills are pinned to Tools
-`405d732ed93488ff08568751e522c42537480752` in `zt.lock.json`; CI's check runner remains at
+`880e26363c8a3ec35c1e316edb30780c33bcecbc` in `zt.lock.json`; CI's check runner remains at
 `3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`. These pins are separate from the installed UI source.
 Use the installed [eight-dimension visual review](.agents/skills/ui-foundation/references/visual-design.md)
 with this contract's local role budgets and real workspace states. Preserve release-age gates, no-downgrade trust,

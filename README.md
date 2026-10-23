@@ -41,7 +41,7 @@ The skill supplies the retrieval and bounded automatic-capture policy. Its `scri
 Install the pinned CLI (requires Go >=1.24) and Chromium once, then run the aggregate:
 
 ```sh
-go install github.com/zeithrold/tools/cmd/zt@405d732ed93488ff08568751e522c42537480752
+go install github.com/zeithrold/tools/cmd/zt@880e26363c8a3ec35c1e316edb30780c33bcecbc
 pnpm exec playwright install chromium
 pnpm check
 pnpm test:artifacts
@@ -56,7 +56,7 @@ session affordances use a synthetic public domain and intercepted APIs, not real
 See [the frontend contract](DESIGN.md) for state coverage and artifact boundaries.
 
 The five development Skills selected in `zt.json` are pinned to Tools
-`405d732ed93488ff08568751e522c42537480752` with directory hashes in `zt.lock.json`.
+`880e26363c8a3ec35c1e316edb30780c33bcecbc` with directory hashes in `zt.lock.json`.
 `zt sync --root . --plan` previews updates before `zt sync --root .` and protects local edits.
 The product's `skills/shared-memory` Skill has separate ownership and is outside this sync.
 Read [DESIGN.md](DESIGN.md) and the installed

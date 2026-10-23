@@ -14,6 +14,13 @@ import { useWorkspace } from './workspace-context'
 import { WorkspaceNavigation } from './workspace-navigation'
 import { WorkspaceProvider } from './workspace-provider'
 
+const WORKSPACE_BRAND_CLASS = [
+  'max-sm:text-control max-sm:[&_>_svg]:hidden max-sm:[&_>_span]:whitespace-nowrap',
+  'max-[360px]:min-h-11',
+].join(' ')
+
+const WORKSPACE_CHROME_CLASS = ['max-[360px]:gap-1 max-[360px]:[&_.ztd-actions]:gap-1'].join(' ')
+
 const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
 
 const WORKSPACE_SECURITY_NOTE_CLASS = [
@@ -54,7 +61,8 @@ export default function WorkspaceShell(
       <Toaster theme={resolvedMode} containerAriaLabel={t.notifications} />
       <ApplicationShell
         brand={{ label: t.brand, homeHref: '/memories', mark: <Brain size={23} /> }}
-        brandClassName="max-sm:text-control max-sm:[&_>_svg]:hidden max-sm:[&_>_span]:wrap-normal"
+        brandClassName={WORKSPACE_BRAND_CLASS}
+        chromeClassName={WORKSPACE_CHROME_CLASS}
         footer={memoryFooter(preferences.locale)}
         mainId="workspace-content"
         mainClassName="mx-auto w-full max-w-292"
