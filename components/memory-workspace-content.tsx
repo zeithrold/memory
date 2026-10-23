@@ -15,12 +15,12 @@ import { SetupBanner } from './workspace-shell'
 const EYEBROW_CLASS = ['eyebrow text-help tracking-[2px] uppercase text-primary font-[650]'].join(' ')
 
 const PAGE_HEADING_CLASS = [
-  'page-heading flex items-center justify-between gap-6 mb-8 max-[1000px]:items-start',
-  'max-[1000px]:flex-col max-[1000px]:gap-2 flex-wrap wrap-anywhere',
+  'page-heading flex flex-wrap items-end justify-between gap-x-6 gap-y-4 mb-7 pb-6 border-b',
+  'border-border wrap-anywhere max-[640px]:items-start',
 ].join(' ')
 
 const PAGE_CLASS = [
-  'page max-w-328 m-auto pt-10 px-12 pb-12 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
+  'page max-w-328 m-auto pt-9 px-12 pb-10 max-[1000px]:py-8 max-[1000px]:px-6 max-[640px]:py-6',
   'max-[640px]:px-4',
 ].join(' ')
 
@@ -76,7 +76,7 @@ function MemoryWorkspaceHeading({ props }: MemoryWorkspaceHeadingProps): React.J
         disabled={props.authState !== 'ready' || props.busy}
         onClick={() => props.setEditing('new')}
       >
-        <Plus size={16} />
+        <Plus size={16} aria-hidden="true" />
         {props.t.newMemory}
       </Button>
     </div>

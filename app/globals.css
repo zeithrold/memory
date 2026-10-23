@@ -14,9 +14,9 @@
   }
 
   h1 {
-    font-size: clamp(26px, 3vw, 36px);
+    font-size: clamp(26px, 2.4vw, 32px);
     font-weight: 500;
-    letter-spacing: -1.3px;
+    letter-spacing: -.035em;
     line-height: 1.25;
     margin: 12px 0;
   }
@@ -87,6 +87,22 @@
     outline: 2px solid var(--ztd-focus);
     outline-offset: 2px;
   }
+
+  .empty-library-art { color: var(--ztd-muted-foreground); }
+
+  .empty-library-art .library-sheet  {
+    fill: var(--ztd-surface);
+    stroke: var(--ztd-border);
+  }
+
+  .empty-library-art .library-line  {
+    stroke: var(--ztd-muted-foreground);
+    opacity: .5;
+  }
+  .empty-library-art .library-connection { stroke: var(--ztd-accent); }
+  .memory-card { transition: border-color 180ms, box-shadow 180ms; }
+  .memory-card:focus-within { border-color: var(--ztd-accent); }
+  .memory-card:hover { box-shadow: 0 4px 16px var(--card-shadow); }
 
   .welcome {
     max-width: 600px;
