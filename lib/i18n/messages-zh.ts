@@ -143,7 +143,7 @@ export const zh: Messages = {
   unclassified: '未分类',
   noCategories: '还没有分类。',
   notConfigured:
-    '在下方配置模型端点后，Agent 才能整理这个记忆库。密钥会加密存储、只回显尾号，平台不承担任何推理费用。',
+    '配置模型端点后，Agent 才能整理这个记忆库。密钥会加密存储、只回显尾号，平台不承担任何推理费用。',
   proposals: '待决策建议',
   noProposals: '暂无待决策的建议。',
   evidence: '支持该建议的运行数',

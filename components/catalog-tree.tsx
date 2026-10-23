@@ -18,9 +18,9 @@ const MUTED_CLASS_3 = ['muted text-muted-foreground text-control leading-[1.9]']
 const MUTED_CLASS_4 = ['muted text-muted-foreground text-control leading-[1.9]'].join(' ')
 
 const EMPTY_STATE_CLASS = [
-  'empty-state min-h-[330px] flex flex-col items-center justify-center text-center py-10 px-4 [&_h2]:mt-1',
-  '[&_h2]:mx-0 [&_h2]:mb-2 [&_h2]:text-[length:19px] [&_p]:text-muted-foreground [&_p]:text-body',
-  '[&_p]:leading-[1.9] [&_p]:max-w-[350px] [&_p]:mt-0 [&_p]:mx-0 [&_p]:mb-6 max-[640px]:min-h-70',
+  'empty-state min-h-56 flex flex-col items-center justify-center text-center py-7 px-4 [&_h2]:mt-3',
+  '[&_h2]:mx-0 [&_h2]:mb-2 [&_h2]:text-[length:18px] [&_p]:text-muted-foreground [&_p]:text-control',
+  '[&_p]:leading-[1.8] [&_p]:max-w-[48ch] [&_p]:m-0 max-[640px]:min-h-48',
 ].join(' ')
 
 const CATALOG_CARD_GRID_CLASS = [
@@ -47,7 +47,7 @@ export function CatalogTreeCard(
 
           ? (
               <div className={EMPTY_STATE_CLASS}>
-                <FolderTree size={28} />
+                <FolderTree size={24} className="text-muted-foreground" aria-hidden="true" />
                 <h2>{t.noCategories}</h2>
                 <p className={MUTED_CLASS}>{t.notConfigured}</p>
               </div>

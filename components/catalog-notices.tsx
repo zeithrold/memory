@@ -1,7 +1,7 @@
 'use client'
 import type { CatalogSettings, CatalogView } from './catalog-types'
 import type { Messages } from '@/lib/i18n/messages'
-import { ShieldAlert } from 'lucide-react'
+import { Gauge, ShieldAlert } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
@@ -36,9 +36,13 @@ export function CatalogStats({ t, catalog }: CatalogStatsProps): React.JSX.Eleme
 function CatalogBudgetNotice(
   { settings, t }: CatalogBudgetNoticeProps,
 ): React.JSX.Element {
+  const BudgetIcon = settings.budgetExceeded ? ShieldAlert : Gauge
   return (
-    <Alert variant={settings.budgetExceeded ? 'destructive' : 'default'}>
-      <ShieldAlert />
+    <Alert
+      variant={settings.budgetExceeded ? 'destructive' : 'default'}
+      role={settings.budgetExceeded ? 'alert' : 'status'}
+    >
+      <BudgetIcon aria-hidden="true" />
       <AlertTitle>{t.dailyTokenBudget}</AlertTitle>
       <AlertDescription>
         {`${settings.todayTokens.toLocaleString()} / ${settings.dailyTokenBudget.toLocaleString()} ${t.modelTokens}`}

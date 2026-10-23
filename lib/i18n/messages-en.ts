@@ -163,7 +163,7 @@ export const en = {
   unclassified: 'Unclassified',
   noCategories: 'No categories yet.',
   notConfigured:
-    ('Configure a model endpoint below to let the agent organise this library. '
+    ('Configure a model endpoint to let the agent organise this library. '
       + 'The key is encrypted, shown back only as a hint, and the platform never '
       + 'pays for inference.'),
   proposals: 'Suggestions',
