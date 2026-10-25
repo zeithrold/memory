@@ -2,7 +2,9 @@ import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
 import { test } from '../e2e/font-preview'
+import { waitForFrontendReady } from '../e2e/frontend-ready'
 import { mockWorkspace } from './fixture'
+import { expectPollingTick, installTestClock, resumeTestClock } from './polling-clock'
 import { verifyAndDismissToast } from './toast-assertions'
 
 async function checkFocusTrap(page: Page, dialog: Locator): Promise<void> {
@@ -24,11 +26,18 @@ async function settleDialogMotion(dialog: Locator): Promise<void> {
 
 test('mocked session: polling retains draft and keyboard run dialog is translated', async ({ page }, info) => {
   const state = await mockWorkspace(page)
+  // The settings panel polls every 3s. Driven by a page-local clock, the interval
+  // costs milliseconds instead of wall-clock seconds, while the request itself,
+  // its mock response and the render it causes stay real. The clock is installed
+  // before navigation because the polling interval starts when the catalog mounts.
+  await installTestClock(page)
   await page.goto('/catalog')
+  await waitForFrontendReady(page)
   await page.getByRole('button', { name: 'Configure', exact: true }).click()
   await page.locator('#catalog-model').fill('unsaved-draft')
-  await expect.poll(() => state.settingsReads, { timeout: 10000 }).toBeGreaterThan(1)
+  await expectPollingTick(page, () => state.settingsReads)
   await expect(page.locator('#catalog-model')).toHaveValue('unsaved-draft')
+  await resumeTestClock(page)
   await assertAccessible(page, info, { label: 'catalog-settings' })
   state.run.status = 'succeeded'
   state.run.finishedAt = state.run.startedAt

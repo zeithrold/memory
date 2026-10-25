@@ -57,8 +57,9 @@ The seven local adaptations are `styles/tokens.css`, `styles/primitives.css`,
 uses the current Tools registry mapping; the other 70 installed files match the
 accepted public graph.
 
-The exact published `@ztd-me/frontend-checks@0.1.3` package supplies CSS imports,
-Tailwind custom variants and application utility inspection. Its TypeScript runtime
+The exact published `@ztd-me/frontend-checks@0.1.4` package supplies CSS imports,
+Tailwind custom variants and application utility inspection, and attaches browser
+Axe/screenshot evidence by file path. Its TypeScript runtime
 dependency belongs to the published package. The consumer adds no checker patch or
 package extension; dependency trust and lifecycle policies remain enforced by the
 workspace config. Radix and Vaul retain their independently reviewed patches.

@@ -40,7 +40,7 @@ shared tokens. Static CSS checking includes all installed styles, Tailwind decla
 and only the exact Radix runtime custom properties. Verify actual palette contrast,
 keyboard focus, inert cleanup, motion and narrow reflow; token inventory is insufficient.
 
-Use pnpm 11.22.0, `@ztd-me/eslint@0.1.5`, `@ztd-me/frontend-checks@0.1.3` and matching
+Use pnpm 11.22.0, `@ztd-me/eslint@0.1.5`, `@ztd-me/frontend-checks@0.1.4` and matching
 Playwright 1.62.0. The managed development Skills are pinned to Tools
 `7fd78ba96830452502adbda07575bb250af914ba` in `zt.lock.json`; CI's check runner remains at
 `3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`. These pins are separate from the installed UI source.
@@ -53,12 +53,20 @@ Native gates remain lint, CSS, types, units, unsigned production Worker/bundle b
 unsigned browser suite and configured synthetic-session browser suite. Tests exercise
 SSR without JavaScript, hydration, storage boundaries, preferences, all palettes/modes/
 locales, keyboard/dialogs, full-page Axe, application CRUD/recovery and catalog polling.
+The shell announces hydration with `data-frontend-ready` so a browser test waits for real
+interactivity instead of retrying a key press, and preview origins come from one source
+that an environment override can move beside another checkout's ports. Synthetic-session
+tests drive the product's 3s catalog poll with a page-local clock: nothing may fire at
+2999ms, the boundary issues exactly one real request through the same mock route, and the
+clock is handed back to the browser before motion, toasts and Axe, which keep real timers.
 Actual remote Noto glyphs/weights/complete emoji and English/Chinese cold/warm transfer
 caps are required in CI. Cloud-only local font preview cannot establish remote acceptance.
 
 Retain transient JSON, captures, traces, videos and CSS/check reports only under ignored
 `.zt/artifacts` and CI artifacts. Durable docs and source provenance remain committed.
-A deliberate expected-failure probe verifies evidence retention. Visual captures support
+A deliberate expected-failure probe verifies evidence retention and reads the complete
+Axe engine result from the failed attempt itself, whether the shared helper embeds it
+or attaches the file. Visual captures support
 owner review, not automatic visual approval. Authenticated production CSP, real Access,
 remote models/bindings and deployment are not established by local synthetic checks.
 Production deployment follows the existing main-push workflow after green checks.

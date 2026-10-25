@@ -1,6 +1,7 @@
 import type { TokenSummary } from '../../lib/contracts'
 import { expect } from '@playwright/test'
 import { test } from '../e2e/font-preview'
+import { waitForFrontendReady } from '../e2e/frontend-ready'
 import { mockWorkspace } from './fixture'
 import { verifyAndDismissToast } from './toast-assertions'
 
@@ -21,10 +22,9 @@ for (const mode of ['missing', 'denied'] as const) {
     const state = await mockWorkspace(page)
     await page.goto('/connect')
     const appearance = page.getByRole('button', { name: 'Appearance', exact: true })
-    await expect.poll(async () => {
-      await appearance.press('Enter')
-      return await page.getByRole('menu').isVisible()
-    }).toBe(true)
+    await waitForFrontendReady(page)
+    await appearance.press('Enter')
+    await expect(page.getByRole('menu')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(appearance).toBeFocused()
     const copy = page.getByRole('button', { name: 'Copy', exact: true }).first()

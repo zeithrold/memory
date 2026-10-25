@@ -2,6 +2,7 @@ import type { Page, TestInfo } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
 import { test } from '../e2e/font-preview'
+import { configuredOrigin } from '../preview-origin'
 import { mockWorkspace } from './fixture'
 import { verifyAndDismissToast } from './toast-assertions'
 
@@ -99,5 +100,5 @@ test('mocked session keeps logout with Memory Access and returns to this origin'
   await expect(page.getByText('Original decision', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect.poll(() => logout).toBe('https://memory-browser-preview.cloudflareaccess.com/cdn-cgi/access/logout'
-    + '?returnTo=http%3A%2F%2Flocalhost%3A3101')
+    + `?returnTo=${encodeURIComponent(configuredOrigin)}`)
 })

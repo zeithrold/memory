@@ -311,7 +311,7 @@ pnpm exec wrangler secret put SENTRY_DSN
 
 ## 9. Deployment acceptance
 
-The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Access configuration. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production Access team domain. These tests do not need a Cloudflare API token.
+The automated `pnpm test:e2e` suite covers the unsigned preview and rejected unauthenticated requests. Build it with `NEXT_PUBLIC_ACCESS_TEAM_DOMAIN='' pnpm build` first. It runs the built Worker on port 3100 using `tests/e2e/wrangler.json`, which has only local bindings and no Cron, AI, Vectorize, or Access configuration. `tests/preview-origin.ts` is the single source of those origins: set `MEMORY_E2E_PORT` (preview) or `MEMORY_E2E_MOCK_PORT` (configured session) to run the suites beside another checkout that already holds the default ports. GitHub Actions builds this preview explicitly; the deployment step rebuilds separately with the production Access team domain. These tests do not need a Cloudflare API token.
 
 - Sign in/out with real Access sessions; verify invalid/expired JWTs and unapproved origins are rejected.
 - Two users cannot read, search, edit, delete, or inspect each other's history. A project-restricted token cannot read other projects, including `global`.

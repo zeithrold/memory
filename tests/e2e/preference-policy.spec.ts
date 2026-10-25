@@ -3,12 +3,13 @@ import type { FrontendPreferences } from '@/components/ui/ztd-me'
 import { expect } from '@playwright/test'
 import { preferenceCookie } from '@/components/ui/ztd-me'
 import { memoryFrontendBootstrap, memoryPreferencePolicy } from '../../lib/frontend-preferences'
+import { previewOrigin } from '../preview-origin'
 import { test } from './font-preview'
 
 const selected = { version: 1, mode: 'dark', palette: 'ocean', locale: 'zh-CN' } as const
 const production = 'https://memory.ztd.me'
 const preview = 'https://preview.memory.ztd.me'
-const development = 'http://localhost:3100'
+const development = previewOrigin
 
 test('production sharing and preview/development isolation', async ({ context, page }) => {
   // Every request is synthetic; no production origin is contacted.

@@ -16,7 +16,7 @@ it is not a transient review report. `scripts/verify-ui-source.ts` verifies that
 receipt before every native profile. Source, MIT/shadcn/Noto notices, pnpm dependency
 pins and the native lock are committed together. No `@ztd-me/frontend` runtime,
 source tarball dependency or font binary is required. Verification helpers remain
-`@ztd-me/frontend-checks@0.1.3`.
+`@ztd-me/frontend-checks@0.1.4`.
 
 The installed source provides compact 44px control hit targets, smaller visible
 hover surfaces, soft borders and menu enter/exit motion. Reduced motion removes
@@ -189,7 +189,7 @@ requires actual Google Fonts browser delivery and the approved caps.
 Public `@ztd-me/eslint@0.1.5` supplies the shared type-alias rule and virtual
 Markdown/TS project boundary. Memory uses the exact normal registry dependency,
 with ESLint 10.11 and TypeScript 6.0.3 satisfying the published peers. The exact
-`@ztd-me/frontend-checks@0.1.3` release supplies Tailwind/CSS validation directly,
+`@ztd-me/frontend-checks@0.1.4` release supplies Tailwind/CSS validation directly,
 with no checker patch or package extension. No tarball/path dependency, new trust
 exception or release-age bypass is used.
 

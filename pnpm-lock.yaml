@@ -143,8 +143,8 @@ importers:
         specifier: 0.1.5
         version: 0.1.5(@typescript-eslint/typescript-estree@8.71.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))(globals@17.12.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(vite@8.3.0(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
       '@ztd-me/frontend-checks':
-        specifier: 0.1.3
-        version: 0.1.3(@playwright/test@1.62.0)(playwright-core@1.62.0)(supports-color@10.2.2)
+        specifier: 0.1.4
+        version: 0.1.4(@playwright/test@1.62.0)(playwright-core@1.62.0)(supports-color@10.2.2)
       eslint:
         specifier: ^10.11.0
         version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
@@ -2494,8 +2494,8 @@ packages:
       eslint: ^10.11.0
       typescript: '>=5.4.0 <6.1.0'
 
-  '@ztd-me/frontend-checks@0.1.3':
-    resolution: {integrity: sha512-chTZQVN0XeUxAoPIAj9Kh5L1yUxzfdzE5A3bMwxLnmbUqBJXg9SUsdq9G/uEwv73xEhcwB0fOFxZQfqAjjTwcg==}
+  '@ztd-me/frontend-checks@0.1.4':
+    resolution: {integrity: sha512-JheNgZDznZLMpNsH1yqu4cJt4txqqr+k0giSpMpWWKrobCzDwwxz8GysLzKWDRnbOr9BTyYYNLUgCOPwit/5uQ==}
     engines: {node: '>=22.14.0'}
     hasBin: true
     peerDependencies:
@@ -7374,7 +7374,7 @@ snapshots:
       - ts-declaration-location
       - vitest
 
-  '@ztd-me/frontend-checks@0.1.3(@playwright/test@1.62.0)(playwright-core@1.62.0)(supports-color@10.2.2)':
+  '@ztd-me/frontend-checks@0.1.4(@playwright/test@1.62.0)(playwright-core@1.62.0)(supports-color@10.2.2)':
     dependencies:
       '@axe-core/playwright': 4.13.0(playwright-core@1.62.0)
       '@playwright/test': 1.62.0
