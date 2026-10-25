@@ -343,7 +343,7 @@
     },
     {
       "path": "components/ui/ztd-me/README.md",
-      "sha256": "7ca306f42d55c389a8aec6742e02c0c471f203ff3f33418695a30ac3063a5676",
+      "sha256": "07d98261cf34da3f21d964090a0485ef8fddcfd05b27eb84df1b26a14a864c5a",
       "reason": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
     },
     {
@@ -377,7 +377,7 @@
     "kind": "verified-public-source",
     "sourceSha": "9abea5a57b97f63109fb7dc5255543b53629c3ba",
     "registryItemSha256": "0ea6c065dc4da6608fb8b2beb817b8607c03ad694f40af1a49160971c804ddd4",
-    "inventorySha256": "9a86bb4a27b2a2a2443a1f8774c1b539deb037de3c185de2fd882183fb7963bf",
+    "inventorySha256": "7c450001a8e225d67e3c99fc4912c3f97170b9d5c5f4cb13ecc0c8a8493ed6f6",
     "publicInstallationVerified": true,
     "dependencies": [
       "react@19.3.0",
@@ -579,7 +579,7 @@
       {
         "path": "components/ui/ztd-me/README.md",
         "upstreamSha256": "60fc88932685506d01aeab99bc65413526c02595f4024b62c4c35a4a4fd56b4d",
-        "sha256": "7ca306f42d55c389a8aec6742e02c0c471f203ff3f33418695a30ac3063a5676",
+        "sha256": "07d98261cf34da3f21d964090a0485ef8fddcfd05b27eb84df1b26a14a864c5a",
         "adaptation": "Local Tools typography candidate: sync the requested 15/13/12/19px interface roles, 17px reading role and independent 16px editable fields through the canonical registry mapping; retain the accepted public source pin and CI receipt."
       },
       {

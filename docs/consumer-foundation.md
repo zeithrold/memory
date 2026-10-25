@@ -57,6 +57,15 @@ The seven local adaptations are `styles/tokens.css`, `styles/primitives.css`,
 uses the current Tools registry mapping; the other 70 installed files match the
 accepted public graph.
 
+`README.md` also carries the delivered checker statement, so it was updated from the
+local Tools `docs/ui-frontend-checks-version` branch to name
+`@ztd-me/frontend-checks@0.1.4`. This is a reviewed local adaptation, not a source
+pin migration: `ui-source.lock.json` still records `sourceSha`
+`9abea5a57b97f63109fb7dc5255543b53629c3ba`, the same 77 `upstreamSha256` values and
+the same `registryItemSha256`, and only the adaptation hash and its inventory digest
+follow the installed file. A future verified public source revision replaces that
+adaptation with the upstream text.
+
 The exact published `@ztd-me/frontend-checks@0.1.4` package supplies CSS imports,
 Tailwind custom variants and application utility inspection, and attaches browser
 Axe/screenshot evidence by file path. Its TypeScript runtime
