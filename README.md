@@ -55,12 +55,18 @@ browser variants when run separately. Builds clear Access/Sentry credentials; mo
 session affordances use a synthetic public domain and intercepted APIs, not real auth.
 See [the frontend contract](DESIGN.md) for state coverage and artifact boundaries.
 
-The five development Skills selected in `zt.json` are pinned to Tools
-`7fd78ba96830452502adbda07575bb250af914ba` with directory hashes in `zt.lock.json`.
-`zt sync --root . --plan` previews updates before `zt sync --root .` and protects local edits.
-The product's `skills/shared-memory` Skill has separate ownership and is outside this sync.
-Read [DESIGN.md](DESIGN.md) and the installed
-[visual review workflow](.agents/skills/ui-foundation/references/visual-design.md) for UI work.
+The five generic development Skills (`js-ts-testing`, `ui-foundation`, `ui-web`,
+`frontend-engineering`, `frontend-verification`) are installed once for the current user in
+`~/.agents/skills` from Tools
+[`7fd78ba96830452502adbda07575bb250af914ba`](https://github.com/zeithrold/tools/tree/7fd78ba96830452502adbda07575bb250af914ba/skills);
+this repository keeps no copy, and `zt.json` selects modules and native commands only.
+Selection lives in the user-global `~/.agents/zt.json` or an explicit `zt sync --skills` list
+served by the new global `zt sync` in the Tools source working tree, which is not released yet;
+the `zt` pin above keeps running native checks and has no global flags.
+`zt.lock.json` stays as an empty retired lock because the verification metadata `pnpm check` writes hashes it.
+The product's `skills/shared-memory` Skill has separate ownership and is outside any sync.
+Read [DESIGN.md](DESIGN.md) and `ui-foundation`'s global
+[visual review workflow](https://github.com/zeithrold/tools/blob/7fd78ba96830452502adbda07575bb250af914ba/skills/ui-foundation/references/visual-design.md) for UI work.
 CI's check runner stays pinned to `3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`; it does not sync Skills.
 CI retains zt reports, CSS findings, full Axe scans and browser captures in
 `.zt/artifacts`, including failure traces/screenshots/videos. `pnpm test:artifacts`

@@ -41,10 +41,16 @@ and only the exact Radix runtime custom properties. Verify actual palette contra
 keyboard focus, inert cleanup, motion and narrow reflow; token inventory is insufficient.
 
 Use pnpm 11.22.0, `@ztd-me/eslint@0.1.5`, `@ztd-me/frontend-checks@0.1.4` and matching
-Playwright 1.62.0. The managed development Skills are pinned to Tools
-`7fd78ba96830452502adbda07575bb250af914ba` in `zt.lock.json`; CI's check runner remains at
+Playwright 1.62.0. The generic development Skills come from Tools
+[`7fd78ba96830452502adbda07575bb250af914ba`](https://github.com/zeithrold/tools/tree/7fd78ba96830452502adbda07575bb250af914ba/skills)
+and are installed once for the current user in `~/.agents/skills`; this repository keeps no
+copy, and `zt.lock.json` is an empty retired lock kept only as metadata input. Selection
+lives in the user-global `~/.agents/zt.json` or an explicit global `zt sync --skills` list
+from the new CLI in the Tools source working tree, which is not released yet; the old CLI pin
+keeps running native checks and gains no global flags. CI's check runner remains at
 `3f9a3a7d33befc5a954ba1e86d3aa6d72e2c762f`. These pins are separate from the installed UI source.
-Use the installed [eight-dimension visual review](.agents/skills/ui-foundation/references/visual-design.md)
+Use the globally installed
+[eight-dimension visual review](https://github.com/zeithrold/tools/blob/7fd78ba96830452502adbda07575bb250af914ba/skills/ui-foundation/references/visual-design.md)
 with this contract's local role budgets and real workspace states. Preserve release-age gates, no-downgrade trust,
 the exact semver@6.3.1 exception and existing build grants. The Radix Select patch is
 declaration-only. Strict UI library checking is required alongside application types.

@@ -1,25 +1,4 @@
 {
   "schemaVersion": 1,
-  "skills": {
-    "frontend-engineering": {
-      "version": "v0.0.0-20261023155714-7fd78ba96830",
-      "sha256": "3f93cd34901080c1cd1fac43edf85cc5860af679ded3ea36639ec7a0a82ad2ee"
-    },
-    "frontend-verification": {
-      "version": "v0.0.0-20261023155714-7fd78ba96830",
-      "sha256": "0743bdd79dd0bb17aaa0ca23eb9825bb76c6906fe5c8ab0275072a1d9f25a183"
-    },
-    "js-ts-testing": {
-      "version": "v0.0.0-20261023155714-7fd78ba96830",
-      "sha256": "3f692344475f0e5338104fecafc4341924b973c76735ae1ce90f217c1c206191"
-    },
-    "ui-foundation": {
-      "version": "v0.0.0-20261023155714-7fd78ba96830",
-      "sha256": "8e0d46dcc833f9a613ad0d03b06082d41bf46c7264014fd7a432ae1deb489fc3"
-    },
-    "ui-web": {
-      "version": "v0.0.0-20261023155714-7fd78ba96830",
-      "sha256": "dbe6b34467275d390296da5b2bb7a1a84aa5b0b4f9948bc587cf1a99ba9903e8"
-    }
-  }
+  "skills": {}
 }
