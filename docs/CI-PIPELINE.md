@@ -26,6 +26,14 @@ integration. The final integration gate runs the deliberate failure-evidence pro
 It must retain exactly the expected Axe failure, complete scan, reports, trace,
 screenshot and video, then exit successfully. Any additional failure or missing
 artifact fails the required native profile. No test or business assertion is removed.
+The probe reads the complete engine result - engine name and version plus all four
+rule arrays - from the file the installed `@ztd-me/frontend-checks@0.1.4` `path`
+attachment records, or from an embedded `body` when a label is too long for
+Playwright's name-derived file, and takes the trace, screenshot and video from that
+same failed attempt. A recording path must resolve inside this run's evidence
+directory, so `/tmp` copies from a prior run, `../` hops or symlinks cannot lend the
+probe evidence. The shared artifact settings also write observational
+`test-timings.json` beside the reports; those durations are diagnostics, not budgets.
 
 Memory keeps all branch pushes and PRs, versioned Chromium caching, 14-day artifacts
 and independent actual Google Fonts checks. Those extra checks preserve UI source

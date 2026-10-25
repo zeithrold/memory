@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test'
+import { previewOrigin } from '../preview-origin'
 import { test } from './font-preview'
 
 test(
@@ -163,14 +164,14 @@ test(
       status: 401,
       title: 'Unauthorized',
       instance: '/api/v1/memories',
-      type: 'http://localhost:3100/errors/unauthorized',
+      type: `${previewOrigin}/errors/unauthorized`,
     })
     const mcp = await request.post('/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } })
     expect(mcp.status()).toBe(401)
     expect(mcp.headers()['www-authenticate']).toContain('resource_metadata=')
     expect(await mcp.json()).toMatchObject({
       code: 'UNAUTHORIZED',
-      type: 'http://localhost:3100/errors/unauthorized',
+      type: `${previewOrigin}/errors/unauthorized`,
     })
   },
 )
@@ -185,7 +186,7 @@ test(
     expect(await discovery.json()).toMatchObject({
       code: 'AUTH_NOT_CONFIGURED',
       status: 503,
-      type: 'http://localhost:3100/errors/authorization-not-configured',
+      type: `${previewOrigin}/errors/authorization-not-configured`,
     })
     const scoped = await request.get('/.well-known/oauth-protected-resource/mcp')
     expect(scoped.status()).toBe(503)

@@ -1,12 +1,13 @@
 import type { BrowserContext, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { previewOrigin } from '../preview-origin'
 import { test } from './font-preview'
 import { observePreferenceStorage, retainedStorage } from './preference-storage-fixture'
 import { chooseAppearance, chooseChinese, preferenceKey } from './preferences-fixture'
 
 const selected = { version: 1, mode: 'dark', palette: 'ocean', locale: 'zh-CN' } as const
 const defaults = { version: 1, mode: 'system', palette: 'neutral', locale: 'en' } as const
-const retiredLocale = { name: 'locale', value: 'zh-CN', url: 'http://localhost:3100' }
+const retiredLocale = { name: 'locale', value: 'zh-CN', url: previewOrigin }
 const productionValue = encodeURIComponent(JSON.stringify(selected))
 
 for (const scenario of [
@@ -50,11 +51,11 @@ for (const scenario of [
 async function seedPreferenceCookies(context: BrowserContext, value: string | null): Promise<void> {
   await context.addCookies([
     retiredLocale,
-    { name: 'ztd.frontend.v1', value: productionValue, url: 'http://localhost:3100' },
+    { name: 'ztd.frontend.v1', value: productionValue, url: previewOrigin },
   ])
   if (value !== null) {
     await context.addCookies([
-      { name: preferenceKey, value, url: 'http://localhost:3100' },
+      { name: preferenceKey, value, url: previewOrigin },
     ])
   }
 }

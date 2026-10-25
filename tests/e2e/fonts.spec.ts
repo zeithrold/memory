@@ -1,6 +1,7 @@
 import type { Browser, Page, TestInfo } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { previewOrigin } from '../preview-origin'
 import { observeFonts } from './font-observation'
 import { configureFontPreview, localFontPreview, test } from './font-preview'
 import { addFontSpecimens, renderedFonts, renderedWeight } from './font-specimens'
@@ -105,7 +106,7 @@ async function verifyBudget(browser: Browser, info: TestInfo, locale: string, co
       {
         name: preferenceKey,
         value: encodeURIComponent(JSON.stringify({ version: 1, mode: 'light', palette: 'neutral', locale })),
-        url: 'http://localhost:3100',
+        url: previewOrigin,
       },
     ])
     const page = await context.newPage()
@@ -113,7 +114,7 @@ async function verifyBudget(browser: Browser, info: TestInfo, locale: string, co
     const sample = await transferProfile(page)
     for (const phase of ['cold', 'warm']) {
       const resources = await sample(phase, async () => phase === 'cold'
-        ? await page.goto('http://localhost:3100/memories')
+        ? await page.goto(`${previewOrigin}/memories`)
         : await page.reload())
       const bytes = resources.reduce((total, resource) => total + resource.httpResponseBytes, 0)
       const cap = phase === 'cold' ? coldCap : 10_000

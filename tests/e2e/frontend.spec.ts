@@ -1,6 +1,9 @@
 import { expect } from '@playwright/test'
 import { assertAccessible, captureState } from '@ztd-me/frontend-checks/playwright'
+import { FRONTEND_READY_ATTRIBUTE } from '../../lib/frontend-ready'
+import { previewOrigin } from '../preview-origin'
 import { test } from './font-preview'
+import { waitForFrontendReady } from './frontend-ready'
 import { chooseAppearance, chooseChinese, preferenceKey } from './preferences-fixture'
 
 test('shared SSR selection, footer and landmarks survive route navigation', async ({ context, page }) => {
@@ -8,11 +11,14 @@ test('shared SSR selection, footer and landmarks survive route navigation', asyn
   page.on('pageerror', error => errors.push(error.message))
   const selection = { version: 1, mode: 'dark', palette: 'ocean', locale: 'zh-CN' }
   await context.addCookies([
-    { name: preferenceKey, value: encodeURIComponent(JSON.stringify(selection)), url: 'http://localhost:3100' },
-    { name: 'locale', value: 'en', url: 'http://localhost:3100' },
+    { name: preferenceKey, value: encodeURIComponent(JSON.stringify(selection)), url: previewOrigin },
+    { name: 'locale', value: 'en', url: previewOrigin },
   ])
   const response = await page.goto('/memories')
   expect(await response?.text()).toContain('data-frontend-mode="dark"')
+  // The readiness marker is hydration evidence only, never server markup.
+  expect(await response?.text()).not.toContain(FRONTEND_READY_ATTRIBUTE)
+  await waitForFrontendReady(page)
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN')
   await expect(page.locator('html')).toHaveAttribute('data-frontend-palette', 'ocean')
   await expect(page.getByRole('main')).toHaveCount(1)
@@ -33,8 +39,11 @@ test('system colors resolve before hydration and explicit mode remains fixed', a
   await page.route('**/_next/static/**/*.js', async route => await route.abort())
   await page.goto('/memories')
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).colorScheme)).toBe('dark')
+  // Without JavaScript the shell is server-rendered only: nothing is interactive.
+  await expect(page.locator('html')).not.toHaveAttribute(FRONTEND_READY_ATTRIBUTE, 'true')
   await page.unroute('**/_next/static/**/*.js')
   await page.reload()
+  await waitForFrontendReady(page)
   await chooseAppearance(page, 'Light')
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).colorScheme)).toBe('light')
   await chooseAppearance(page, 'System')
